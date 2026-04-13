@@ -1,4 +1,4 @@
-package com.example.hot6novelcraft.domain.chatmessage;
+package com.example.hot6novelcraft.domain.chatmessage.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -25,7 +25,7 @@ public class ChatMessage extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    private String file_url;
+    private String fileUrl;
 
     @Column(nullable = false)
     @Enumerated(value = EnumType.STRING)
