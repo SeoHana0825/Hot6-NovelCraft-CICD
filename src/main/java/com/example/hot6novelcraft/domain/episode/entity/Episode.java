@@ -2,15 +2,14 @@ package com.example.hot6novelcraft.domain.episode.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "episodes")
 public class Episode extends BaseEntity {
@@ -25,7 +24,7 @@ public class Episode extends BaseEntity {
     @Column(nullable = false)
     private int episodeNumber;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = 20)
     private String title;
 
     @Column(columnDefinition = "TEXT")
@@ -41,18 +40,23 @@ public class Episode extends BaseEntity {
     @Column(nullable = false)
     private EpisodeStatus status;
 
-    private LocalDateTime publishedAt;  // 발행 일시
+    private LocalDateTime publishedAt;
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    private Long likeCount;
+    @Column(nullable = false)
+    private Long likeCount = 0L;
+
+    @Column(nullable = false)
+    private boolean isDeleted = false;
 
     @PrePersist
     protected void onCreate() {
         updatedAt = LocalDateTime.now();
         status = EpisodeStatus.DRAFT;
         likeCount = 0L;
+        isDeleted = false;
     }
 
     @PreUpdate
@@ -60,16 +64,39 @@ public class Episode extends BaseEntity {
         updatedAt = LocalDateTime.now();
     }
 
-    @Builder
-    public Episode(Long novelId, int episodeNumber, String title,
-                   String content, boolean isFree, int pointPrice) {
-        this.novelId = novelId;
-        this.episodeNumber = episodeNumber;
-        this.title = title;
-        this.content = content;
-        this.isFree = isFree;
-        this.pointPrice = pointPrice;
+    // 회차 생성 (정적 팩토리)
+    public static Episode createEpisode(Long novelId, int episodeNumber, String title,
+                                        String content, boolean isFree, int pointPrice) {
+        return Episode.builder()
+                .novelId(novelId)
+                .episodeNumber(episodeNumber)
+                .title(title)
+                .content(content)
+                .isFree(isFree)
+                .pointPrice(pointPrice)
+                .build();
     }
 
+    // 회차 수정
+    public void update(String title, String content) {
+        if (title != null) this.title = title;
+        if (content != null) this.content = content;
+    }
 
+    // 임시저장
+    public void saveDraft(String title, String content) {
+        if (title != null) this.title = title;
+        if (content != null) this.content = content;
+    }
+
+    // 발행
+    public void publish() {
+        this.status = EpisodeStatus.PUBLISHED;
+        this.publishedAt = LocalDateTime.now();
+    }
+
+    // 삭제 (소프트 딜리트)
+    public void delete() {
+        this.isDeleted = true;
+    }
 }
