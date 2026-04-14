@@ -4,6 +4,7 @@ import com.example.hot6novelcraft.common.dto.BaseResponse;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelCreateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelUpdateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelCreateResponse;
+import com.example.hot6novelcraft.domain.novel.dto.response.NovelDeleteResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelUpdateResponse;
 import com.example.hot6novelcraft.domain.novel.service.NovelService;
 import jakarta.validation.Valid;
@@ -46,6 +47,21 @@ public class NovelController {
 
         return ResponseEntity.ok(
                 BaseResponse.success("200", "소설 수정 성공", response)
+        );
+    }
+
+    /**
+     * 소설 삭제
+     * 정은식
+     */
+    @DeleteMapping("/{novelId}")
+    public ResponseEntity<BaseResponse<NovelDeleteResponse>> deleteNovel(
+            @PathVariable Long novelId
+    ) {
+        NovelDeleteResponse response = novelService.deleteNovel(novelId);
+
+        return ResponseEntity.ok(
+                BaseResponse.success("200", "소설 삭제 성공", response)
         );
     }
 }

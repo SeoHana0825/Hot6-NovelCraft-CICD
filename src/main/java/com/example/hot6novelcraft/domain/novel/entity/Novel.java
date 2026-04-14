@@ -84,4 +84,9 @@ public class Novel extends BaseEntity {
         this.genre = genre;
         this.tags = tags;
     }
+
+    // 소설 삭제 (소프트 딜리트)
+    public void delete() {
+        this.isDeleted = true;
+    }
 }
