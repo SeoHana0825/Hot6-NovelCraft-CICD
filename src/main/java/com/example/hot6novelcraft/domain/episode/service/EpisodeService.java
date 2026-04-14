@@ -38,6 +38,11 @@ public class EpisodeService {
         if (episodeRepository.existsByNovelIdAndEpisodeNumber(novelId, request.episodeNumber())) {
             throw new ServiceErrorException(EpisodeExceptionEnum.EPISODE_NUMBER_DUPLICATE);
         }
+        // 회차 번호 순서 검증 (ex : 1,2,3 ...10)
+        int lastEpisodeNumber = episodeRepository.countByNovelId(novelId);
+        if (request.episodeNumber() != lastEpisodeNumber + 1) {
+            throw new ServiceErrorException(EpisodeExceptionEnum.EPISODE_NUMBER_NOT_SEQUENTIAL);
+        }
 
         // 무료/유료 자동 (1,2화 무료 / 3화부터 200포인트)
         boolean isFree = request.episodeNumber() <= FREE_EPISODE_LIMIT;
