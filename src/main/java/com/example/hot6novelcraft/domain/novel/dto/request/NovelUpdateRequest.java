@@ -23,7 +23,7 @@ public record NovelUpdateRequest(
 
         @NotNull(message = "태그는 필수입니다.")
         @Size(min = 1, message = "태그는 최소 1개 이상 선택해야 합니다.")
-        List<MainTag> tags
+        List<@NotNull(message = "태그에 null 값을 포함할 수 없습니다.") MainTag> tags
 
 ) {
     public String tagsToString() {
