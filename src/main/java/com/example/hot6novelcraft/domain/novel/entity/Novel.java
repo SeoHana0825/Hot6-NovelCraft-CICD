@@ -2,15 +2,14 @@ package com.example.hot6novelcraft.domain.novel.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Entity
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "novels")
 public class Novel extends BaseEntity {
@@ -57,6 +56,9 @@ public class Novel extends BaseEntity {
     protected void onCreate() {
         updatedAt = LocalDateTime.now();
         status = NovelStatus.PENDING;
+        viewCount = 0L;
+        bookmarkCount = 0;
+        isDeleted = false;
     }
 
     @PreUpdate
@@ -64,14 +66,27 @@ public class Novel extends BaseEntity {
         updatedAt = LocalDateTime.now();
     }
 
-    @Builder
-    public Novel(Long authorId, String title, String description,
-                 String coverImageUrl, String genre, String tags) {
-        this.authorId = authorId;
+    // 소설 등록
+    public static Novel createNovel(Long authorId, String title, String description, String genre, String tags) {
+        return Novel.builder()
+                .authorId(authorId)
+                .title(title)
+                .description(description)
+                .genre(genre)
+                .tags(tags)
+                .build();
+    }
+
+    // 소설 수정
+    public void update(String title, String description, String genre, String tags) {
         this.title = title;
         this.description = description;
-        this.coverImageUrl = coverImageUrl;
         this.genre = genre;
         this.tags = tags;
+    }
+
+    // 소설 삭제 (소프트 딜리트)
+    public void delete() {
+        this.isDeleted = true;
     }
 }
