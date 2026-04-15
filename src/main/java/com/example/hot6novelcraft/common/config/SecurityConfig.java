@@ -45,7 +45,9 @@ public class SecurityConfig {
                         , "/api/auth/email/check"
                         , "/api/auth/nickname/check"
                         , "/api/auth/phone/send"
-                        , "/api/auth/phone/verify").permitAll()
+                        , "/api/auth/phone/verify"
+                        ).permitAll()
+                                .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")
                 .anyRequest().authenticated()
                 )
                 .build();

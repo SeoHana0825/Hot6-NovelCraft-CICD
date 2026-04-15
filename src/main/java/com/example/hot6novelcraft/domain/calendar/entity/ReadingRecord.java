@@ -40,7 +40,16 @@ public class ReadingRecord extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String note;
 
-    private ReadingRecord(Long userId, Long novelId, String title, String authorName, RecordSource source, LocalDate readDate, String note) {
+    private Integer  readPage;    // 읽은 페이지 수
+
+    private Integer  totalPage;   // 전체 페이지 수
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ReadingStatus readingStatus;
+
+    private ReadingRecord(Long userId, Long novelId, String title, String authorName, RecordSource source, LocalDate readDate, String note,
+                          Integer  readPage, Integer  totalPage,ReadingStatus readingStatus ) {
         this.userId = userId;
         this.novelId = novelId;
         this.title = title;
@@ -48,9 +57,13 @@ public class ReadingRecord extends BaseEntity {
         this.source = source;
         this.readDate = readDate;
         this.note = note;
+        this.readPage = readPage;
+        this.totalPage = totalPage;
+        this.readingStatus = readingStatus;
     }
 
-    public static ReadingRecord create(Long userId, Long novelId, String title, String authorName, RecordSource source, LocalDate readDate, String note) {
-        return new ReadingRecord(userId, novelId, title, authorName, source, readDate, note);
+    public static ReadingRecord create(Long userId, Long novelId, String title, String authorName, RecordSource source, LocalDate readDate, String note,
+                                       Integer readPage, Integer totalPage, ReadingStatus readingStatus) {
+        return new ReadingRecord(userId, novelId, title, authorName, source, readDate, note,readPage, totalPage, readingStatus);
     }
 }
