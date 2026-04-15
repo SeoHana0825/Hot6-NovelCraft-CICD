@@ -1,18 +1,24 @@
 package com.example.hot6novelcraft.domain.payment.service;
 
+import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.PaymentExceptionEnum;
 import com.example.hot6novelcraft.domain.payment.dto.request.PaymentConfirmRequest;
+import com.example.hot6novelcraft.domain.payment.dto.response.PaymentHistoryResponse;
 import com.example.hot6novelcraft.domain.payment.dto.response.PaymentPrepareResponse;
 import com.example.hot6novelcraft.domain.payment.dto.response.PaymentResponse;
 import com.example.hot6novelcraft.domain.payment.entity.Payment;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentMethod;
+import com.example.hot6novelcraft.domain.payment.repository.PaymentRepository;
 import com.example.hot6novelcraft.domain.point.service.PointService;
 import io.portone.sdk.server.payment.PaidPayment;
 import io.portone.sdk.server.payment.PaymentClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 결제 흐름 오케스트레이터.
@@ -25,8 +31,20 @@ import org.springframework.stereotype.Service;
 public class PaymentService {
 
     private final PaymentTransactionService paymentTransactionService;
+    private final PaymentRepository paymentRepository;
     private final PaymentClient paymentClient;
     private final PointService pointService;
+
+    /**
+     * 내 결제 내역 목록 조회 (페이징, 최신순)
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<PaymentHistoryResponse> getPaymentHistory(Long userId, Pageable pageable) {
+        Page<PaymentHistoryResponse> page = paymentRepository
+                .findByUserId(userId, pageable)
+                .map(PaymentHistoryResponse::from);
+        return PageResponse.register(page);
+    }
 
     /**
      * 결제창 열기 전 PENDING Payment 미리 생성
