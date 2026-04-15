@@ -117,9 +117,6 @@ public class CalendarService {
         // 완독한 책 수
         int completedBooks = (int) records.stream()
                 .filter(r -> r.getReadingStatus() == ReadingStatus.COMPLETED)
-                .map(ReadingRecord::getNovelId)
-                .filter(Objects::nonNull)
-                .distinct()
                 .count();
 
         // 일평균 페이지

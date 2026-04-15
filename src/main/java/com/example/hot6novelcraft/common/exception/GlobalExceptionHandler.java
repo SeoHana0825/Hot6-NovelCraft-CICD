@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -70,5 +71,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(BaseResponse.fail(HttpStatus.NOT_FOUND.name(), e.getMessage()));
+    }
+    @ExceptionHandler(value = MissingServletRequestParameterException.class)
+    public ResponseEntity<BaseResponse<Void>> MissingServletRequestParameterExceptionHandler(MissingServletRequestParameterException e) {
+        log.error("필수 파라미터 누락 : ", e);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(BaseResponse.fail(HttpStatus.BAD_REQUEST.name(), "필수 파라미터가 누락되었습니다"));
     }
 }
