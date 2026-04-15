@@ -1,6 +1,7 @@
 package com.example.hot6novelcraft.domain.novel.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
+import com.example.hot6novelcraft.domain.novel.entity.enums.WikiCategory;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;

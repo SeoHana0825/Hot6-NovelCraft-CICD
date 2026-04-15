@@ -8,7 +8,7 @@ import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeDeleteRespo
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodePublishResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeUpdateResponse;
 import com.example.hot6novelcraft.domain.episode.entity.Episode;
-import com.example.hot6novelcraft.domain.episode.entity.EpisodeStatus;
+import com.example.hot6novelcraft.domain.episode.entity.esnums.EpisodeStatus;
 import com.example.hot6novelcraft.domain.episode.repository.EpisodeRepository;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;

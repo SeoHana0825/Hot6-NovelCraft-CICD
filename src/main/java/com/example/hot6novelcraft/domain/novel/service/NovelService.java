@@ -17,6 +17,8 @@ import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.userEnum.UserRole;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 public class NovelService {
@@ -100,15 +102,16 @@ public class NovelService {
         Novel novel = novelRepository.findById(novelId)
                 .orElseThrow(() -> new ServiceErrorException(NovelExceptionEnum.NOVEL_NOT_FOUND));
 
+        // 본인 소설 확인 먼저
+        if (!Objects.equals(novel.getAuthorId(), userId)) {
+            throw new ServiceErrorException(NovelExceptionEnum.NOVEL_FORBIDDEN);
+        }
+
         // 삭제 여부
         if (novel.isDeleted()) {
             throw new ServiceErrorException(NovelExceptionEnum.NOVEL_ALREADY_DELETED);
         }
 
-        // 본인 소설 확인
-        if (!novel.getAuthorId().equals(userId)) {
-            throw new ServiceErrorException(NovelExceptionEnum.NOVEL_FORBIDDEN);
-        }
         return novel;
     }
 }

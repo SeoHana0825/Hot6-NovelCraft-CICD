@@ -1,6 +1,7 @@
 package com.example.hot6novelcraft.domain.episode.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
+import com.example.hot6novelcraft.domain.episode.entity.esnums.EpisodeStatus;
 import jakarta.persistence.*;
 import lombok.*;
 

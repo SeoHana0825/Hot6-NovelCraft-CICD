@@ -6,7 +6,7 @@ import com.example.hot6novelcraft.domain.novel.dto.request.NovelUpdateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelCreateResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelDeleteResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelUpdateResponse;
-import com.example.hot6novelcraft.domain.novel.entity.MainGenre;
+import com.example.hot6novelcraft.domain.novel.entity.enums.MainGenre;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import com.example.hot6novelcraft.domain.user.entity.User;

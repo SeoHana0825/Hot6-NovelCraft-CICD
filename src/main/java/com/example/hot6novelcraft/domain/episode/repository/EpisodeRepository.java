@@ -1,7 +1,7 @@
 package com.example.hot6novelcraft.domain.episode.repository;
 
 import com.example.hot6novelcraft.domain.episode.entity.Episode;
-import com.example.hot6novelcraft.domain.episode.entity.EpisodeStatus;
+import com.example.hot6novelcraft.domain.episode.entity.esnums.EpisodeStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface EpisodeRepository extends JpaRepository<Episode, Long>, CustomEpisodeRepository {

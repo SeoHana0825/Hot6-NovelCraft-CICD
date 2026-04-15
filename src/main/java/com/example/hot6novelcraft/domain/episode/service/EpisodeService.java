@@ -10,17 +10,18 @@ import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeDeleteRespo
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodePublishResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeUpdateResponse;
 import com.example.hot6novelcraft.domain.episode.entity.Episode;
-import com.example.hot6novelcraft.domain.episode.entity.EpisodeStatus;
+import com.example.hot6novelcraft.domain.episode.entity.esnums.EpisodeStatus;
 import com.example.hot6novelcraft.domain.episode.repository.EpisodeRepository;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
-import com.example.hot6novelcraft.domain.novel.entity.NovelStatus;
+import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
-import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.entity.userEnum.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -170,13 +171,16 @@ public class EpisodeService {
         Novel novel = novelRepository.findById(novelId)
                 .orElseThrow(() -> new ServiceErrorException(NovelExceptionEnum.NOVEL_NOT_FOUND));
 
+        // 본인 소설 확인 먼저
+        if (!Objects.equals(novel.getAuthorId(), userId)) {
+            throw new ServiceErrorException(NovelExceptionEnum.NOVEL_FORBIDDEN);
+        }
+
+        // 삭제 여부
         if (novel.isDeleted()) {
             throw new ServiceErrorException(NovelExceptionEnum.NOVEL_ALREADY_DELETED);
         }
 
-        if (!novel.getAuthorId().equals(userId)) {
-            throw new ServiceErrorException(NovelExceptionEnum.NOVEL_FORBIDDEN);
-        }
         return novel;
     }
 
