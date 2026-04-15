@@ -5,6 +5,7 @@ import com.example.hot6novelcraft.domain.episode.dto.request.EpisodeCreateReques
 import com.example.hot6novelcraft.domain.episode.dto.request.EpisodeUpdateRequest;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeCreateResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeDeleteResponse;
+import com.example.hot6novelcraft.domain.episode.dto.response.EpisodePublishResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeUpdateResponse;
 import com.example.hot6novelcraft.domain.episode.service.EpisodeService;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
@@ -70,6 +71,22 @@ public class EpisodeController {
 
         return ResponseEntity.ok(
                 BaseResponse.success("200", "회차 삭제 성공", response)
+        );
+    }
+
+    /**
+     * 회차 발행
+     * 정은식
+     */
+    @PostMapping("/episodes/{episodeId}/publish")
+    public ResponseEntity<BaseResponse<EpisodePublishResponse>> publishEpisode(
+            @PathVariable Long episodeId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        EpisodePublishResponse response = episodeService.publishEpisode(episodeId, userDetails);
+
+        return ResponseEntity.ok(
+                BaseResponse.success("200", "회차 발행 성공", response)
         );
     }
 }

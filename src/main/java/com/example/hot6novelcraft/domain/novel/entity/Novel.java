@@ -89,4 +89,9 @@ public class Novel extends BaseEntity {
     public void delete() {
         this.isDeleted = true;
     }
+
+    // 소설 상태 변경 (연재중)
+    public void changeStatus(NovelStatus status) {
+        this.status = status;
+    }
 }

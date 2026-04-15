@@ -7,10 +7,13 @@ import com.example.hot6novelcraft.domain.episode.dto.request.EpisodeCreateReques
 import com.example.hot6novelcraft.domain.episode.dto.request.EpisodeUpdateRequest;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeCreateResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeDeleteResponse;
+import com.example.hot6novelcraft.domain.episode.dto.response.EpisodePublishResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeUpdateResponse;
 import com.example.hot6novelcraft.domain.episode.entity.Episode;
+import com.example.hot6novelcraft.domain.episode.entity.EpisodeStatus;
 import com.example.hot6novelcraft.domain.episode.repository.EpisodeRepository;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
+import com.example.hot6novelcraft.domain.novel.entity.NovelStatus;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
@@ -112,6 +115,48 @@ public class EpisodeService {
 
         return EpisodeDeleteResponse.from(episode.getId());
     }
+
+    // 회차 발행
+    @Transactional
+    public EpisodePublishResponse publishEpisode(Long episodeId, UserDetailsImpl userDetails) {
+
+        // 작가 권한 확인
+        validateAuthorRole(userDetails);
+
+        // 회차 조회
+        Episode episode = findEpisodeById(episodeId);
+
+        // 본인 소설 회차인지 확인
+        Novel novel = findNovelById(episode.getNovelId(), userDetails.getUser().getId());
+
+        // 이미 발행된 회차 확인
+        if (episode.getStatus() == EpisodeStatus.PUBLISHED) {
+            throw new ServiceErrorException(EpisodeExceptionEnum.EPISODE_ALREADY_PUBLISHED);
+        }
+
+        // 본문 내용 없으면 발행 불가
+        if (episode.getContent() == null || episode.getContent().isBlank()) {
+            throw new ServiceErrorException(EpisodeExceptionEnum.EPISODE_CONTENT_EMPTY);
+        }
+
+        // 이전 회차 순서 검증 (1화부터 순서대로 발행)
+        if (episodeRepository.existsByNovelIdAndEpisodeNumberLessThanAndStatusNotAndIsDeletedFalse(
+                episode.getNovelId(), episode.getEpisodeNumber(), EpisodeStatus.PUBLISHED)) {
+            throw new ServiceErrorException(EpisodeExceptionEnum.EPISODE_PREVIOUS_NOT_PUBLISHED);
+        }
+
+        // 회차 발행
+        episode.publish();
+
+        // 1화 발행 시 소설 연재중으로 변경
+        if (episode.getEpisodeNumber() == 1) {
+            novel.changeStatus(NovelStatus.ONGOING);
+        }
+        return EpisodePublishResponse.from(episode.getId());
+    }
+
+
+    // -----------------------------------------공통 매서드---------------------------------------------------------------
 
     // 작가 권한 확인 공통 메서드
     private void validateAuthorRole(UserDetailsImpl userDetails) {
