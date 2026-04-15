@@ -38,7 +38,7 @@ public class PaymentController {
     @GetMapping
     public ResponseEntity<BaseResponse<PageResponse<PaymentHistoryResponse>>> getPaymentHistory(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
-            @RequestParam(defaultValue = "0") @Min(1) int page,
+            @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
     ) {
         Long userId = userDetails.getUser().getId();
