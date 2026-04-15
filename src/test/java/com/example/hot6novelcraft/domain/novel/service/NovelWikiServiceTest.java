@@ -4,6 +4,7 @@ import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelWikiCreateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelWikiCreateResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelWikiDeleteResponse;
+import com.example.hot6novelcraft.domain.novel.dto.response.NovelWikiResponse;
 import com.example.hot6novelcraft.domain.novel.entity.NovelWiki;
 import com.example.hot6novelcraft.domain.novel.entity.enums.WikiCategory;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
@@ -19,7 +20,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,6 +43,9 @@ class NovelWikiServiceTest {
 
     @InjectMocks
     NovelWikiService novelWikiService;
+
+    @Mock
+    RedisTemplate<String, Object> redisTemplate;
 
     // 작가 Mock
     private UserDetailsImpl 작가() {
@@ -192,5 +199,56 @@ class NovelWikiServiceTest {
 
         assertThrows(ServiceErrorException.class,
                 () -> novelWikiService.deleteWiki(1L, 1L, userDetails));
+    }
+
+    // ==================== 설정집 조회 ====================
+
+    @Test
+    void 설정집조회_캐시없으면_DB조회후_캐싱_성공() {
+        UserDetailsImpl userDetails = 작가();
+        Novel novel = 소설(1L);
+        NovelWiki wiki = 설정집();
+
+        // RedisTemplate Mock 설정
+        ValueOperations<String, Object> valueOps = mock(ValueOperations.class);
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+        given(valueOps.get(any())).willReturn(null); // 캐시 미스
+
+        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
+        given(novelWikiRepository.findAllByNovelId(1L)).willReturn(List.of(wiki));
+
+        List<NovelWikiResponse> response = novelWikiService.getWikiList(1L, userDetails);
+
+        assertNotNull(response);
+        assertEquals(1, response.size());
+    }
+
+    @Test
+    void 설정집조회_작가권한없으면_실패() {
+        UserDetailsImpl userDetails = 독자();
+
+        assertThrows(ServiceErrorException.class,
+                () -> novelWikiService.getWikiList(1L, userDetails));
+    }
+
+    @Test
+    void 설정집조회_소설없으면_실패() {
+        UserDetailsImpl userDetails = 작가();
+
+        given(novelRepository.findById(1L)).willReturn(Optional.empty());
+
+        assertThrows(ServiceErrorException.class,
+                () -> novelWikiService.getWikiList(1L, userDetails));
+    }
+
+    @Test
+    void 설정집조회_본인소설아니면_실패() {
+        UserDetailsImpl userDetails = 작가(); // userId = 1L
+        Novel novel = 소설(2L); // authorId = 2L
+
+        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
+
+        assertThrows(ServiceErrorException.class,
+                () -> novelWikiService.getWikiList(1L, userDetails));
     }
 }
