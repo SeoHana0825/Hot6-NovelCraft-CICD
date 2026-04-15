@@ -40,10 +40,12 @@ public class SecurityConfig {
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/auth/login"
+                        "/api/auth/login"
                         , "/api/auth/signup"
                         , "/api/auth/email/check"
-                        , "/api/auth/nickname/check").permitAll()
+                        , "/api/auth/nickname/check"
+                        , "/api/auth/phone/send"
+                        , "/api/auth/phone/verify").permitAll()
                 .anyRequest().authenticated()
                 )
                 .build();

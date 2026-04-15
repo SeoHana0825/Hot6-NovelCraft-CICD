@@ -41,7 +41,6 @@ public class JwtFilter extends OncePerRequestFilter {
             = List.of(
                     "/api/auth/signup"
                     ,"/api/auth/login"
-                    , "/api/auth/signup/admin"
                     , "/api/auth/email/check"
                     , "/api/auth/nickname/check");
 

@@ -4,8 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 
 public record PhoneSendRequest (
 
-    @NotBlank
-    String phoneNo
+        @NotBlank(message = "휴대폰번호 입력은 필수입니다.")
+        String phoneNo
 ) {
 
 }

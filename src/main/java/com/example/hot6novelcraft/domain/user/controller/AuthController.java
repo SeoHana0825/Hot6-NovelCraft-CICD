@@ -45,6 +45,6 @@ public class AuthController {
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ){
         authService.logout(accessToken, userDetails.getUser().getEmail());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(BaseResponse.success("200", "로그아웃 성공",null));
     }
 }

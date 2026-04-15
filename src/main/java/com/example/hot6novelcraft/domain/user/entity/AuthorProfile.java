@@ -1,6 +1,8 @@
 package com.example.hot6novelcraft.domain.user.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
+import com.example.hot6novelcraft.common.exception.ServiceErrorException;
+import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
 import com.example.hot6novelcraft.domain.user.entity.userEnum.CareerLevel;
 import jakarta.persistence.*;
 import lombok.Builder;
@@ -78,8 +80,8 @@ public class AuthorProfile extends BaseEntity {
             , String instagramLinks
             , String xLinks
             , String blogLinks
-            , boolean allowMenteeRequest){
-
+            , boolean allowMenteeRequest
+    ){
         return new AuthorProfile(userId, bio, careerLevel, mainGenre, instagramLinks, xLinks, blogLinks, allowMenteeRequest);
     }
 }

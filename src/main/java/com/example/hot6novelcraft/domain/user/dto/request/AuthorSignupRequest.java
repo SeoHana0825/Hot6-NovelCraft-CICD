@@ -4,6 +4,7 @@ import com.example.hot6novelcraft.domain.novel.entity.MainGenre;
 import com.example.hot6novelcraft.domain.user.entity.userEnum.CareerLevel;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
@@ -19,7 +20,7 @@ public record AuthorSignupRequest(
     @Size(min = 10, max = 500, message = "작가소개는 500자 이내로 작성 가능합니다.")
     String bio,
 
-    @NotBlank
+    @NotNull
     @Size(max = 1, message = "작가 경력사항은 필수 사항입니다.")
     CareerLevel careerLevel,
 
@@ -29,6 +30,7 @@ public record AuthorSignupRequest(
 
     String blogLinks,
 
+    @NotNull(message = "멘티 요청 허용 여부는 필수입니다.")
     Boolean allowMenteeRequest
 
 ){
