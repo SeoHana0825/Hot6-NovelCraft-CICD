@@ -1,6 +1,8 @@
 package com.example.hot6novelcraft.domain.subscription.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
+import com.example.hot6novelcraft.domain.subscription.entity.enums.PlanType;
+import com.example.hot6novelcraft.domain.subscription.entity.enums.SubscriptionStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

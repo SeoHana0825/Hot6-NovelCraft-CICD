@@ -1,4 +1,4 @@
-package com.example.hot6novelcraft.domain.payment.entity;
+package com.example.hot6novelcraft.domain.payment.entity.enums;
 
 public enum PaymentStatus {
 

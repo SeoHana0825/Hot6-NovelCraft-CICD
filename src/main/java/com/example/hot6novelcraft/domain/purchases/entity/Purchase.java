@@ -1,6 +1,7 @@
 package com.example.hot6novelcraft.domain.purchases.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
+import com.example.hot6novelcraft.domain.purchases.entity.enums.PurchaseType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -25,4 +26,18 @@ public class Purchase extends BaseEntity {
 
     @Column(nullable = false)
     private Long amount;
+
+    @Column(nullable = false)
+    private Long paymentId;
+
+    private Purchase(Long userId, PurchaseType type, Long amount, Long paymentId) {
+        this.userId = userId;
+        this.type = type;
+        this.amount = amount;
+        this.paymentId = paymentId;
+    }
+
+    public static Purchase create(Long userId, PurchaseType type, Long amount, Long paymentId) {
+        return new Purchase(userId, type, amount, paymentId);
+    }
 }

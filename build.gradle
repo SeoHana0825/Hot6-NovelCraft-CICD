@@ -65,6 +65,9 @@ dependencies {
 
     // Kafka
     implementation 'org.springframework.kafka:spring-kafka'
+
+    // PortOne
+    implementation "io.portone:server-sdk:0.23.0"
 }
 
 tasks.named('test') {

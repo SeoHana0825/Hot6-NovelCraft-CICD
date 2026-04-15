@@ -1,6 +1,7 @@
 package com.example.hot6novelcraft.domain.point.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
+import com.example.hot6novelcraft.domain.point.entity.enums.PointHistoryType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -19,10 +20,8 @@ public class PointHistory extends BaseEntity {
     @Column(nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
     private Long novelId;
 
-    @Column(nullable = false)
     private Long episodeId;
 
     @Column(nullable = false)
@@ -33,4 +32,17 @@ public class PointHistory extends BaseEntity {
     private PointHistoryType type;
 
     private String description;
+
+    private PointHistory(Long userId, Long novelId, Long episodeId, Long amount, PointHistoryType type, String description) {
+        this.userId = userId;
+        this.novelId = novelId;
+        this.episodeId = episodeId;
+        this.amount = amount;
+        this.type = type;
+        this.description = description;
+    }
+
+    public static PointHistory create(Long userId, Long novelId, Long episodeId, Long amount, PointHistoryType type, String description) {
+        return new PointHistory(userId, novelId, episodeId, amount, type, description);
+    }
 }

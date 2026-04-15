@@ -1,4 +1,4 @@
-package com.example.hot6novelcraft.domain.notification.entity;
+package com.example.hot6novelcraft.domain.notification.entity.enums;
 
 public enum NotificationType {
 

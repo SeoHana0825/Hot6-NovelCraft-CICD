@@ -45,7 +45,13 @@ public class SecurityConfig {
                         , "/api/auth/email/check"
                         , "/api/auth/nickname/check"
                         , "/api/auth/phone/send"
-                        , "/api/auth/phone/verify").permitAll()
+                        , "/api/auth/phone/verify"
+                        , "/api/webhooks/portone"
+                        , "/*.html"
+                        , "/static/**"
+                        , "/css/**"
+                        , "/js/**"
+                        , "/images/**").permitAll()
                 .anyRequest().authenticated()
                 )
                 .build();

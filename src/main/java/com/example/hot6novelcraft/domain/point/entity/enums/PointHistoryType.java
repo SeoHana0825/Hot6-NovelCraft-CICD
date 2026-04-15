@@ -1,4 +1,4 @@
-package com.example.hot6novelcraft.domain.point.entity;
+package com.example.hot6novelcraft.domain.point.entity.enums;
 
 public enum PointHistoryType {
 

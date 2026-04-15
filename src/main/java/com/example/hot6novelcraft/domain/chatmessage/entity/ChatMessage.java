@@ -1,6 +1,7 @@
 package com.example.hot6novelcraft.domain.chatmessage.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
+import com.example.hot6novelcraft.domain.chatmessage.entity.enums.MessageType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
