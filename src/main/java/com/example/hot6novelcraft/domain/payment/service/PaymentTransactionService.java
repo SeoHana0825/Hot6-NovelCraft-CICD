@@ -8,6 +8,7 @@ import com.example.hot6novelcraft.domain.payment.entity.Payment;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentMethod;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentStatus;
 import com.example.hot6novelcraft.domain.payment.repository.PaymentRepository;
+import com.example.hot6novelcraft.domain.point.service.PointService;
 import com.example.hot6novelcraft.domain.purchases.entity.Purchase;
 import com.example.hot6novelcraft.domain.purchases.entity.enums.PurchaseType;
 import com.example.hot6novelcraft.domain.purchases.repository.PurchaseRepository;
@@ -30,6 +31,7 @@ public class PaymentTransactionService {
 
     private final PaymentRepository paymentRepository;
     private final PurchaseRepository purchaseRepository;
+    private final PointService pointService;
 
     /**
      * 결제창 열기 전 PENDING Payment를 미리 생성한다.
