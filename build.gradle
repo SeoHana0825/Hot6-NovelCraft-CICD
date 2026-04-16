@@ -44,6 +44,10 @@ dependencies {
     //redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    implementation('org.redisson:redisson-spring-boot-starter:3.27.2') {
+        exclude group: 'org.redisson', module: 'redisson-spring-data-32'
+    }
+    implementation 'org.redisson:redisson-spring-data-33:3.27.2'
 
     //websocket
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
@@ -69,6 +73,9 @@ dependencies {
 
     // PortOne
     implementation "io.portone:server-sdk:0.23.0"
+
+    // auth2
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 }
 
 tasks.named('test') {
