@@ -1,5 +1,6 @@
 package com.example.hot6novelcraft.domain.payment.service;
 
+import com.example.hot6novelcraft.common.security.RedisUtil;
 import com.example.hot6novelcraft.domain.payment.dto.request.WebhookRequest;
 import com.example.hot6novelcraft.domain.payment.entity.Payment;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentMethod;
@@ -45,6 +46,7 @@ public class WebhookService {
     private final WebhookTransactionService webhookTransactionService;
     private final PaymentClient paymentClient;
     private final ObjectMapper objectMapper;
+    private final RedisUtil redisUtil;
 
     public void handleWebhook(WebhookRequest request) {
         if (!isProcessableType(request.type())) {
@@ -110,7 +112,19 @@ public class WebhookService {
         // 4. Payment가 PENDING 상태 — /confirm 누락 보정
         if (portOnePayment instanceof PaidPayment paidPayment) {
             PaymentMethod resolvedMethod = PaymentMethod.from(paidPayment.getMethod());
-            webhookTransactionService.completePendingPayment(webhookEvent.getId(), payment.getId(), resolvedMethod);
+
+            // /confirm과 동일한 Lock 키로 상호 배제 — 하나만 포인트 충전 수행
+            String lockKey = "payment:confirm:lock:" + paymentId;
+            if (!redisUtil.acquireLock(lockKey, 15)) {
+                log.warn("웹훅: Lock 획득 실패 (/confirm 처리 중) paymentId={} → 포트원이 재시도 예정", paymentId);
+                webhookTransactionService.markEventFailed(webhookEvent.getId(), "/confirm 처리 중 - 재시도 필요");
+                return;
+            }
+            try {
+                webhookTransactionService.completePendingPayment(webhookEvent.getId(), payment.getId(), resolvedMethod);
+            } finally {
+                redisUtil.releaseLock(lockKey);
+            }
             log.info("웹훅 보정 처리 완료 (/confirm 누락) paymentId={}", paymentId);
         } else if (portOnePayment instanceof FailedPayment) {
             // PortOne에서 결제 실패로 확인 → PENDING이면 FAILED로 전환 (포인트 변동 없음)
