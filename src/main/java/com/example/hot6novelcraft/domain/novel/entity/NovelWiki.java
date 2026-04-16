@@ -24,13 +24,14 @@ public class NovelWiki extends BaseEntity {
     @Column(nullable = false)
     private Long novelId;
 
+    @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private WikiCategory category;
 
     @Column(nullable = false, length = 20)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     // 설정집 생성

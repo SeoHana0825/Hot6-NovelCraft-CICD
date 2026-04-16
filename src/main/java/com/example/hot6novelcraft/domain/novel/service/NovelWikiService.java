@@ -14,6 +14,7 @@ import com.example.hot6novelcraft.domain.novel.repository.NovelWikiRepository;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.entity.userEnum.UserRole;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NovelWikiService {
@@ -55,7 +57,7 @@ public class NovelWikiService {
         NovelWiki savedWiki = novelWikiRepository.save(wiki);
 
         // 캐시 무효화
-        redisTemplate.delete(WIKI_CACHE_KEY + novelId);
+        evictWikiCacheSafely(novelId);
 
         return NovelWikiCreateResponse.from(savedWiki.getId());
     }
@@ -74,11 +76,16 @@ public class NovelWikiService {
         NovelWiki wiki = novelWikiRepository.findById(wikiId)
                 .orElseThrow(() -> new ServiceErrorException(NovelWikiExceptionEnum.WIKI_NOT_FOUND));
 
+        // 해당 소설의 설정집인지 확인
+        if (!Objects.equals(wiki.getNovelId(), novelId)) {
+            throw new ServiceErrorException(NovelWikiExceptionEnum.WIKI_NOT_FOUND);
+        }
+
         // 설정집 삭제 (하드딜리트)
         novelWikiRepository.delete(wiki);
 
         // 캐시 무효화
-        redisTemplate.delete(WIKI_CACHE_KEY + novelId);
+        evictWikiCacheSafely(novelId);
 
         return NovelWikiDeleteResponse.from(wikiId);
     }
@@ -137,5 +144,14 @@ public class NovelWikiService {
             throw new ServiceErrorException(NovelExceptionEnum.NOVEL_ALREADY_DELETED);
         }
         return novel;
+    }
+
+    // 캐시 무효화 관련 공통 메서드
+    private void evictWikiCacheSafely(Long novelId) {
+        try {
+            redisTemplate.delete(WIKI_CACHE_KEY + novelId);
+        } catch (RuntimeException e) {
+            log.warn("Wiki cache eviction failed. novelId={}", novelId, e);
+        }
     }
 }
