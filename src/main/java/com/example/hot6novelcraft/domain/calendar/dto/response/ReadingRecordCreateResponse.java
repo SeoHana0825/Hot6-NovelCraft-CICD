@@ -1,7 +1,7 @@
-package com.example.hot6novelcraft.domain.calendar.dto;
+package com.example.hot6novelcraft.domain.calendar.dto.response;
 
 import com.example.hot6novelcraft.domain.calendar.entity.ReadingRecord;
-import com.example.hot6novelcraft.domain.calendar.entity.RecordSource;
+import com.example.hot6novelcraft.domain.calendar.entity.enums.RecordSource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 

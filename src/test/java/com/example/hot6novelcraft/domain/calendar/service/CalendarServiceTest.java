@@ -1,11 +1,16 @@
 package com.example.hot6novelcraft.domain.calendar.service;
 
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
-import com.example.hot6novelcraft.domain.calendar.dto.*;
+import com.example.hot6novelcraft.domain.calendar.dto.request.ReadingRecordCreateRequest;
+import com.example.hot6novelcraft.domain.calendar.dto.response.ReadingRecordCreateResponse;
 import com.example.hot6novelcraft.domain.calendar.entity.*;
 import com.example.hot6novelcraft.common.exception.domain.CalendarExceptionEnum;
-import com.example.hot6novelcraft.domain.calendar.repository.LibraryRepository;
+import com.example.hot6novelcraft.domain.calendar.entity.enums.ReadingStatus;
+import com.example.hot6novelcraft.domain.calendar.entity.enums.RecordSource;
+import com.example.hot6novelcraft.domain.library.entity.enums.LibraryType;
+import com.example.hot6novelcraft.domain.library.repository.LibraryRepository;
 import com.example.hot6novelcraft.domain.calendar.repository.ReadingRecordRepository;
+import com.example.hot6novelcraft.domain.library.entity.Library;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -76,7 +81,7 @@ class CalendarServiceTest {
         @DisplayName("PLATFORM 소설 - 서재 등록된 경우 성공")
         void createPlatformRecord_success() {
             given(libraryRepository.findByUserIdAndNovelId(USER_ID, NOVEL_ID))
-                    .willReturn(Optional.of(Library.create(USER_ID, NOVEL_ID)));
+                    .willReturn(Optional.of(Library.create(USER_ID, NOVEL_ID, LibraryType.READING, "테스트소설", "작가명", "https://cover.png")));
             given(readingRecordRepository.save(any())).willReturn(mockRecord(RecordSource.PLATFORM));
 
             ReadingRecordCreateResponse response = calendarService.createReadingRecord(USER_ID, platformRequest());

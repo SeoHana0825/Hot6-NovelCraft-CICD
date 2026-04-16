@@ -1,6 +1,8 @@
 package com.example.hot6novelcraft.domain.calendar.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
+import com.example.hot6novelcraft.domain.calendar.entity.enums.ReadingStatus;
+import com.example.hot6novelcraft.domain.calendar.entity.enums.RecordSource;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

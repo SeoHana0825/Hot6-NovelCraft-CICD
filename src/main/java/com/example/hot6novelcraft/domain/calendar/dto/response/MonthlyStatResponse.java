@@ -1,4 +1,4 @@
-package com.example.hot6novelcraft.domain.calendar.dto;
+package com.example.hot6novelcraft.domain.calendar.dto.response;
 
 import java.time.LocalDate;
 

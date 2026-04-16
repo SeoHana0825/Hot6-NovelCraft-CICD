@@ -1,7 +1,7 @@
-package com.example.hot6novelcraft.domain.calendar.dto;
+package com.example.hot6novelcraft.domain.calendar.dto.request;
 
-import com.example.hot6novelcraft.domain.calendar.entity.ReadingStatus;
-import com.example.hot6novelcraft.domain.calendar.entity.RecordSource;
+import com.example.hot6novelcraft.domain.calendar.entity.enums.ReadingStatus;
+import com.example.hot6novelcraft.domain.calendar.entity.enums.RecordSource;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.NotNull;

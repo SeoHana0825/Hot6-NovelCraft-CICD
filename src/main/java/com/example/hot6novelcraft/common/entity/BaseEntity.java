@@ -19,5 +19,4 @@ public abstract class BaseEntity {
     @Column(updatable = false)
     @Temporal(TemporalType.TIMESTAMP)
     private LocalDateTime createdAt;
-
 }
