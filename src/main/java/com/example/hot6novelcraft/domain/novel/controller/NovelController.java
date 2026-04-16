@@ -5,6 +5,7 @@ import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelCreateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelUpdateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.response.*;
+import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.novel.service.NovelService;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import jakarta.validation.Valid;
@@ -86,6 +87,23 @@ public class NovelController {
 
         return ResponseEntity.ok(
                 BaseResponse.success("200", "소설 목록 조회 성공(V1)", response)
+        );
+    }
+
+    /**
+     * 소설 목록 조회 V2
+     * 정은식
+     */
+    @GetMapping("/v2/novels")
+    public ResponseEntity<BaseResponse<PageResponse<NovelListResponse>>> getNovelListV2(
+            @RequestParam(required = false) String genre,
+            @RequestParam(required = false) NovelStatus status,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        PageResponse<NovelListResponse> response = novelService.getNovelListV2(genre, status, pageable);
+
+        return ResponseEntity.ok(
+                BaseResponse.success("200", "소설 목록 조회 성공(V2)", response)
         );
     }
 
