@@ -1,4 +1,4 @@
-package com.example.hot6novelcraft.domain.episode.entity;
+package com.example.hot6novelcraft.domain.episode.entity.enums;
 
 public enum EpisodeStatus {
     DRAFT, // 초안

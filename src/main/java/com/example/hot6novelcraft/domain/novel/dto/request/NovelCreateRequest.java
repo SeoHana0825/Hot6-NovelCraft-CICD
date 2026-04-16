@@ -1,7 +1,7 @@
 package com.example.hot6novelcraft.domain.novel.dto.request;
 
-import com.example.hot6novelcraft.domain.novel.entity.MainGenre;
-import com.example.hot6novelcraft.domain.novel.entity.MainTag;
+import com.example.hot6novelcraft.domain.novel.entity.enums.MainGenre;
+import com.example.hot6novelcraft.domain.novel.entity.enums.MainTag;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;

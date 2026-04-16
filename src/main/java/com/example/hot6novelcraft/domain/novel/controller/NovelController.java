@@ -7,10 +7,12 @@ import com.example.hot6novelcraft.domain.novel.dto.response.NovelCreateResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelDeleteResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelUpdateResponse;
 import com.example.hot6novelcraft.domain.novel.service.NovelService;
+import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,9 +30,10 @@ public class NovelController {
      */
     @PostMapping
     public ResponseEntity<BaseResponse<NovelCreateResponse>> createNovel(
-            @Valid @RequestBody NovelCreateRequest request
+            @Valid @RequestBody NovelCreateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        NovelCreateResponse response = novelService.createNovel(request);
+        NovelCreateResponse response = novelService.createNovel(request, userDetails);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.success("201", "소설 등록 성공", response));
@@ -43,9 +46,10 @@ public class NovelController {
     @PatchMapping("/{novelId}")
     public ResponseEntity<BaseResponse<NovelUpdateResponse>> updateNovel(
             @PathVariable Long novelId,
-            @Valid @RequestBody NovelUpdateRequest request
+            @Valid @RequestBody NovelUpdateRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        NovelUpdateResponse response = novelService.updateNovel(novelId, request);
+        NovelUpdateResponse response = novelService.updateNovel(novelId, request, userDetails);
 
         return ResponseEntity.ok(
                 BaseResponse.success("200", "소설 수정 성공", response)
@@ -58,9 +62,10 @@ public class NovelController {
      */
     @DeleteMapping("/{novelId}")
     public ResponseEntity<BaseResponse<NovelDeleteResponse>> deleteNovel(
-            @PathVariable Long novelId
+            @PathVariable Long novelId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        NovelDeleteResponse response = novelService.deleteNovel(novelId);
+        NovelDeleteResponse response = novelService.deleteNovel(novelId, userDetails);
 
         return ResponseEntity.ok(
                 BaseResponse.success("200", "소설 삭제 성공", response)

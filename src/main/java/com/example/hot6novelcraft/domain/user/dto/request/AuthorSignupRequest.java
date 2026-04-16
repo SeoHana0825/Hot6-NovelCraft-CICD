@@ -1,6 +1,6 @@
 package com.example.hot6novelcraft.domain.user.dto.request;
 
-import com.example.hot6novelcraft.domain.novel.entity.MainGenre;
+import com.example.hot6novelcraft.domain.novel.entity.enums.MainGenre;
 import com.example.hot6novelcraft.domain.user.entity.userEnum.CareerLevel;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
