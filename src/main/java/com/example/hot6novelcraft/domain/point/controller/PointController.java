@@ -1,7 +1,7 @@
 package com.example.hot6novelcraft.domain.point.controller;
 
 import com.example.hot6novelcraft.common.dto.BaseResponse;
-import com.example.hot6novelcraft.domain.point.dto.PointBalanceResponse;
+import com.example.hot6novelcraft.domain.point.dto.response.PointBalanceResponse;
 import com.example.hot6novelcraft.domain.point.service.PointService;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import lombok.RequiredArgsConstructor;

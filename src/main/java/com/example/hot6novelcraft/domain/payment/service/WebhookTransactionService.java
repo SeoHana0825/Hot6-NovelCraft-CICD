@@ -110,25 +110,21 @@ public class WebhookTransactionService {
 
     /**
      * [/confirm 누락 보정] PENDING 상태인 결제를 COMPLETED로 전환하고 포인트를 충전한다.
-     *
-     * completeIfPending으로 원자적 UPDATE를 수행하여 /confirm과의 중복 처리를 방지한다.
-     * 벌크 UPDATE 후 재조회하여 영속성 컨텍스트 비동기화 문제를 방지한다.
-     * - updated=1: 웹훅이 먼저 처리 → 포인트 충전
-     * - updated=0: /confirm이 이미 처리 → 포인트 충전 스킵
+     * Redis Lock으로 /confirm과의 상호 배제가 보장되므로 원자적 UPDATE 없이 직접 전환한다.
      */
     @Transactional
     public void completePendingPayment(Long webhookEventId, Long paymentDbId, PaymentMethod method) {
-        int updated = paymentRepository.completeIfPending(paymentDbId, PaymentStatus.COMPLETED, method);
-
-        // 벌크 UPDATE 후 재조회 — JPQL 벌크 UPDATE는 1차 캐시를 우회하므로 항상 DB에서 읽어야 한다
         Payment payment = paymentRepository.findById(paymentDbId)
                 .orElseThrow(() -> new ServiceErrorException(PaymentExceptionEnum.ERR_PAYMENT_NOT_FOUND));
 
-        if (updated == 0) {
-            log.info("웹훅 보정 스킵 - /confirm이 이미 처리함 paymentDbId={}", paymentDbId);
+        // Redis Lock으로 이 케이스는 발생하지 않지만 방어 코드
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            log.info("웹훅 보정 스킵 - 이미 처리됨 paymentDbId={} status={}", paymentDbId, payment.getStatus());
             webhookEventRepository.findById(webhookEventId).ifPresent(WebhookEvent::complete);
             return;
         }
+
+        payment.complete(method);
 
         pointService.charge(payment.getUserId(), payment.getAmount());
         purchaseRepository.save(
