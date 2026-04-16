@@ -16,6 +16,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class LibraryService {
@@ -48,15 +51,22 @@ public class LibraryService {
     @Transactional(readOnly = true)
     public Page<LibraryListResponse> getMyLibrary(Long userId, LibraryType libraryType,
                                                   int page, int size, String sort) {
-
         PageRequest pageable = PageRequest.of(page, size);
 
         Page<Library> libraryPage =
                 libraryQueryRepository.findByUserIdWithSort(userId, libraryType, sort, pageable);
 
-        return libraryPage.map(lib -> {
-            int totalEpisodes = (int) episodeRepository.countByNovelId(lib.getNovelId());
-            return LibraryListResponse.from(lib, totalEpisodes);
-        });
+        // N+1 해결 - novelId 목록 일괄 집계
+        List<Long> novelIds = libraryPage.getContent().stream()
+                .map(Library::getNovelId)
+                .toList();
+
+        Map<Long, Long> episodeCountMap = episodeRepository
+                .countByNovelIds(novelIds);
+
+        return libraryPage.map(lib ->
+                LibraryListResponse.from(lib,
+                        episodeCountMap.getOrDefault(lib.getNovelId(), 0L))
+        );
     }
 }

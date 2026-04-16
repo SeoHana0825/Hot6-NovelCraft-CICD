@@ -1,7 +1,7 @@
 package com.example.hot6novelcraft.domain.episode.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
-import com.example.hot6novelcraft.domain.episode.entity.esnums.EpisodeStatus;
+import com.example.hot6novelcraft.domain.episode.entity.enums.EpisodeStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -45,6 +45,9 @@ public class Episode extends BaseEntity {
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column
+    private LocalDateTime deletedAt;
 
     @Column(nullable = false)
     private Long likeCount = 0L;
@@ -99,5 +102,6 @@ public class Episode extends BaseEntity {
     // 삭제 (소프트 딜리트)
     public void delete() {
         this.isDeleted = true;
+        deletedAt = LocalDateTime.now();
     }
 }

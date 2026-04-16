@@ -9,16 +9,20 @@ import com.example.hot6novelcraft.domain.library.entity.enums.LibraryType;
 import com.example.hot6novelcraft.domain.library.service.LibraryService;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/libraries")
 @RequiredArgsConstructor
+@Validated
 public class LibraryController {
 
     private final LibraryService libraryService;
@@ -26,7 +30,6 @@ public class LibraryController {
     // 내서재 담기 (찜/구매/읽는중 모두 이 API 사용)
     @PostMapping("/{id}")
     public ResponseEntity<BaseResponse<LibraryAddResponse>> addToLibrary(
-            @PathVariable Long id,
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody LibraryAddRequest request
     ) {
@@ -44,10 +47,11 @@ public class LibraryController {
     @GetMapping("/me")
     public ResponseEntity<BaseResponse<PageResponse<LibraryListResponse>>> getMyLibrary(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
-            @RequestParam(required = false)            LibraryType libraryType,
-            @RequestParam(defaultValue = "1")          int         page,
-            @RequestParam(defaultValue = "12")         int         size,
-            @RequestParam(defaultValue = "LATEST")     String      sort
+            @RequestParam(required = false) LibraryType libraryType,
+            @RequestParam(defaultValue = "1")  @Min(value = 1, message = "페이지는 1 이상이어야 합니다") int page,
+            @RequestParam(defaultValue = "12") @Min(value = 1, message = "사이즈는 1 이상이어야 합니다")
+            @Max(value = 100, message = "사이즈는 100 이하여야 합니다") int size,
+            @RequestParam(defaultValue = "LATEST") String sort
     ) {
         Long userId = userDetails.getUser().getId();
 

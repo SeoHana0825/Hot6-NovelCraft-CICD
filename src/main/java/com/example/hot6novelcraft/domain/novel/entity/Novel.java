@@ -50,6 +50,9 @@ public class Novel extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column
+    private LocalDateTime deletedAt;
+
     @Column(nullable = false)
     private int bookmarkCount = 0;
 
@@ -88,7 +91,10 @@ public class Novel extends BaseEntity {
 
     // 소설 삭제 (소프트 딜리트)
     public void delete() {
-        this.isDeleted = true;
+        if (!this.isDeleted) {  // 이미 삭제된 경우 실행 안 함
+            this.isDeleted = true;
+            this.deletedAt = LocalDateTime.now();
+        }
     }
 
     // 소설 상태 변경 (연재중)

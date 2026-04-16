@@ -8,7 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "library")
+@Table(name = "library",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "novel_id"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Library extends BaseEntity {

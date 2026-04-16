@@ -12,10 +12,7 @@ import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -54,6 +51,11 @@ class LibraryControllerTest {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     private static final Long USER_ID = 1L;
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
 
     @BeforeEach
     void setUp() {
@@ -156,7 +158,7 @@ class LibraryControllerTest {
 
         private final LibraryListResponse item = new LibraryListResponse(
                 45L, "테스트소설", "작가명", "https://cover.png",
-                "12화: 예외 처리는 어려워", 120, LocalDateTime.now()
+                "12화: 예외 처리는 어려워", 120L, LocalDateTime.now()
         );
 
         @Test
