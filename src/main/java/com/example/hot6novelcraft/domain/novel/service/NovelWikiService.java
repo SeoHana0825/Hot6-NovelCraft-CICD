@@ -111,20 +111,24 @@ public class NovelWikiService {
         }
 
         if (cached != null) {
+            log.debug("===== [캐시 HIT] key={} =====", cacheKey);
             return (List<NovelWikiResponse>) cached;
         }
 
-        // DB 조회 (QueryDSL)
+        log.debug("===== [캐시 MISS] key={} DB 조회 =====", cacheKey);
+
+// DB 조회 (QueryDSL)
         List<NovelWiki> wikiList = novelWikiRepository.findAllByNovelId(novelId);
 
-        // Response 변환
+// Response 변환
         List<NovelWikiResponse> response = wikiList.stream()
                 .map(NovelWikiResponse::from)
                 .collect(Collectors.toList());
 
-        // Redis 캐싱
+// Redis 캐싱
         try {
             redisTemplate.opsForValue().set(cacheKey, response, WIKI_CACHE_TTL);
+            log.debug("===== [캐시 저장] key={} TTL=1시간 =====", cacheKey);
         } catch (RuntimeException e) {
             log.warn("Wiki cache write failed. key={}", cacheKey, e);
         }
