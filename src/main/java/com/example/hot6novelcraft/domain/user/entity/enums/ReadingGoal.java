@@ -1,4 +1,4 @@
-package com.example.hot6novelcraft.domain.user.entity.userEnum;
+package com.example.hot6novelcraft.domain.user.entity.enums;
 
 public enum ReadingGoal {
 

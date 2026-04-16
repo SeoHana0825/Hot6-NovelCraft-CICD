@@ -17,7 +17,11 @@ public record AdminSignupRequest(
         String password,
 
         @NotBlank(message = "휴대폰번호 입력은 필수입니다.")
-        String phoneNo
+        String phoneNo,
+
+        @NotBlank(message = "휴대폰번호 인증이 필요합니다.")
+        String phoneToken
+
 ) {
 
 }

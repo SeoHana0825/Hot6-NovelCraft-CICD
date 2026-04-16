@@ -4,6 +4,8 @@ import com.example.hot6novelcraft.common.dto.BaseResponse;
 import com.example.hot6novelcraft.domain.user.dto.request.*;
 import com.example.hot6novelcraft.domain.user.dto.response.*;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
+import com.example.hot6novelcraft.domain.user.entity.enums.ProviderSns;
+import com.example.hot6novelcraft.domain.user.service.AuthService;
 import com.example.hot6novelcraft.domain.user.service.SignupService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @RequestMapping("/api/auth")
 public class SignupController {
-
 
     private final SignupService signupService;
 
@@ -60,7 +61,7 @@ public class SignupController {
     1. 공통 회원가입 - 일반 이메일 가입
     2. 독자 회원가입 - 독자 추가 정보 기입
     3. 작가 회원가입 - 작가 추가 정보 기입
-    4. TODO!! 소셜 회원가입
+    4. 소셜 회원가입
     5. 관리자 회원가입 - 이메일, 비밀번호, 핸드폰 인증만 진행
     ============================= */
 
@@ -83,15 +84,29 @@ public class SignupController {
 
     @PostMapping("/signup/author")
     public ResponseEntity<BaseResponse<SignupResponse>> authorSignup(
-            @Valid @RequestBody AuthorSignupRequest request,
+            @Valid @RequestBody AuthorRequest request,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
         SignupResponse response = signupService.authorSignup(request, userDetails.getUsername());
         return ResponseEntity.status(HttpStatus.CREATED).body(BaseResponse.success("201", "작가 회원가입이 완료되었습니다", response));
     }
 
-    // TODO : 소셜 회원가입 로직 추가 예정!!!!
+    // ======== 소셜 로그인 ========
+    @PostMapping("/social/signup/{provider}")
+    public ResponseEntity<BaseResponse<SocialSignupResponse>> socialSignup(
+            @Valid @RequestBody SocialSignupRequest request,
+            @PathVariable String provider,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        String email = userDetails.getUsername();
+        String providerId = (String) userDetails.getAttributes().get("sub");
+        ProviderSns providerSns = ProviderSns.from(provider);
 
+        SocialSignupResponse response = signupService.socialCommonSignup(request, email, providerId, providerSns);
+        return ResponseEntity.ok(BaseResponse.success("200","소설 공통 가입이 완료되었습니다.", response));
+    }
+
+    // ======== 관리자 로그인 ========
     @PostMapping("/signup/admin")
     public ResponseEntity<BaseResponse<AdminSignupResponse>> adminSignup(
             @Valid @RequestBody AdminSignupRequest request,

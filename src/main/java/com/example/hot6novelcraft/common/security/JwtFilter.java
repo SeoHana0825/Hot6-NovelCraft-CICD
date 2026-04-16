@@ -1,8 +1,7 @@
 package com.example.hot6novelcraft.common.security;
 
-import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
-import com.example.hot6novelcraft.domain.user.entity.userEnum.UserRole;
+import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.service.UserCacheService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -10,12 +9,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.validator.internal.constraintvalidators.bv.time.futureorpresent.FutureOrPresentValidatorForDate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -36,6 +35,9 @@ public class JwtFilter extends OncePerRequestFilter {
     private static final List<String> TEMP_TOKEN_ALLOWED_USERS
             = List.of("/api/auth/signup/reader", "/api/auth/signup/author");
 
+    private static final List<String> SOCIAL_TOKEN_ALLOWED_URLS
+            = List.of("/api/auth/social/signup/**");
+
     // 토큰 없이 통과 가능한 URL
     private static final List<String> PUBLIC_URLS
             = List.of(
@@ -46,7 +48,23 @@ public class JwtFilter extends OncePerRequestFilter {
                     , "/api/auth/phone/send"
                     , "/api/auth/phone/verify"
                     , "/payment-test.html"
-                    , "/api/webhooks/portone");
+                    , "/social-login-test.html"
+                    , "/api/webhooks/portone"
+                    , "/favicon.ico"
+                    , "/login"          // 구글이 에러 시 여기로 리다이렉트
+                    , "/login?error");
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/oauth2/authorize") // 소셜 로그인 시작
+                || path.startsWith("/api/auth/login/oauth2")
+                || path.startsWith("/login/oauth2")
+                || path.equals("/login")          // 구글 에러 리다이렉트
+                || path.equals("/favicon.ico")
+                || path.equals("/social-login-test.html")
+                || path.equals("/error");
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -55,7 +73,7 @@ public class JwtFilter extends OncePerRequestFilter {
         String requestURL = request.getRequestURI();
 
         // 인증 불필요 경로 바로 통과
-        if (PUBLIC_URLS.contains(requestURL)) {
+        if (PUBLIC_URLS.stream().anyMatch(requestURL::equals)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -149,8 +167,18 @@ public class JwtFilter extends OncePerRequestFilter {
             String email = jwtUtil.extractEmail(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-            boolean isTempoToken = userDetails.getAuthorities().stream()
-                    .anyMatch(auth -> auth.getAuthority().equals(UserRole.TEMP.name()));
+            // 소셜 토큰 접근 제어
+            AntPathMatcher pathMatcher = new AntPathMatcher();
+            boolean isSocialToken = jwtUtil.isSocialToken(token);
+            if(isSocialToken && SOCIAL_TOKEN_ALLOWED_URLS.stream()
+                    .noneMatch(patten -> pathMatcher.match(patten, requestURL))) {
+
+                log.warn("소셜 토큰으로 허용되지 않은 URL 접근, URL: {}", requestURL);
+                sendErrorResponse(response, HttpServletResponse.SC_FORBIDDEN,"소셜 회원가입을 먼저 완료해주세요.");
+                return false;
+            }
+
+            boolean isTempoToken = jwtUtil.isTempToken(token);
 
             if(isTempoToken && !TEMP_TOKEN_ALLOWED_USERS.contains(requestURL)) {
 
@@ -158,6 +186,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 sendErrorResponse(response, HttpServletResponse.SC_FORBIDDEN, "추가 정보 회원가입이 필요합니다.");
                 return false;
             }
+
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(authentication);

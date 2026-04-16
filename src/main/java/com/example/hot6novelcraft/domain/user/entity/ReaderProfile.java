@@ -51,4 +51,11 @@ public class ReaderProfile extends BaseEntity {
                 .updatedAt(LocalDateTime.now())
                 .build();
     }
+
+    // 독자 프로필 수정
+    public void readerUpdateProfile(String preferredGenres, ReadingGoal readingGoal) {
+        this.preferredGenres = preferredGenres;
+        this.readingGoal = readingGoal;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

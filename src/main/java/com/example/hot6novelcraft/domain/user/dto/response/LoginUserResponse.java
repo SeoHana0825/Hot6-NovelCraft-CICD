@@ -1,7 +1,7 @@
 package com.example.hot6novelcraft.domain.user.dto.response;
 
 import com.example.hot6novelcraft.domain.user.entity.User;
-import com.example.hot6novelcraft.domain.user.entity.userEnum.UserRole;
+import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 
 public record LoginUserResponse(
 

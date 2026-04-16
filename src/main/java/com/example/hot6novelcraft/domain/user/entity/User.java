@@ -29,10 +29,10 @@ public class User extends BaseEntity {
     @Column(nullable = false, unique = true, length = 50)
     private String nickname;
 
-    @Column(nullable = false, length = 20)
+    @Column(nullable = true, length = 20)
     private String phoneNo;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private LocalDate birthday;
 
     @Column(nullable = false)
@@ -79,6 +79,45 @@ public class User extends BaseEntity {
                 UserRole.ADMIN
         );
     }
+
+    // 소셜 로그인 빌드
+    public static User socialUser(String email, String nickname, UserRole role) {
+        return User.builder()
+                .email(email)
+                .nickname(nickname)
+                .role(role)
+                .password("SOCIAL_LOGIN")
+                .birthday(null)
+                .phoneNo(null)
+                .build();
+    }
+
+    public void updateForSocialSignup(String nickname, String phoneNo, LocalDate birthday) {
+        this.nickname = nickname;
+        this.phoneNo = phoneNo;
+        this.birthday = birthday;
+        this.password = "SOCIAL_LOGIN";
+        this.role=UserRole.TEMP;
+    }
+
+    // 회원정보 수정
+    public void update(String nickname, String phoneNo) {
+        this.nickname = nickname;
+        this.phoneNo = phoneNo;
+    }
+
+    // 비밀번호 수정
+    public void updatePassword(String password) {
+        this.password = password;
+    }
+
+    // 회원 탈퇴
+    public void withdraw() {
+        this.isDeleted = true;
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    // TODO 재가입 시 계정 재활성화
 
     public void updateRefreshToken(String refreshToken) {
         this.refreshToken = refreshToken;

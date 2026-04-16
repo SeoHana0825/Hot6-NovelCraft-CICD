@@ -1,6 +1,6 @@
 package com.example.hot6novelcraft.common.security;
 
-import com.example.hot6novelcraft.domain.user.entity.userEnum.UserRole;
+import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -21,11 +21,13 @@ public class JwtUtil {
 //    private static final long ACCESS_TOKEN_TIME = 60 * 60 * 1000L; // 토큰 발급 유효 60분
 //    private static final long REFRESH_TOKEN_TIME = 14 * 24 * 60 * 60 * 1000L; // RT 발급 유효 2주
 //    private static final long TEMP_TOKEN_TIME = 10 * 60 * 1000L; // 임시 토큰 10분
+//    private static final long SOCIAL_TOKEN_TIME = 10 * 60 * 1000L; // 소셜 가입용 10분
 
     // TODO ==== 포스트맨 테스트용 TTL - 최종 배포 전 삭제하기!!! =====
     private static final long ACCESS_TOKEN_TIME = 5 * 60 * 1000L; // 토큰 발급 유효 5분
     private static final long REFRESH_TOKEN_TIME = 10 * 60 * 1000L; // RT 발급 유효 10분
     private static final long TEMP_TOKEN_TIME = 5 * 60 * 1000L; // 임시 토큰 5분
+    private static final long SOCIAL_TOKEN_TIME = 10 * 60 * 1000L; // 소셜 가입용 10분
 
     private SecretKey secretKey;
     private JwtParser jwtparser;
@@ -138,5 +140,23 @@ public class JwtUtil {
     // 임시 토큰 여부 확인
     public boolean isTempToken(String token) {
         return "TEMP".equals(getClaims(token).get("type", String.class));
+    }
+
+    // 소셜 로그인 토큰 (담긴 정보: email, type=SOCIAL)
+    public String createSocialToken(String email) {
+        Date now = new Date();
+
+        return BEARER_PREFIX + Jwts.builder()
+                .subject(email)
+                .claim("type", "SOCIAL")
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + SOCIAL_TOKEN_TIME))
+                .signWith(secretKey, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    // 소셜 토큰 여부 확인
+    public boolean isSocialToken(String token) {
+        return "SOCIAL".equals(getClaims(token).get("type", String.class));
     }
 }

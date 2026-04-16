@@ -1,6 +1,9 @@
 package com.example.hot6novelcraft.common.config;
 
+import com.example.hot6novelcraft.common.exception.OAuth2SuccessHandler;
 import com.example.hot6novelcraft.common.security.JwtFilter;
+import com.example.hot6novelcraft.domain.user.service.CustomOAuth2UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +26,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -37,23 +42,57 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write("{\"message\": \"인증이 필요합니다.\"}");
+                        })
+                )
+                // 소셜 로그인 설정
+                .oauth2Login(oauth2 ->oauth2
+                        // 구글 로그인 시작
+                        .authorizationEndpoint(endpoint
+                                -> endpoint.baseUri("/oauth2/authorize"))
+                        // 구글 콜백 URL
+                        .redirectionEndpoint(endpoint
+                                -> endpoint.baseUri("/api/auth/login/oauth2/**"))
+                        // 구글에서 사용자 정보 받아서 처리
+                        .userInfoEndpoint(userInfo
+                                -> userInfo.userService(customOAuth2UserService))
+                        // 성공 -> 토큰 발급 + 프론트 리다이렉트
+                        .successHandler(oAuth2SuccessHandler)
+                        // 실패 -> 리다이렉트
+                        .failureHandler((request, response, exception) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write("{\"message\": \"소셜 로그인에 실패했습니다.\"}");
+                        })
+                )
+
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                         "/api/auth/login"
-                        , "/api/auth/signup"
-                        , "/api/auth/email/check"
-                        , "/api/auth/nickname/check"
-                        , "/api/auth/phone/send"
-                        , "/api/auth/phone/verify"
-                        , "/api/webhooks/portone"
-                        , "/*.html"
-                        , "/static/**"
-                        , "/css/**"
-                        , "/js/**"
-                        , "/images/**"
+                                , "/api/auth/signup"
+                                , "/api/auth/email/check"
+                                , "/api/auth/nickname/check"
+                                , "/api/auth/phone/send"
+                                , "/api/auth/phone/verify"
+                                , "/api/webhooks/portone"
+                                , "/api/auth/social/signup/**"
+                                , "/api/auth/login/oauth2/**"
+                                ,"/oauth2/authorize/**"
+                                , "/error"
+                                , "/*.html"
+                                , "/static/**"
+                                , "/css/**"
+                                , "/js/**"
+                                , "/images/**"
                         ).permitAll()
-                                .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")
+                        .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")
                 .anyRequest().authenticated()
                 )
                 .build();

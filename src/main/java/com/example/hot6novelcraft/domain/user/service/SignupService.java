@@ -3,18 +3,20 @@ package com.example.hot6novelcraft.domain.user.service;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
 import com.example.hot6novelcraft.common.security.JwtUtil;
-import com.example.hot6novelcraft.domain.user.dto.request.AdminSignupRequest;
-import com.example.hot6novelcraft.domain.user.dto.request.AuthorSignupRequest;
-import com.example.hot6novelcraft.domain.user.dto.request.CommonSignupRequest;
-import com.example.hot6novelcraft.domain.user.dto.request.ReaderSignupRequest;
+import com.example.hot6novelcraft.common.security.RedisUtil;
+import com.example.hot6novelcraft.domain.user.dto.request.*;
 import com.example.hot6novelcraft.domain.user.dto.response.AdminSignupResponse;
 import com.example.hot6novelcraft.domain.user.dto.response.SignupResponse;
+import com.example.hot6novelcraft.domain.user.dto.response.SocialSignupResponse;
 import com.example.hot6novelcraft.domain.user.entity.AuthorProfile;
 import com.example.hot6novelcraft.domain.user.entity.ReaderProfile;
+import com.example.hot6novelcraft.domain.user.entity.SocialAuth;
 import com.example.hot6novelcraft.domain.user.entity.User;
-import com.example.hot6novelcraft.domain.user.entity.userEnum.UserRole;
+import com.example.hot6novelcraft.domain.user.entity.enums.ProviderSns;
+import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.repository.AuthorProfileRepository;
 import com.example.hot6novelcraft.domain.user.repository.ReaderProfileRepository;
+import com.example.hot6novelcraft.domain.user.repository.SocialAuthRepository;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,8 @@ public class SignupService {
     private final AuthorProfileRepository authorProfileRepository;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
+    private final SocialAuthRepository socialAuthRepository;
+    private final UserCacheService userCacheService;
 
     /* ======== 중복 확인 ========
     1. 이메일 중복 확인
@@ -115,7 +119,7 @@ public class SignupService {
     }
 
     @Transactional
-    public SignupResponse authorSignup(AuthorSignupRequest request, String email) {
+    public SignupResponse authorSignup(AuthorRequest request, String email) {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
@@ -170,6 +174,31 @@ public class SignupService {
         return AdminSignupResponse.of(admin);
     }
 
+    // ======== 소셜 회원 가입 ========
+    @Transactional
+    public SocialSignupResponse socialCommonSignup(SocialSignupRequest request, String email, String providerId, ProviderSns providerSns) {
+        // TODO 전화번호 인증 완료 토큰 검증하기
 
-    // TODO ======== 소셜 회원가입 ========
+        checkNickname(request.nickname());
+
+        // 소셜 유저 생성 (비밀번호는 SOCIAL LOGIN으로 고정
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
+
+        user.updateForSocialSignup(request.nickname(), request.phoneNo(), request.birthDay());
+
+        // sns 정보 저장
+        SocialAuth socialAuth = SocialAuth.register(
+                ProviderSns.GOOGLE
+                , providerId
+                , user.getId()
+        );
+        socialAuthRepository.save(socialAuth);
+
+        log.info("[소셜 공통 가입] 유저 생성 완료, email: {}", email);
+
+        String tempToken = jwtUtil.createTempToken(email);
+
+        return SocialSignupResponse.of(tempToken, email, request.nickname());
+    }
 }
