@@ -116,15 +116,16 @@ public class WebhookService {
 
             // /confirm과 동일한 Lock 키로 상호 배제 — 하나만 포인트 충전 수행
             String lockKey = "payment:confirm:lock:" + paymentId;
-            if (!redisUtil.acquireLock(lockKey, 15)) {
+            String lockToken = redisUtil.acquireLock(lockKey, 15);
+            if (lockToken == null) {
+                // /confirm이 처리 중 — WebhookEvent를 PENDING으로 두어 포트원 재시도 시 재처리
                 log.warn("웹훅: Lock 획득 실패 (/confirm 처리 중) paymentId={} → 포트원이 재시도 예정", paymentId);
-                webhookTransactionService.markEventFailed(webhookEvent.getId(), "/confirm 처리 중 - 재시도 필요");
                 return;
             }
             try {
                 webhookTransactionService.completePendingPayment(webhookEvent.getId(), payment.getId(), resolvedMethod);
             } finally {
-                redisUtil.releaseLock(lockKey);
+                redisUtil.releaseLock(lockKey, lockToken);
             }
             log.info("웹훅 보정 처리 완료 (/confirm 누락) paymentId={}", paymentId);
         } else if (portOnePayment instanceof FailedPayment) {
