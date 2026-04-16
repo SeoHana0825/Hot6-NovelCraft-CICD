@@ -7,6 +7,7 @@ import com.example.hot6novelcraft.domain.novel.dto.request.NovelUpdateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.response.*;
 import com.example.hot6novelcraft.domain.novel.entity.enums.MainGenre;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
+import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
@@ -22,6 +23,8 @@ import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +46,9 @@ class NovelServiceTest {
 
     @Mock
     UserRepository userRepository;
+
+    @Mock
+    RedisTemplate<String, Object> redisTemplate;
 
     // 작가 Mock
     private UserDetailsImpl 작가() {
@@ -273,5 +279,43 @@ class NovelServiceTest {
 
         assertThrows(ServiceErrorException.class,
                 () -> novelService.getNovelDetailV1(1L));
+    }
+
+    // ==================== 소설 목록 조회 V2 ====================
+
+    @Test
+    void 소설목록조회V2_캐시없으면_DB조회후_캐싱_성공() {
+        ValueOperations<String, Object> valueOps = mock(ValueOperations.class);
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+        given(valueOps.get(any())).willReturn(null);
+
+        Page<NovelListResponse> novelPage = new PageImpl<>(List.of(
+                NovelListResponse.of(1L, "테스트소설", "FANTASY", "ISEKAI", NovelStatus.ONGOING,
+                        null, 0L, 0, "테스트작가")
+        ));
+        given(novelRepository.findNovelListV2(any(), any(), any())).willReturn(novelPage);
+
+        PageResponse<NovelListResponse> response = novelService.getNovelListV2(null, null, Pageable.ofSize(10));
+
+        assertNotNull(response);
+        assertEquals(1, response.content().size());
+    }
+
+    @Test
+    void 소설목록조회V2_캐시있으면_캐시반환_성공() {
+        ValueOperations<String, Object> valueOps = mock(ValueOperations.class);
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+
+        PageResponse<NovelListResponse> cachedResponse = new PageResponse<>(
+                List.of(NovelListResponse.of(1L, "테스트소설", "FANTASY", "ISEKAI",
+                        NovelStatus.ONGOING, null, 0L, 0, "테스트작가")),
+                0, 1, 1L, 10, true
+        );
+        given(valueOps.get(any())).willReturn(cachedResponse);
+
+        PageResponse<NovelListResponse> response = novelService.getNovelListV2(null, null, Pageable.ofSize(10));
+
+        assertNotNull(response);
+        assertEquals(1, response.content().size());
     }
 }
