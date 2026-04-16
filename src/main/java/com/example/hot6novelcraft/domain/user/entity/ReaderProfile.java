@@ -1,17 +1,17 @@
 package com.example.hot6novelcraft.domain.user.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
-import com.example.hot6novelcraft.domain.user.entity.userEnum.ReadingGoal;
+import com.example.hot6novelcraft.domain.user.entity.enums.ReadingGoal;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@NoArgsConstructor
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "reader_profiles")
 public class ReaderProfile extends BaseEntity {
 
@@ -33,18 +33,29 @@ public class ReaderProfile extends BaseEntity {
 
     private LocalDateTime deletedAt;
 
-    private ReaderProfile(Long userId, String preferredGenres, ReadingGoal readingGoal) {
-        this.userId = userId;
-        this.preferredGenres = preferredGenres;
-        this.readingGoal = readingGoal;
+    @PreUpdate
+    protected void preUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
-    @Builder
-    public static ReaderProfile register(
-            Long userId
-            , String preferredGenres
-            , ReadingGoal readingGoal
-    ) {
-        return new ReaderProfile(userId, preferredGenres, readingGoal);
+    @PreRemove
+    protected void preRemove() {
+        deletedAt = LocalDateTime.now();
+    }
+
+    public static ReaderProfile register(Long userId, String preferredGenres, ReadingGoal readingGoal) {
+        return ReaderProfile.builder()
+                .userId(userId)
+                .preferredGenres(preferredGenres)
+                .readingGoal(readingGoal)
+                .updatedAt(LocalDateTime.now())
+                .build();
+    }
+
+    // 독자 프로필 수정
+    public void readerUpdateProfile(String preferredGenres, ReadingGoal readingGoal) {
+        this.preferredGenres = preferredGenres;
+        this.readingGoal = readingGoal;
+        this.updatedAt = LocalDateTime.now();
     }
 }

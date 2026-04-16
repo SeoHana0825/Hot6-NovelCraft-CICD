@@ -16,7 +16,7 @@ import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
-import com.example.hot6novelcraft.domain.user.entity.userEnum.UserRole;
+import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

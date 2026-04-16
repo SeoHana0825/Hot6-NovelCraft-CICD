@@ -1,7 +1,7 @@
 package com.example.hot6novelcraft.domain.user.dto.request;
 
 import com.example.hot6novelcraft.domain.novel.entity.enums.MainGenre;
-import com.example.hot6novelcraft.domain.user.entity.userEnum.CareerLevel;
+import com.example.hot6novelcraft.domain.user.entity.enums.CareerLevel;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public record AuthorSignupRequest(
+public record AuthorRequest(
 
     @NotEmpty(message = "주력 장르 선택은 필수입니다.")
     List<MainGenre> genres,

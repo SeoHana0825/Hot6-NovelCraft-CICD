@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 public enum UserExceptionEnum implements ErrorCode {
     ERR_NOT_FOUND_USER(HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다")
     , ERR_INVALID_ROLE(HttpStatus.BAD_REQUEST, "역할을 찾을 수 없습니다")
+    , ERR_NOT_FOUND_EMAIL(HttpStatus.NOT_FOUND, "이메일을 찾을 수 없습니다")
 
     // 회원가입
     , ERR_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다")
@@ -27,6 +28,12 @@ public enum UserExceptionEnum implements ErrorCode {
     // 로그인
     , ERR_FAILED_SOCIAL(HttpStatus.NOT_FOUND, "소셜 인증에 실패했습니다")
     , ERR_INVALID_EMAIL_OR_PASSWORD(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다")
+
+    // 회원정보
+    , ERR_NOT_FOUND_AUTHOR_PROFILE(HttpStatus.NOT_FOUND,"작가 프로필을 찾을 수 없습니다")
+    , ERR_SOCIAL_USER_CANNOT_CHANGE_PASSWORD(HttpStatus.BAD_REQUEST, "소셜 로그인 유저는 비밀번호를 변경할 수 없습니다")
+    , ERR_PASSWORD_NOT_MATCH(HttpStatus.UNAUTHORIZED, "현재 비밀번호가 일치 하지 않습니다")
+    , ERR_SAME_AS_OLD_PASSWORD(HttpStatus.CONFLICT, "현재 비밀번호와 동일합니다. 다시 입력해주세요")
 
     // Token
     , ERR_ACCESS_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AccessToken이 만료되었습니다. 재발급해주세요")

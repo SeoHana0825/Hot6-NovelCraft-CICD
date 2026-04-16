@@ -1,17 +1,31 @@
 package com.example.hot6novelcraft.domain.user.entity;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
-@RequiredArgsConstructor
-public class UserDetailsImpl implements UserDetails {
+public class UserDetailsImpl implements UserDetails, OAuth2User {
 
     private final User user;
+    private final Map<String, Object> attributes;
+
+    // 일반 로그인용 생성자
+    public UserDetailsImpl(User user) {
+        this.user = user;
+        this.attributes = Collections.emptyMap();
+    }
+
+    // 소셜 로그인용 생성자 - 구글에서 받은 정보 담김
+    public UserDetailsImpl(User user, Map<String, Object> attributes) {
+        this.user = user;
+        this.attributes = (attributes == null) ? Collections.emptyMap() : Map.copyOf(attributes);
+    }
 
     // Security 밖에서 User 객체 꺼냄
     public User getUser() {
@@ -22,6 +36,18 @@ public class UserDetailsImpl implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(user.getRole().name()));
+    }
+
+    // 구글에서 받은 속성 맵핑
+    @Override
+    public Map<String, Object> getAttributes() {
+        return attributes;
+    }
+
+    // OAuth2User의 식별자 = 이메일로 통일
+    @Override
+    public String getName() {
+        return user.getEmail();
     }
 
     @Override

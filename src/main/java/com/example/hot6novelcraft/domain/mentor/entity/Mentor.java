@@ -1,7 +1,7 @@
 package com.example.hot6novelcraft.domain.mentor.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
-import com.example.hot6novelcraft.domain.user.entity.userEnum.CareerLevel;
+import com.example.hot6novelcraft.domain.user.entity.enums.CareerLevel;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
