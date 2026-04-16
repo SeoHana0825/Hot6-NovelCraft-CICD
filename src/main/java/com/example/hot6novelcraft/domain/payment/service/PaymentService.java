@@ -71,8 +71,7 @@ public class PaymentService {
                 userId, request.paymentId(), request.amount());
 
         String lockKey = "payment:confirm:lock:" + request.paymentId();
-        String lockToken = redisUtil.acquireLock(lockKey, 15);
-        if (lockToken == null) {
+        if (!redisUtil.acquireLock(lockKey)) {
             log.warn("[결제] Lock 획득 실패 (이미 처리 중) userId={} paymentKey={}", userId, request.paymentId());
             throw new ServiceErrorException(PaymentExceptionEnum.ERR_PAYMENT_PROCESSING);
         }
@@ -123,7 +122,7 @@ public class PaymentService {
             log.error("[결제] 예상치 못한 오류 userId={} paymentKey={}", userId, request.paymentId(), e);
             throw new ServiceErrorException(PaymentExceptionEnum.ERR_PORTONE_API_ERROR);
         } finally {
-            redisUtil.releaseLock(lockKey, lockToken);
+            redisUtil.releaseLock(lockKey);
         }
     }
 
@@ -142,8 +141,7 @@ public class PaymentService {
         log.info("[환불] 요청 시작 userId={} paymentId={} reason={}", userId, paymentId, reason);
 
         String lockKey = "payment:cancel:lock:" + paymentId;
-        String lockToken = redisUtil.acquireLock(lockKey, 30);
-        if (lockToken == null) {
+        if (!redisUtil.acquireLock(lockKey)) {
             log.warn("[환불] Lock 획득 실패 (이미 처리 중) userId={} paymentId={}", userId, paymentId);
             throw new ServiceErrorException(PaymentExceptionEnum.ERR_PAYMENT_ALREADY_CANCELING);
         }
@@ -177,7 +175,7 @@ public class PaymentService {
             return PaymentResponse.from(cancelledPayment);
 
         } finally {
-            redisUtil.releaseLock(lockKey, lockToken);
+            redisUtil.releaseLock(lockKey);
         }
     }
 
