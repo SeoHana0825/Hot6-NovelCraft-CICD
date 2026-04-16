@@ -245,42 +245,6 @@ class NovelServiceTest {
         assertEquals(1, response.content().size());
     }
 
-// ==================== 소설 상세 조회 V1 ====================
-
-    @Test
-    void 소설상세조회V1_성공() {
-        Novel novel = 소설(1L);
-        User user = mock(User.class);
-        given(user.getNickname()).willReturn("테스트작가");
-
-        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
-        given(userRepository.findById(1L)).willReturn(Optional.of(user));
-
-        NovelDetailResponse response = novelService.getNovelDetailV1(1L);
-
-        assertNotNull(response);
-    }
-
-    @Test
-    void 소설상세조회V1_소설없으면_실패() {
-        given(novelRepository.findById(1L)).willReturn(Optional.empty());
-
-        assertThrows(ServiceErrorException.class,
-                () -> novelService.getNovelDetailV1(1L));
-    }
-
-    @Test
-    void 소설상세조회V1_삭제된소설이면_실패() {
-        Novel novel = mock(Novel.class);
-        given(novel.getAuthorId()).willReturn(1L);
-        given(novel.isDeleted()).willReturn(true);
-
-        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
-
-        assertThrows(ServiceErrorException.class,
-                () -> novelService.getNovelDetailV1(1L));
-    }
-
     // ==================== 소설 목록 조회 V2 ====================
 
     @Test
@@ -317,5 +281,26 @@ class NovelServiceTest {
 
         assertNotNull(response);
         assertEquals(1, response.content().size());
+    }
+
+    // ==================== 소설 상세 조회 ====================
+
+    @Test
+    void 소설상세조회_성공() {
+        NovelDetailResponse detailResponse = mock(NovelDetailResponse.class);
+
+        given(novelRepository.findNovelDetailByNovelId(1L)).willReturn(detailResponse);
+
+        NovelDetailResponse response = novelService.getNovelDetail(1L);
+
+        assertNotNull(response);
+    }
+
+    @Test
+    void 소설상세조회_소설없으면_실패() {
+        given(novelRepository.findNovelDetailByNovelId(1L)).willReturn(null);
+
+        assertThrows(ServiceErrorException.class,
+                () -> novelService.getNovelDetail(1L));
     }
 }

@@ -1,5 +1,6 @@
 package com.example.hot6novelcraft.domain.novel.repository;
 
+import com.example.hot6novelcraft.domain.novel.dto.response.NovelDetailResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelListResponse;
 import com.example.hot6novelcraft.domain.novel.entity.QNovel;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
@@ -21,6 +22,7 @@ public class CustomNovelRepositoryImpl implements CustomNovelRepository {
 
     private final JPAQueryFactory queryFactory;
 
+    // 목록조회(V2)
     @Override
     public Page<NovelListResponse> findNovelListV2(String genre, NovelStatus status, Pageable pageable) {
 
@@ -66,6 +68,37 @@ public class CustomNovelRepositoryImpl implements CustomNovelRepository {
                 .fetchOne();
 
         return new PageImpl<>(content, pageable, total != null ? total : 0);
+    }
+
+    // 상세조회
+    @Override
+    public NovelDetailResponse findNovelDetailByNovelId(Long novelId) {
+
+        QNovel novel = QNovel.novel;
+        QUser user = QUser.user;
+
+        NovelDetailResponse result = queryFactory
+                .select(Projections.constructor(NovelDetailResponse.class,
+                        novel.id,
+                        novel.title,
+                        novel.description,
+                        novel.genre,
+                        novel.tags,
+                        novel.status,
+                        novel.coverImageUrl,
+                        novel.viewCount,
+                        novel.bookmarkCount,
+                        user.nickname,
+                        novel.createdAt
+                ))
+                .from(novel)
+                .join(user).on(novel.authorId.eq(user.id))
+                .where(
+                        novel.id.eq(novelId),
+                        novel.isDeleted.eq(false)
+                )
+                .fetchOne();
+        return result;
     }
 
     // 장르 필터링 (null이면 조건X)

@@ -108,14 +108,14 @@ public class NovelController {
     }
 
     /**
-     * 소설 상세 조회 V1
+     * 소설 상세 조회
      * 정은식
      */
-    @GetMapping("/v1/novels/{novelId}")
-    public ResponseEntity<BaseResponse<NovelDetailResponse>> getNovelDetailV1(
+    @GetMapping("/novels/{novelId}")
+    public ResponseEntity<BaseResponse<NovelDetailResponse>> getNovelDetail(
             @PathVariable Long novelId
     ) {
-        NovelDetailResponse response = novelService.getNovelDetailV1(novelId);
+        NovelDetailResponse response = novelService.getNovelDetail(novelId);
 
         return ResponseEntity.ok(
                 BaseResponse.success("200", "소설 상세 조회 성공", response)

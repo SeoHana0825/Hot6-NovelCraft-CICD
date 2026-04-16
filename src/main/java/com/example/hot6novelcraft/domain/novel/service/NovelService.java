@@ -61,6 +61,9 @@ public class NovelService {
         // DB 저장
         Novel savedNovel = novelRepository.save(novel);
 
+        // 캐시 무효화
+        evictNovelListCache();
+
         return NovelCreateResponse.from(savedNovel.getId());
     }
 
@@ -86,6 +89,10 @@ public class NovelService {
                 request.genre().toString(),
                 request.tagsToString()
         );
+
+        // 캐시 무효화
+        evictNovelListCache();
+
         return NovelUpdateResponse.from(novel.getId());
     }
 
@@ -105,6 +112,9 @@ public class NovelService {
 
         // 소설 삭제(소프트 딜리트)
         novel.delete();
+
+        // 캐시 무효화
+        evictNovelListCache();
 
         return NovelDeleteResponse.from(novel.getId());
     }
@@ -177,25 +187,16 @@ public class NovelService {
     }
 
 
-    // 소설 상세 조회 V1(JPA)
+    // 소설 상세 조회 (QueryDSL + 인덱싱)
     @Transactional(readOnly = true)
-    public NovelDetailResponse getNovelDetailV1(Long novelId) {
+    public NovelDetailResponse getNovelDetail(Long novelId) {
 
-        // 소설 조회
-        Novel novel = novelRepository.findById(novelId)
-                .orElseThrow(() -> new ServiceErrorException(NovelExceptionEnum.NOVEL_NOT_FOUND));
+        NovelDetailResponse response = novelRepository.findNovelDetailByNovelId(novelId);
 
-        // 삭제된 소설 확인
-        if (novel.isDeleted()) {
-            throw new ServiceErrorException(NovelExceptionEnum.NOVEL_ALREADY_DELETED);
+        if (response == null) {
+            throw new ServiceErrorException(NovelExceptionEnum.NOVEL_NOT_FOUND);
         }
-
-        // 작가 닉네임 조회
-        String authorNickname = userRepository.findById(novel.getAuthorId())
-                .map(User::getNickname)
-                .orElseThrow(() -> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
-
-        return NovelDetailResponse.of(novel, authorNickname);
+        return response;
     }
 
     // 소설 조회 공통 메서드(본인 소설 및 삭제여부)
