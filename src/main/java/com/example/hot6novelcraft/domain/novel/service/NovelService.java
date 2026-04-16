@@ -15,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -217,12 +219,17 @@ public class NovelService {
         return novel;
     }
 
-    // 캐시 무효화 공통 메서드
+    // 캐시 무효화 공통 메서드(스캔방식)
     private void evictNovelListCache() {
         try {
-            Set<String> keys = redisTemplate.keys(NOVEL_LIST_CACHE_KEY + "*");
-            if (keys != null && !keys.isEmpty()) {
-                redisTemplate.delete(keys);
+            ScanOptions options = ScanOptions.scanOptions()
+                    .match(NOVEL_LIST_CACHE_KEY + "*")
+                    .count(100)
+                    .build();
+            try (Cursor<String> cursor = redisTemplate.scan(options)) {
+                while (cursor.hasNext()) {
+                    redisTemplate.delete(cursor.next());
+                }
             }
         } catch (RuntimeException e) {
             log.warn("Novel list cache eviction failed.", e);
