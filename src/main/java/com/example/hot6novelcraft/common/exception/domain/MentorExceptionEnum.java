@@ -14,7 +14,8 @@ public enum MentorExceptionEnum implements ErrorCode {
     MENTOR_CAREER_REQUIRED(HttpStatus.BAD_REQUEST, "경력 사항 필드는 필수 입력 값입니다"),
     MENTOR_BIO_TOO_SHORT(HttpStatus.BAD_REQUEST, "멘토 소개는 최소 10자 이상 입력해 주세요"),
     MENTOR_MAX_MENTEES_EXCEEDED(HttpStatus.BAD_REQUEST, "최대 멘티 수는 5명을 초과할 수 없습니다"),
-    MENTOR_FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드 중 오류가 발생했습니다");
+    MENTOR_FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "파일 업로드 중 오류가 발생했습니다"),
+    MENTOR_JSON_SERIALIZE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "데이터 처리 중 오류가 발생했습니다");
 
     private final HttpStatus httpStatus;
     private final String message;

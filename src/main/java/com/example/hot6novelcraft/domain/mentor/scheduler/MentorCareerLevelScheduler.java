@@ -52,11 +52,13 @@ public class MentorCareerLevelScheduler {
 
         int upgradedCount = 0;
         for (Mentor mentor : targets) {
+            CareerLevel previousLevel = mentor.getCareerLevel(); // 변경 전 등급 먼저 저장
             CareerLevel newLevel = resolveNewLevel(mentor);
-            if (newLevel != null && newLevel != mentor.getCareerLevel()) {
+
+            if (newLevel != null && newLevel != previousLevel) {
                 MentorCareerHistory history = MentorCareerHistory.create(
                         mentor.getId(),
-                        mentor.getCareerLevel(),
+                        previousLevel,
                         newLevel,
                         buildChangeReason(newLevel)
                 );
@@ -64,26 +66,18 @@ public class MentorCareerLevelScheduler {
                 mentorCareerHistoryRepository.save(history);
                 upgradedCount++;
                 log.info("[MentorCareerLevelScheduler] mentorId={} {} → {}",
-                        mentor.getId(), mentor.getCareerLevel(), newLevel);
+                        mentor.getId(), previousLevel, newLevel); // 저장한 previousLevel 사용
             }
         }
 
         log.info("[MentorCareerLevelScheduler] 배치 완료 - 총 {}명 등급 조정", upgradedCount);
     }
 
-    /**
-     * 현재 등급 기준으로 다음 등급 조건 충족 여부 확인
-     * - INTRODUCTION → ELEMENTARY 조건 충족 시 승급
-     * - ELEMENTARY   → INTERMEDIATE 조건 충족 시 승급
-     * - INTERMEDIATE → PROFICIENT는 관리자 수동이므로 제외
-     */
     private CareerLevel resolveNewLevel(Mentor mentor) {
         List<Long> novelIds = novelRepository.findNovelIdsByAuthorId(mentor.getUserId());
         if (novelIds.isEmpty()) return null;
 
-        long publishedCount = episodeRepository.countByNovelIdInAndStatus(
-                novelIds, EpisodeStatus.PUBLISHED
-        );
+        long publishedCount = episodeRepository.countByNovelIdInAndStatus(novelIds, EpisodeStatus.PUBLISHED);
         long totalLikes = episodeRepository.sumLikeCountByNovelIdIn(novelIds);
 
         return switch (mentor.getCareerLevel()) {

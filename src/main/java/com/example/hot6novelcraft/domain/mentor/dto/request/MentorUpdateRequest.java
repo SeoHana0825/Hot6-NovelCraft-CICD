@@ -2,15 +2,13 @@ package com.example.hot6novelcraft.domain.mentor.dto.request;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
 public record MentorUpdateRequest(
 
-        @NotBlank(message = "멘토 소개는 필수 입력 값입니다")
-        @Size(min = 10, max = 500, message = "멘토 소개는 100자 이상 500자 이하로 입력해 주세요")
+        @Size(min = 10, max = 500, message = "멘토 소개는 10자 이상 500자 이하로 입력해 주세요")
         String introduction,
 
         List<String> mainGenres,

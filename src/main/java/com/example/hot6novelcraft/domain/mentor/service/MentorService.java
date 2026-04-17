@@ -39,9 +39,11 @@ public class MentorService {
     private final EpisodeRepository episodeRepository;
     private final ObjectMapper objectMapper;
 
-    // 멘토 등록 신청
-    // PENDING 또는 APPROVED 상태의 기존 신청이 있으면 중복 신청 불가
-    // certificationFile 은 S3 업로드 후 URL 저장 (현재는 파일명으로 대체)
+    /**
+     * 멘토 등록 신청
+     * - PENDING 또는 APPROVED 상태의 기존 신청이 있으면 중복 신청 불가
+     * - careerLevel 기준으로 입문/중급 자동 승인, 전문은 PENDING 유지
+     */
     @Transactional
     public MentorRegisterResponse register(Long userId, MentorRegisterRequest request,
                                            MultipartFile certificationFile) {
@@ -74,8 +76,10 @@ public class MentorService {
         return MentorRegisterResponse.from(saved);
     }
 
-    // 멘토 정보 수정
-    // 본인 확인 후 변경 가능한 필드만 업데이트
+    /**
+     * 멘토 정보 수정
+     * - null 필드는 기존 값 유지 (부분 업데이트)
+     */
     @Transactional
     public MentorUpdateResponse update(Long userId, MentorUpdateRequest request) {
         Mentor mentor = mentorRepository.findByUserId(userId)
@@ -99,7 +103,9 @@ public class MentorService {
         return MentorUpdateResponse.from(mentor.getId(), LocalDateTime.now());
     }
 
-    // 내 멘토 프로필 조회
+    /**
+     * 내 멘토 프로필 조회
+     */
     @Transactional(readOnly = true)
     public MentorProfileResponse getMyProfile(Long userId) {
         Mentor mentor = mentorRepository.findByUserId(userId)
@@ -108,11 +114,9 @@ public class MentorService {
         return MentorProfileResponse.from(mentor);
     }
 
-    // careerLevel 기준 초기 상태 결정
-    // PROFICIENT  : PENDING (관리자 수동 승인)
-    // INTERMEDIATE : PUBLISHED 에피소드 100회 이상 + likeCount 100 이상이면 APPROVED
-    // ELEMENTARY   : PUBLISHED 에피소드 50회 이상 + likeCount 50 이상이면 APPROVED
-    // INTRODUCTION : PUBLISHED 에피소드 50회 이상이면 APPROVED
+    /**
+     * careerLevel 기준 초기 상태 결정
+     */
     private MentorStatus resolveInitialStatus(Long userId, CareerLevel careerLevel) {
         if (careerLevel == CareerLevel.PROFICIENT) {
             return MentorStatus.PENDING;
@@ -141,7 +145,7 @@ public class MentorService {
         if (file == null || file.isEmpty()) {
             return null;
         }
-        // TODO: S3 업로드 로직 연동 필요 - 현재는 원본 파일명 반환
+        // TODO: S3 연동 후 UUID 기반 파일명으로 변경 필요 (path traversal 방어)
         return file.getOriginalFilename();
     }
 
@@ -152,7 +156,8 @@ public class MentorService {
         try {
             return objectMapper.writeValueAsString(list);
         } catch (JsonProcessingException e) {
-            throw new ServiceErrorException(MentorExceptionEnum.MENTOR_FILE_UPLOAD_FAILED);
+            // JSON 직렬화 실패 - 파일 업로드와 무관한 내부 오류
+            throw new ServiceErrorException(MentorExceptionEnum.MENTOR_JSON_SERIALIZE_FAILED);
         }
     }
 }

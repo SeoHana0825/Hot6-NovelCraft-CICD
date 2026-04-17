@@ -20,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,6 +31,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -75,8 +77,8 @@ class MentorServiceTest {
                 "수정된 소개글입니다. 판타지 장르 10년차입니다",
                 List.of("판타지"),
                 List.of("문장력"),
-                "2024년 공모전 대상 수상",  // careerHistory
-                List.of("방향 제시형"),      // mentoringStyles
+                "2024년 공모전 대상 수상",
+                List.of("방향 제시형"),
                 5,
                 false,
                 "성실한 분 환영합니다"
@@ -111,41 +113,40 @@ class MentorServiceTest {
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.PENDING)).willReturn(false);
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.APPROVED)).willReturn(false);
             given(novelRepository.findNovelIdsByAuthorId(USER_ID)).willReturn(List.of(1L));
-            given(episodeRepository.countByNovelIdInAndStatus(any(), eq(EpisodeStatus.PUBLISHED))).willReturn(10L); // 50 미만
+            given(episodeRepository.countByNovelIdInAndStatus(any(), eq(EpisodeStatus.PUBLISHED))).willReturn(10L);
             given(objectMapper.writeValueAsString(any())).willReturn("[\"판타지\"]");
-            given(mentorRepository.save(any())).willReturn(mentor);
+
+            ArgumentCaptor<Mentor> captor = ArgumentCaptor.forClass(Mentor.class);
+            given(mentorRepository.save(captor.capture())).willReturn(mentor);
 
             // when
-            MentorRegisterResponse response = mentorService.register(USER_ID, registerRequest, null);
+            mentorService.register(USER_ID, registerRequest, null);
 
             // then
-            assertThat(response).isNotNull();
-            assertThat(response.status()).isEqualTo(MentorStatus.PENDING);
-            verify(mentorRepository, times(1)).save(any(Mentor.class));
+            Mentor savedMentor = captor.getValue();
+            assertThat(savedMentor.getStatus()).isEqualTo(MentorStatus.PENDING);
+            assertThat(savedMentor.getUserId()).isEqualTo(USER_ID);
         }
 
         @Test
         @DisplayName("INTRODUCTION 등급 - 조건 충족 시 APPROVED로 저장")
         void register_introduction_approved() throws Exception {
             // given
-            Mentor approvedMentor = Mentor.create(
-                    USER_ID, CareerLevel.INTRODUCTION, null, null, null,
-                    "판타지 장르를 10년째 쓰고 있습니다", null, 3, true, null, null,
-                    MentorStatus.APPROVED
-            );
-
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.PENDING)).willReturn(false);
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.APPROVED)).willReturn(false);
             given(novelRepository.findNovelIdsByAuthorId(USER_ID)).willReturn(List.of(1L));
             given(episodeRepository.countByNovelIdInAndStatus(any(), eq(EpisodeStatus.PUBLISHED))).willReturn(50L);
             given(objectMapper.writeValueAsString(any())).willReturn("[\"판타지\"]");
-            given(mentorRepository.save(any())).willReturn(approvedMentor);
+
+            ArgumentCaptor<Mentor> captor = ArgumentCaptor.forClass(Mentor.class);
+            given(mentorRepository.save(captor.capture())).willReturn(mentor);
 
             // when
-            MentorRegisterResponse response = mentorService.register(USER_ID, registerRequest, null);
+            mentorService.register(USER_ID, registerRequest, null);
 
             // then
-            assertThat(response.status()).isEqualTo(MentorStatus.APPROVED);
+            Mentor savedMentor = captor.getValue();
+            assertThat(savedMentor.getStatus()).isEqualTo(MentorStatus.APPROVED);
         }
 
         @Test
@@ -160,25 +161,21 @@ class MentorServiceTest {
                     null, null, 3, true, null
             );
 
-            Mentor approvedMentor = Mentor.create(
-                    USER_ID, CareerLevel.ELEMENTARY, null, null, null,
-                    "판타지 장르를 10년째 쓰고 있습니다", null, 3, true, null, null,
-                    MentorStatus.APPROVED
-            );
-
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.PENDING)).willReturn(false);
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.APPROVED)).willReturn(false);
             given(novelRepository.findNovelIdsByAuthorId(USER_ID)).willReturn(List.of(1L));
             given(episodeRepository.countByNovelIdInAndStatus(any(), eq(EpisodeStatus.PUBLISHED))).willReturn(50L);
             given(episodeRepository.sumLikeCountByNovelIdIn(any())).willReturn(50L);
             given(objectMapper.writeValueAsString(any())).willReturn("[\"판타지\"]");
-            given(mentorRepository.save(any())).willReturn(approvedMentor);
+
+            ArgumentCaptor<Mentor> captor = ArgumentCaptor.forClass(Mentor.class);
+            given(mentorRepository.save(captor.capture())).willReturn(mentor);
 
             // when
-            MentorRegisterResponse response = mentorService.register(USER_ID, elementaryRequest, null);
+            mentorService.register(USER_ID, elementaryRequest, null);
 
             // then
-            assertThat(response.status()).isEqualTo(MentorStatus.APPROVED);
+            assertThat(captor.getValue().getStatus()).isEqualTo(MentorStatus.APPROVED);
         }
 
         @Test
@@ -193,29 +190,25 @@ class MentorServiceTest {
                     null, null, 3, true, null
             );
 
-            Mentor approvedMentor = Mentor.create(
-                    USER_ID, CareerLevel.INTERMEDIATE, null, null, null,
-                    "판타지 장르를 10년째 쓰고 있습니다", null, 3, true, null, null,
-                    MentorStatus.APPROVED
-            );
-
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.PENDING)).willReturn(false);
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.APPROVED)).willReturn(false);
             given(novelRepository.findNovelIdsByAuthorId(USER_ID)).willReturn(List.of(1L));
             given(episodeRepository.countByNovelIdInAndStatus(any(), eq(EpisodeStatus.PUBLISHED))).willReturn(100L);
             given(episodeRepository.sumLikeCountByNovelIdIn(any())).willReturn(100L);
             given(objectMapper.writeValueAsString(any())).willReturn("[\"판타지\"]");
-            given(mentorRepository.save(any())).willReturn(approvedMentor);
+
+            ArgumentCaptor<Mentor> captor = ArgumentCaptor.forClass(Mentor.class);
+            given(mentorRepository.save(captor.capture())).willReturn(mentor);
 
             // when
-            MentorRegisterResponse response = mentorService.register(USER_ID, intermediateRequest, null);
+            mentorService.register(USER_ID, intermediateRequest, null);
 
             // then
-            assertThat(response.status()).isEqualTo(MentorStatus.APPROVED);
+            assertThat(captor.getValue().getStatus()).isEqualTo(MentorStatus.APPROVED);
         }
 
         @Test
-        @DisplayName("PROFICIENT 등급 - 항상 PENDING")
+        @DisplayName("PROFICIENT 등급 - 항상 PENDING, novelRepository 조회 안 함")
         void register_proficient_always_pending() throws Exception {
             // given
             MentorRegisterRequest proficientRequest = new MentorRegisterRequest(
@@ -229,30 +222,35 @@ class MentorServiceTest {
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.PENDING)).willReturn(false);
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.APPROVED)).willReturn(false);
             given(objectMapper.writeValueAsString(any())).willReturn("[\"판타지\"]");
-            given(mentorRepository.save(any())).willReturn(mentor);
+
+            ArgumentCaptor<Mentor> captor = ArgumentCaptor.forClass(Mentor.class);
+            given(mentorRepository.save(captor.capture())).willReturn(mentor);
 
             // when
             mentorService.register(USER_ID, proficientRequest, null);
 
-            // then - novelRepository 조회 안 함
+            // then
+            assertThat(captor.getValue().getStatus()).isEqualTo(MentorStatus.PENDING);
             verify(novelRepository, never()).findNovelIdsByAuthorId(any());
         }
 
         @Test
-        @DisplayName("소설이 없으면 PENDING으로 저장")
+        @DisplayName("소설이 없으면 PENDING으로 저장, episodeRepository 조회 안 함")
         void register_no_novels_pending() throws Exception {
             // given
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.PENDING)).willReturn(false);
             given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.APPROVED)).willReturn(false);
             given(novelRepository.findNovelIdsByAuthorId(USER_ID)).willReturn(List.of());
             given(objectMapper.writeValueAsString(any())).willReturn("[\"판타지\"]");
-            given(mentorRepository.save(any())).willReturn(mentor);
+
+            ArgumentCaptor<Mentor> captor = ArgumentCaptor.forClass(Mentor.class);
+            given(mentorRepository.save(captor.capture())).willReturn(mentor);
 
             // when
-            MentorRegisterResponse response = mentorService.register(USER_ID, registerRequest, null);
+            mentorService.register(USER_ID, registerRequest, null);
 
             // then
-            assertThat(response.status()).isEqualTo(MentorStatus.PENDING);
+            assertThat(captor.getValue().getStatus()).isEqualTo(MentorStatus.PENDING);
             verify(episodeRepository, never()).countByNovelIdInAndStatus(any(), any());
         }
 
@@ -304,7 +302,6 @@ class MentorServiceTest {
 
             // then
             assertThat(response).isNotNull();
-            assertThat(response.mentorId()).isEqualTo(mentor.getId());
         }
 
         @Test
@@ -324,10 +321,7 @@ class MentorServiceTest {
         void update_blank_career_history_throws() {
             // given
             MentorUpdateRequest blankCareerRequest = new MentorUpdateRequest(
-                    "수정된 소개글입니다", null, null,
-                    "",    // careerHistory
-                    null,  // mentoringStyles
-                    null, null, null
+                    "수정된 소개글입니다", null, null, "", null, null, null, null
             );
             given(mentorRepository.findByUserId(USER_ID)).willReturn(Optional.of(mentor));
 
@@ -342,7 +336,7 @@ class MentorServiceTest {
         void update_null_career_history_keeps_existing() throws Exception {
             // given
             MentorUpdateRequest nullCareerRequest = new MentorUpdateRequest(
-                    "수정된 소개글입니다", null, null, null, null, null, null, null
+                    null, null, null, null, null, null, null, null
             );
             given(mentorRepository.findByUserId(USER_ID)).willReturn(Optional.of(mentor));
 
@@ -371,8 +365,8 @@ class MentorServiceTest {
 
             // then
             assertThat(response).isNotNull();
-            assertThat(response.mentorId()).isEqualTo(mentor.getId());
             assertThat(response.status()).isEqualTo(MentorStatus.PENDING);
+            assertThat(response.careerLevel()).isEqualTo(CareerLevel.INTRODUCTION);
         }
 
         @Test
