@@ -5,7 +5,6 @@ import com.example.hot6novelcraft.domain.episode.entity.enums.EpisodeStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
 import java.util.List;
 import java.util.Map;
 
@@ -35,5 +34,23 @@ public interface EpisodeRepository extends JpaRepository<Episode, Long>, CustomE
                         row -> (Long) row[0],
                         row -> (Long) row[1]
                 ));
+    }
+
+    // 소설 목록 기준 PUBLISHED 에피소드 수 조회 (빈 리스트 방어)
+    @Query("SELECT COUNT(e) FROM Episode e WHERE e.novelId IN :novelIds AND e.status = :status AND e.isDeleted = false")
+    long countByNovelIdInAndStatusRaw(@Param("novelIds") List<Long> novelIds, @Param("status") EpisodeStatus status);
+
+    default long countByNovelIdInAndStatus(List<Long> novelIds, EpisodeStatus status) {
+        if (novelIds == null || novelIds.isEmpty()) return 0L;
+        return countByNovelIdInAndStatusRaw(novelIds, status);
+    }
+
+    // 소설 목록 기준 likeCount 합산 조회 (빈 리스트 방어)
+    @Query("SELECT COALESCE(SUM(e.likeCount), 0) FROM Episode e WHERE e.novelId IN :novelIds AND e.isDeleted = false")
+    long sumLikeCountByNovelIdInRaw(@Param("novelIds") List<Long> novelIds);
+
+    default long sumLikeCountByNovelIdIn(List<Long> novelIds) {
+        if (novelIds == null || novelIds.isEmpty()) return 0L;
+        return sumLikeCountByNovelIdInRaw(novelIds);
     }
 }

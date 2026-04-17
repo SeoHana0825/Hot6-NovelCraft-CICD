@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface NovelRepository extends JpaRepository<Novel, Long>, CustomNovelRepository  {
 
     // V1 - 소설 목록 조회 (IsDeleted확인)
@@ -16,4 +18,8 @@ public interface NovelRepository extends JpaRepository<Novel, Long>, CustomNovel
     @Modifying
     @Query("UPDATE Novel n SET n.viewCount = n.viewCount + 1 WHERE n.id = :novelId")
     void incrementViewCount(@Param("novelId") Long novelId);
+
+    // 작가의 삭제되지 않은 소설 ID 목록 조회
+    @Query("SELECT n.id FROM Novel n WHERE n.authorId = :authorId AND n.isDeleted = false")
+    List<Long> findNovelIdsByAuthorId(@Param("authorId") Long authorId);
 }
