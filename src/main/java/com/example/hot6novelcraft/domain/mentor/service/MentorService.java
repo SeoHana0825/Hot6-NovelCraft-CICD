@@ -72,8 +72,12 @@ public class MentorService {
                 initialStatus
         );
 
-        Mentor saved = mentorRepository.save(mentor);
-        return MentorRegisterResponse.from(saved);
+        try {
+            Mentor saved = mentorRepository.save(mentor);
+            return MentorRegisterResponse.from(saved);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new ServiceErrorException(MentorExceptionEnum.MENTOR_ALREADY_APPROVED);
+        }
     }
 
     /**

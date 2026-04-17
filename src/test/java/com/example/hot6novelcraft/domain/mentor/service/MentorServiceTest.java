@@ -24,6 +24,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Optional;
@@ -380,5 +381,20 @@ class MentorServiceTest {
                     .isInstanceOf(ServiceErrorException.class)
                     .hasMessage(MentorExceptionEnum.MENTOR_NOT_FOUND.getMessage());
         }
+    }
+    @Test
+    @DisplayName("동시 요청으로 DataIntegrityViolationException 발생 시 MENTOR_ALREADY_APPROVED 예외로 변환")
+    void register_data_integrity_violation_throws() throws Exception {
+        // given
+        given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.PENDING)).willReturn(false);
+        given(mentorRepository.existsByUserIdAndStatus(USER_ID, MentorStatus.APPROVED)).willReturn(false);
+        given(novelRepository.findNovelIdsByAuthorId(USER_ID)).willReturn(List.of());
+        given(objectMapper.writeValueAsString(any())).willReturn("[\"판타지\"]");
+        given(mentorRepository.save(any())).willThrow(DataIntegrityViolationException.class);
+
+        // when & then
+        assertThatThrownBy(() -> mentorService.register(USER_ID, registerRequest, null))
+                .isInstanceOf(ServiceErrorException.class)
+                .hasMessage(MentorExceptionEnum.MENTOR_ALREADY_APPROVED.getMessage());
     }
 }
