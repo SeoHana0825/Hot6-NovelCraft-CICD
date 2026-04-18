@@ -1,5 +1,7 @@
 package com.example.hot6novelcraft.domain.novel.repository;
 
+import com.example.hot6novelcraft.domain.episode.entity.QEpisode;
+import com.example.hot6novelcraft.domain.novel.dto.response.AuthorNovelListResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelDetailResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelListResponse;
 import com.example.hot6novelcraft.domain.novel.entity.QNovel;
@@ -7,6 +9,7 @@ import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.user.entity.QUser;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -99,6 +102,53 @@ public class CustomNovelRepositoryImpl implements CustomNovelRepository {
                 )
                 .fetchOne();
         return result;
+    }
+
+    // 작가용 소설 목록 조회(작가 에디터용)
+    @Override
+    public Page<AuthorNovelListResponse> findAuthorNovelList(Long authorId, Pageable pageable) {
+
+        QNovel novel = QNovel.novel;
+        QEpisode episode = QEpisode.episode;
+
+        List<AuthorNovelListResponse> content = queryFactory
+                .select(Projections.constructor(AuthorNovelListResponse.class,
+                        novel.id,
+                        novel.title,
+                        novel.genre,
+                        novel.status,
+                        novel.coverImageUrl,
+
+                        // 회차 수 서브쿼리
+                        JPAExpressions
+                                .select(episode.count())
+                                .from(episode)
+                                .where(
+                                        episode.novelId.eq(novel.id),
+                                        episode.isDeleted.eq(false)
+                                ),
+                        novel.updatedAt
+                ))
+                .from(novel)
+                .where(
+                        novel.authorId.eq(authorId),
+                        novel.isDeleted.eq(false)
+                )
+                .orderBy(novel.updatedAt.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        Long total = queryFactory
+                .select(novel.count())
+                .from(novel)
+                .where(
+                        novel.authorId.eq(authorId),
+                        novel.isDeleted.eq(false)
+                )
+                .fetchOne();
+
+        return new PageImpl<>(content, pageable, total != null ? total : 0);
     }
 
     // 장르 필터링 (null이면 조건X)

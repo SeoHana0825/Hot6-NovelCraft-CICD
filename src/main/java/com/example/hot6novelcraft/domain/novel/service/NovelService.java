@@ -200,6 +200,21 @@ public class NovelService {
         return response;
     }
 
+    // 작가용 소설 목록 조회 (에디터용)
+    @Transactional(readOnly = true)
+    public PageResponse<AuthorNovelListResponse> getAuthorNovelList(UserDetailsImpl userDetails, Pageable pageable) {
+
+        // 작가 권한 확인
+        validateAuthorRole(userDetails);
+
+        Long authorId = userDetails.getUser().getId();
+
+        // 본인 소설 목록 조회 (전체 상태 포함)
+        Page<AuthorNovelListResponse> novels = novelRepository.findAuthorNovelList(authorId, pageable);
+
+        return PageResponse.register(novels);
+    }
+
     // 소설 조회 공통 메서드(본인 소설 및 삭제여부)
     private Novel findNovelById(Long novelId, Long userId) {
 
@@ -216,6 +231,13 @@ public class NovelService {
             throw new ServiceErrorException(NovelExceptionEnum.NOVEL_ALREADY_DELETED);
         }
         return novel;
+    }
+
+    // 작가 권한 확인 공통 메서드
+    private void validateAuthorRole(UserDetailsImpl userDetails) {
+        if (userDetails.getUser().getRole() != UserRole.AUTHOR) {
+            throw new ServiceErrorException(NovelExceptionEnum.NOVEL_FORBIDDEN);
+        }
     }
 
     // 캐시 무효화 공통 메서드(스캔방식)

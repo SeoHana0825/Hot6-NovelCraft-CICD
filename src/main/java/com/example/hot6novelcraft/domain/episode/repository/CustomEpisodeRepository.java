@@ -1,5 +1,6 @@
 package com.example.hot6novelcraft.domain.episode.repository;
 
+import com.example.hot6novelcraft.domain.episode.dto.response.AuthorEpisodeListResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeListResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeMetaDto;
 import com.example.hot6novelcraft.domain.episode.entity.Episode;
@@ -18,4 +19,7 @@ public interface CustomEpisodeRepository {
 
     // 회차 메타 정보 조회 (content 제외, 가벼운 쿼리)
     EpisodeMetaDto findMetaById(Long episodeId);
+
+    // 작가용 회차 목록 조회 (본인 소설의 회차, DRAFT 포함)
+    Page<AuthorEpisodeListResponse> findAuthorEpisodeList(Long novelId, Pageable pageable);
 }

@@ -138,4 +138,21 @@ public class EpisodeController {
                 BaseResponse.success("200", "회차 본문 조회 성공(V2)", response)
         );
     }
+
+    /**
+     * 작가용 회차 목록 조회 (에디터용)
+     * 정은식
+     */
+    @GetMapping("/author/novels/{novelId}/episodes")
+    public ResponseEntity<BaseResponse<PageResponse<AuthorEpisodeListResponse>>> getAuthorEpisodeList(
+            @PathVariable Long novelId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @PageableDefault(size = 20, sort = "episodeNumber", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        PageResponse<AuthorEpisodeListResponse> response = episodeService.getAuthorEpisodeList(novelId, userDetails, pageable);
+
+        return ResponseEntity.ok(
+                BaseResponse.success("200", "작가 회차 목록 조회 성공", response)
+        );
+    }
 }

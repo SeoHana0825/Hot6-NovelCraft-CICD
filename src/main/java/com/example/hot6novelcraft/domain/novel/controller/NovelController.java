@@ -121,4 +121,20 @@ public class NovelController {
                 BaseResponse.success("200", "소설 상세 조회 성공", response)
         );
     }
+
+    /**
+     * 작가용 소설 목록 조회 (에디터용)
+     * 정은식
+     */
+    @GetMapping("/author/novels")
+    public ResponseEntity<BaseResponse<PageResponse<AuthorNovelListResponse>>> getAuthorNovelList(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @PageableDefault(size = 20, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        PageResponse<AuthorNovelListResponse> response = novelService.getAuthorNovelList(userDetails, pageable);
+
+        return ResponseEntity.ok(
+                BaseResponse.success("200", "작가 소설 목록 조회 성공", response)
+        );
+    }
 }

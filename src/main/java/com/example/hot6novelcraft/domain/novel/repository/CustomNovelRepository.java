@@ -1,5 +1,6 @@
 package com.example.hot6novelcraft.domain.novel.repository;
 
+import com.example.hot6novelcraft.domain.novel.dto.response.AuthorNovelListResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelDetailResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelListResponse;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
@@ -13,4 +14,8 @@ public interface CustomNovelRepository {
 
     // 소설 상세 조회 (QueryDSL + 인덱싱)
     NovelDetailResponse findNovelDetailByNovelId(Long novelId);
+
+    // 작가용 소설 목록 조회(본인소설, 모든상태 포함!)
+    Page<AuthorNovelListResponse> findAuthorNovelList(Long authorId, Pageable pageable);
+
 }

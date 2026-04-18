@@ -247,6 +247,23 @@ public class EpisodeService {
         return getEpisodeFromBulkCacheByMeta(meta);
     }
 
+    // 작가용 회차 목록 조회 (에디터용)
+    @Transactional(readOnly = true)
+    public PageResponse<AuthorEpisodeListResponse> getAuthorEpisodeList(Long novelId, UserDetailsImpl userDetails, Pageable pageable) {
+
+        // 작가 권한 확인
+        validateAuthorRole(userDetails);
+
+        // 본인 소설 확인 (다른 작가 소설 회차 조회 방지)
+        findNovelById(novelId, userDetails.getUser().getId());
+
+        // 회차 목록 조회 (DRAFT 포함)
+        Page<AuthorEpisodeListResponse> episodes =
+                episodeRepository.findAuthorEpisodeList(novelId, pageable);
+
+        return PageResponse.register(episodes);
+    }
+
 
     // -----------------------------------------공통 매서드---------------------------------------------------------------
 

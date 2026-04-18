@@ -1,5 +1,6 @@
 package com.example.hot6novelcraft.domain.episode.repository;
 
+import com.example.hot6novelcraft.domain.episode.dto.response.AuthorEpisodeListResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeListResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeMetaDto;
 import com.example.hot6novelcraft.domain.episode.entity.Episode;
@@ -94,5 +95,42 @@ public class CustomEpisodeRepositoryImpl implements CustomEpisodeRepository {
                 .from(episode)
                 .where(episode.id.eq(episodeId))
                 .fetchOne();
+    }
+
+    // 작가용 회차 목록 조회 (본인 소설의 회차, DRAFT 포함)
+    @Override
+    public Page<AuthorEpisodeListResponse> findAuthorEpisodeList(Long novelId, Pageable pageable) {
+
+        List<AuthorEpisodeListResponse> content = queryFactory
+                .select(Projections.constructor(AuthorEpisodeListResponse.class,
+                        episode.id,
+                        episode.episodeNumber,
+                        episode.title,
+                        episode.status,
+                        episode.isFree,
+                        episode.pointPrice,
+                        episode.publishedAt,
+                        episode.updatedAt
+                ))
+                .from(episode)
+                .where(
+                        episode.novelId.eq(novelId),
+                        episode.isDeleted.eq(false)
+                )
+                .orderBy(episode.episodeNumber.asc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        Long total = queryFactory
+                .select(episode.count())
+                .from(episode)
+                .where(
+                        episode.novelId.eq(novelId),
+                        episode.isDeleted.eq(false)
+                )
+                .fetchOne();
+
+        return new PageImpl<>(content, pageable, total != null ? total : 0);
     }
 }
