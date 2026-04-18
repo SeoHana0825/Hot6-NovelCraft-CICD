@@ -637,4 +637,51 @@ class EpisodeServiceTest {
         assertThrows(ServiceErrorException.class,
                 () -> episodeService.getEpisodeContentV2(1L, userDetails));
     }
+
+    // ==================== 작가용 회차 목록 조회 ====================
+
+    @Test
+    void 작가회차목록조회_성공() {
+        UserDetailsImpl userDetails = 작가();
+        Novel novel = 소설(1L);
+
+        Page<AuthorEpisodeListResponse> episodePage = new PageImpl<>(List.of(
+                new AuthorEpisodeListResponse(
+                        1L, 1, "1화", EpisodeStatus.PUBLISHED,
+                        true, 0, null, null
+                ),
+                new AuthorEpisodeListResponse(
+                        2L, 2, "2화 미발행", EpisodeStatus.DRAFT,
+                        false, 200, null, null
+                )
+        ));
+
+        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
+        given(episodeRepository.findAuthorEpisodeList(eq(1L), any())).willReturn(episodePage);
+
+        PageResponse<AuthorEpisodeListResponse> response =
+                episodeService.getAuthorEpisodeList(1L, userDetails, Pageable.ofSize(20));
+
+        assertNotNull(response);
+        assertEquals(2, response.content().size());
+    }
+
+    @Test
+    void 작가회차목록조회_작가권한없으면_실패() {
+        UserDetailsImpl userDetails = 독자();
+
+        assertThrows(ServiceErrorException.class,
+                () -> episodeService.getAuthorEpisodeList(1L, userDetails, Pageable.ofSize(20)));
+    }
+
+    @Test
+    void 작가회차목록조회_본인소설아니면_실패() {
+        UserDetailsImpl userDetails = 작가(); // userId = 1L
+        Novel novel = 소설(2L); // authorId = 2L (다른 작가)
+
+        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
+
+        assertThrows(ServiceErrorException.class,
+                () -> episodeService.getAuthorEpisodeList(1L, userDetails, Pageable.ofSize(20)));
+    }
 }

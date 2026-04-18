@@ -31,6 +31,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -302,5 +303,40 @@ class NovelServiceTest {
 
         assertThrows(ServiceErrorException.class,
                 () -> novelService.getNovelDetail(1L));
+    }
+
+    // ==================== 작가용 소설 목록 조회 ====================
+
+    @Test
+    void 작가소설목록조회_성공() {
+        UserDetailsImpl userDetails = 작가();
+
+        Page<AuthorNovelListResponse> authorPage = new PageImpl<>(List.of(
+                new AuthorNovelListResponse(
+                        1L,
+                        "내 소설",
+                        "FANTASY",
+                        NovelStatus.ONGOING,
+                        null,
+                        5L,
+                        null
+                )
+        ));
+
+        given(novelRepository.findAuthorNovelList(eq(1L), any())).willReturn(authorPage);
+
+        PageResponse<AuthorNovelListResponse> response =
+                novelService.getAuthorNovelList(userDetails, Pageable.ofSize(20));
+
+        assertNotNull(response);
+        assertEquals(1, response.content().size());
+    }
+
+    @Test
+    void 작가소설목록조회_작가권한없으면_실패() {
+        UserDetailsImpl userDetails = 독자();
+
+        assertThrows(ServiceErrorException.class,
+                () -> novelService.getAuthorNovelList(userDetails, Pageable.ofSize(20)));
     }
 }
