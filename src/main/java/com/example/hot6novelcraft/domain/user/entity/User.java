@@ -27,7 +27,7 @@ public class User extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String password;
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, unique = true, length = 50)
     private String nickname;
 
     @Column(nullable = true, length = 20)
@@ -47,6 +47,8 @@ public class User extends BaseEntity {
     private LocalDateTime deletedAt;
 
     private LocalDateTime updatedAt;
+
+    private LocalDateTime anonymizedAt;
 
     @PreUpdate
     protected void preUpdate() {
@@ -134,12 +136,17 @@ public class User extends BaseEntity {
         this.password = "DELETED";
         this.phoneNo = null;
         this.birthday = null;
+
+        // 비식별화 완료 시간
+        this.anonymizedAt = LocalDateTime.now();
     }
 
     // 30일 이내 계정 복구
     public void restore() {
         this.isDeleted = false;
         this.deletedAt = null;
+
+        this.anonymizedAt = null;
     }
 
     public void updateRefreshToken(String refreshToken) {

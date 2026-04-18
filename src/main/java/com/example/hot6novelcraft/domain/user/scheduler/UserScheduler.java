@@ -16,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserScheduler {
 
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
 
     // 매일 00시에 실행
     @Scheduled(cron = "0 0 0 * * *")
@@ -26,7 +26,7 @@ public class UserScheduler {
 
         // 30일 지난 "탈퇴 대기" 유저들 조회 (물리적 x)
         List<User> expiredUsers =
-                userRepository.findByIsDeletedTrueAndDeletedAtBefore (thirtyDaysAgo);
+                userRepository.findByIsDeletedTrueAndDeletedAtBeforeAndAnonymizedAtIsNull (thirtyDaysAgo);
 
         if(expiredUsers.isEmpty()) {
             log.info("[회원탈퇴] 오늘 00시 완전 탈퇴 처리할 회원이 없습니다.");

@@ -26,8 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
-import static com.example.hot6novelcraft.domain.user.entity.QUser.user;
-
 @Slf4j(topic = "SignupService")
 @Service
 @RequiredArgsConstructor
@@ -92,7 +90,7 @@ public class SignupService {
     @Transactional
     public String commonSignup(CommonSignupRequest request) {
 
-        // SMS 공통 메서드
+        // SMS 공통 메서드 (검증만)
         validatePhoneVerification(request.phoneNo());
 
         // 이메일 및 닉네임 중복 확인
@@ -110,6 +108,12 @@ public class SignupService {
         );
 
         userRepository.save(user);
+
+        // DB update 강제 반영
+        userRepository.flush();
+
+        // DB 저장이 확실해 Redis 인증 정보 삭제
+        consumerPhoneVerification(request.phoneNo());
 
         log.info("공통 회원가입 완료 - email: {}", request.email());
 
@@ -173,7 +177,7 @@ public class SignupService {
     @Transactional
     public AdminSignupResponse adminSignup(AdminSignupRequest request, String email) {
 
-        // SMS 공통 메서드
+        // SMS 공통 메서드 (검증만)
         validatePhoneVerification(request.phoneNo());
 
         // 이메일 중복 확인
@@ -189,16 +193,20 @@ public class SignupService {
         );
         userRepository.save(admin);
 
+        // DB 강제 저장 후, 저장 완료와 동시에 Redis 키 삭제
+        userRepository.flush();
+        consumerPhoneVerification(request.phoneNo());
+
         log.info("관리자 가입 완료 - email: {}", email);
 
         return AdminSignupResponse.of(admin);
     }
 
-    // ======== 소셜 회원 가입 ========
+    /** ======== 소셜 회원 가입 ======== */
     @Transactional
     public SocialSignupResponse socialCommonSignup(SocialSignupRequest request, String email, String providerId, ProviderSns providerSns) {
 
-        // SMS 공통 메서드
+        // SMS 공통 메서드 (검증만)
         validatePhoneVerification(request.phoneNo());
 
         checkNickname(request.nickname());
@@ -222,6 +230,12 @@ public class SignupService {
         );
         socialAuthRepository.save(socialAuth);
 
+        // DB 강제 저장 후, 저장 완료와 동시에 Redis 키 삭제
+        userRepository.flush();
+        socialAuthRepository.flush();
+
+        consumerPhoneVerification(request.phoneNo());
+
         log.info("[소셜 공통 가입] 유저 생성 완료, email: {}", email);
 
         String tempToken = jwtUtil.createTempToken(email);
@@ -229,23 +243,27 @@ public class SignupService {
         return SocialSignupResponse.of(tempToken, email, request.nickname());
     }
 
-    // SMS 전송 공통 메서드
+    /** ======== SMS 공통 메서드 ======== */
+    // SMS 전송 - 검증
     public void validatePhoneVerification(String phoneNo) {
         String cleanPhoneNo = phoneNo.replaceAll("-","");
         String verifiedKey = "SMS:VERIFIED:" + cleanPhoneNo;
 
         Object isVerified = redisUtil.get(verifiedKey);
 
-        if(isVerified != null && "TRUE".equals(isVerified.toString())) {
+        if(isVerified == null || !"TRUE".equals(isVerified.toString())) {
+            log.info("[SMS] 인증되지 않은 번호로 접근 시도됨");
 
-            // 인증 확인 성공 시, 재사용 방지 삭제
-            redisUtil.delete(verifiedKey);
-            log.info("[SMS] Redis 인증 확인 및 삭제 완료, phoneNo: {} ", cleanPhoneNo);
-
-        } else {
-
-            log.info("[SMS] 인증되지 않은 번호로 접근 시도됨, {} ", cleanPhoneNo);
             throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
         }
+    }
+
+    // redis 키 삭제 필요할 때 - 삭제
+    public void consumerPhoneVerification(String phoneNo) {
+        String cleanPhoneNo = phoneNo.replaceAll("-","");
+        String verifiedKey = "SMS:VERIFIED:" + cleanPhoneNo;
+        redisUtil.delete(verifiedKey);
+
+        log.info("[SMS] Redis 인증 확인 및 삭제 완료, phoneNo: {} ", cleanPhoneNo);
     }
 }

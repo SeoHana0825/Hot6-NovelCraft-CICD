@@ -21,6 +21,6 @@ public interface UserRepository extends JpaRepository <User, Long> {
     boolean existsByNicknameAndIdNot(String nickname, Long id);
 
     // 탈퇴 스케쥴러
-    List<User> findByIsDeletedTrueAndDeletedAtBefore(LocalDateTime date);
+    List<User> findByIsDeletedTrueAndDeletedAtBeforeAndAnonymizedAtIsNull(LocalDateTime date);
 
 }

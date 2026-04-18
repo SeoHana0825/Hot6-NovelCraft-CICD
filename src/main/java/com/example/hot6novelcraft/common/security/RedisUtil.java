@@ -44,7 +44,7 @@ public class RedisUtil {
     }
 
     public void set(String key, Object value, long duration) {
-        redisTemplate.opsForValue().set(key, value, Duration.ofMinutes(5));
+        redisTemplate.opsForValue().set(key, value, Duration.ofMinutes(duration));
     }
 
     /**

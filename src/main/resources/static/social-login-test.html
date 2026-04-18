@@ -377,10 +377,12 @@
     }
 
     function updateTokenDisplay() {
-        const access = sessionStorage.getItem('accessToken');
-        const social = sessionStorage.getItem('socialToken');
-        document.getElementById('displayAccess').textContent = access ? access.substring(0, 50) + '...' : '—';
-        document.getElementById('displaySocial').textContent = social ? social.substring(0, 50) + '...' : '—';
+        const access = sessionStorage.getItem('accessToken') || '';
+        const social = sessionStorage.getItem('socialToken') || '';
+        document.getElementById('displayAccess').textContent = access ? access : '—';
+        document.getElementById('displaySocial').textContent = social ? social : '—';
+        document.getElementById('accessToken').value = access;
+        document.getElementById('socialToken').value = social;
     }
 
     function copyToken(type) {

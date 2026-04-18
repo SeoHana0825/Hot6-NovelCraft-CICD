@@ -2,7 +2,6 @@ package com.example.hot6novelcraft.domain.user.service;
 
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.OAuth2ExceptionEnum;
-import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
 import com.example.hot6novelcraft.domain.user.entity.SocialAuth;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
@@ -90,13 +89,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             return new UserDetailsImpl(user, oAuth2User.getAttributes());
     }
 
-        // 플랫폼별 이메일 추출 (현재는 구글만)
+        // 플랫폼별 이메일 추출
         private String extractEmail(OAuth2User oAuth2User, String registrationId) {
             return switch (registrationId.toLowerCase()) {
                 case "google" -> oAuth2User.getAttribute("email");
                 case "kakao" -> {
-                    log.info("[카카오 로그인] attributes: {}", oAuth2User.getAttributes());
-                    Long kakaoId = (Long) oAuth2User.getAttributes().get("id");
+                    Object idObj = oAuth2User.getAttributes().get("id");
+                    Long kakaoId = idObj instanceof Long? (Long) idObj : Long.valueOf(String.valueOf(idObj));
                     Map<String, Object> kakaoAccount = oAuth2User.getAttribute("kakao_account");
                     String kakaoEmail = kakaoAccount != null ? (String) kakaoAccount.get("email") : null;
                     yield kakaoEmail != null ? kakaoEmail : kakaoId + "@kakao.com"; //  이메일이 없으면 임시 생성

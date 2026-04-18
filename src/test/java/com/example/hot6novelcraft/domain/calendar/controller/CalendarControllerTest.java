@@ -5,7 +5,6 @@ import com.example.hot6novelcraft.common.exception.GlobalExceptionHandler;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
-import com.example.hot6novelcraft.domain.user.service.SignupService;
 import com.example.hot6novelcraft.domain.calendar.dto.request.ReadingRecordCreateRequest;
 import com.example.hot6novelcraft.domain.calendar.dto.response.CalendarDailyResponse;
 import com.example.hot6novelcraft.domain.calendar.dto.response.MonthlyStatResponse;

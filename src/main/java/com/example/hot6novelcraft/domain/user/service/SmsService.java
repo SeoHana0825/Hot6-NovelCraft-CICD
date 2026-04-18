@@ -12,12 +12,14 @@ import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.util.Random;
 
 @Slf4j(topic = "SmsService")
 @Service
 public class SmsService {
 
+    private static final SecureRandom RANDOM = new SecureRandom();
     private final DefaultMessageService messageService;
     private final RedisUtil redisUtil;
     private String fromNumber;
@@ -38,14 +40,12 @@ public class SmsService {
     }
 
     private String createRandomCode() {
-        Random random = new Random();
-        String randomCode = "";
+        StringBuilder randomCode = new StringBuilder(6);
 
         for (int i = 0; i < 6; i++) {
-            String ran = Integer.toString(random.nextInt(10));
-            randomCode += ran;
+            randomCode.append(RANDOM.nextInt(10));
         }
-        return randomCode;
+        return randomCode.toString();
     }
 
     // 인증번호 전송
@@ -97,7 +97,7 @@ public class SmsService {
 
         // 일치 여부 체크
         if(!storedCode.toString().equals(inputCode)) {
-            log.error("[SMS] 인증번호 불일치, 입력값: {}, 저장값: {}", inputCode, storedCode);
+            log.error("[SMS] 인증번호 불일치, key: {}", redisKey);
             throw new ServiceErrorException(UserExceptionEnum.ERR_INVALID_PHONE_VERIFICATION);
         }
 

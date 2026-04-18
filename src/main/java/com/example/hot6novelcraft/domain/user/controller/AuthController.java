@@ -95,17 +95,17 @@ public class AuthController {
 
     @DeleteMapping("/users/delete")
     public ResponseEntity<BaseResponse<String>> deleteUser(
+            @RequestHeader("Authorization") String accessToken,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        String email = userDetails.getUser().getEmail();
-        authService.withdrawUser(email);
+        authService.withdrawUser(accessToken, userDetails.getUser().getEmail());
 
         return ResponseEntity.ok(BaseResponse.success("200", "회원탈퇴가 정상적으로 접수되었습니다. 30일 이내 재접속 시, 계정 복구가 가능합니다", null));
     }
 
     @PatchMapping("/users/restore")
     public ResponseEntity<BaseResponse<String>> restoreUser(
-            @RequestBody UserRestoreRequest request
+            @Valid @RequestBody UserRestoreRequest request
     ) {
         authService.restoreUser(request.email());
         return ResponseEntity.ok(BaseResponse.success("200", "계정이 성공적으로 복구되었습니다.", null));
@@ -114,7 +114,7 @@ public class AuthController {
     @PostMapping("/users/abandon-recovery")
     public ResponseEntity<BaseResponse<Void>> abandonRecovery(
             // (기존에 쓰던 email만 받는 DTO 재사용)
-            @RequestBody UserRestoreRequest request
+            @Valid @RequestBody UserRestoreRequest request
     ) {
         authService.abandonRecovery(request.email());
 

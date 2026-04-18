@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  # 1. MySQL 설정
+  my-db:
+    image: mysql:8.0
+    container_name: hana-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: project_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+
+  # 2. Redis 설정
+  my-redis:
+    image: redis:latest
+    container_name: hana-redis
+    ports:
+      - "6379:6379"

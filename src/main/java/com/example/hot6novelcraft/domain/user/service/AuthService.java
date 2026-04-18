@@ -124,6 +124,8 @@ public class AuthService {
             }
         }
 
+        String verifiedKeyToDelete = null;
+
         // 휴대폰 번호 수정
         if(request.phoneNo() != null && !user.getPhoneNo().equals(request.phoneNo())) {
 
@@ -137,12 +139,21 @@ public class AuthService {
                 log.info("[SMS] 인증되지 않은 번호로 접근 시도됨, {} ", cleanPhoneNo);
                 throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
             }
-                redisUtil.delete(verifiedKey);
-                log.info("[SMS] Redis 인증 확인 및 삭제 완료, phoneNo: {} ", cleanPhoneNo);
-                log.info("[Update] 핸드폰 번호 변경 승인 - user: {}, newPhone: {}", user.getEmail(), cleanPhoneNo);
-            }
-            user.update(request.nickname(), request.phoneNo());
-            return CommonUpdateResponse.of(user);
+
+            verifiedKeyToDelete = verifiedKey;
+            log.info("[Update] 핸드폰 번호 변경 승인 (Redis 삭제 대기) - user: {}, newPhone: {}", user.getEmail(), cleanPhoneNo);
+        }
+        user.update(request.nickname(), request.phoneNo());
+
+        // DB update 강제 반영
+        userRepository.flush();
+
+        // DB 반영 완료 후, Redis 키 삭제
+        if(verifiedKeyToDelete != null) {
+            redisUtil.delete(verifiedKeyToDelete);
+            log.info("[SMS] Redis 인증 확인 및 삭제 완료, phoneNo: {} ", verifiedKeyToDelete);
+        }
+        return CommonUpdateResponse.of(user);
     }
 
 
@@ -236,7 +247,7 @@ public class AuthService {
      2. 회원 복구 - 탈퇴 직후부터 30일 이내 재로그인 (사용자 마음 변함)
      3. 즉시 파기 - 30일 이전 유저 요청에 의한 즉시 데이터 파기 (새로운 이력 생성)
      =================================== */
-    public void withdrawUser(String email) {
+    public void withdrawUser(String accessToken, String email) {
         User user =  userRepository.findByEmail(email)
                 .orElseThrow(() -> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
 
@@ -247,6 +258,9 @@ public class AuthService {
 
         // 탈퇴 상태로 변경
         user.withdraw();
+
+        logout(accessToken, email);
+        log.info("회원 탈퇴 완료 및 블랙리스트 처리 완료: {}", email);
     }
 
     public void restoreUser(String email) {
