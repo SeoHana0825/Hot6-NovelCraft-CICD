@@ -8,6 +8,7 @@ import com.example.hot6novelcraft.domain.user.dto.request.*;
 import com.example.hot6novelcraft.domain.user.dto.response.*;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.service.AuthService;
+import io.jsonwebtoken.JwtException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -132,9 +133,16 @@ public class AuthController {
 
     // 복구(restore), 즉시 파기(abandon-recovery) 공통 메소드
     private String validateAndGetEmailFromRecoveryToken(String recoveryToken) {
-        if (!jwtUtil.validateToken(recoveryToken) || !jwtUtil.isRecoveryToken(recoveryToken)) {
+        if (!jwtUtil.validateToken(recoveryToken)) {
             throw new ServiceErrorException(UserExceptionEnum.ERR_INVALID_TOKEN);
         }
-        return jwtUtil.extractEmail(recoveryToken);
+        try {
+            if(!jwtUtil.isRecoveryToken(recoveryToken)) {
+                throw new ServiceErrorException(UserExceptionEnum.ERR_INVALID_TOKEN);
+            }
+            return jwtUtil.extractEmail(recoveryToken);
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new ServiceErrorException(UserExceptionEnum.ERR_INVALID_TOKEN);
+        }
     }
 }

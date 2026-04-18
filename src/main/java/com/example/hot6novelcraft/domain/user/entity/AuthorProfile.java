@@ -84,18 +84,16 @@ public class AuthorProfile extends BaseEntity {
         if(bio != null) {
             this.bio = bio;
         }
-        if(careerLevel != null) {
+        if(instagramLinks != null) {
             this.instagramLinks = instagramLinks;
         }
-        if (careerLevel != null) {
+        if (xLinks != null) {
             this.xLinks = xLinks;
         }
-        if (careerLevel != null) {
+        if (blogLinks != null) {
             this.blogLinks = blogLinks;
         }
-        if (careerLevel != null) {
-            this.allowMenteeRequest = allowMenteeRequest;
-        }
+        this.allowMenteeRequest = allowMenteeRequest;
         this.updatedAt = LocalDateTime.now();
     }
 }

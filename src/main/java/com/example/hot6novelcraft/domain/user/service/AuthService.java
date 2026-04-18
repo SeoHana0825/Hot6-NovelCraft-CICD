@@ -174,7 +174,7 @@ public class AuthService {
                 , request.instagramLinks()
                 , request.xLinks()
                 , request.blogLinks()
-                , Boolean.TRUE.equals(request.allowMenteeRequest())
+                , request.allowMenteeRequest()
         );
 
         log.info("[작가 프로필 수정] email: {}", user.getEmail());
