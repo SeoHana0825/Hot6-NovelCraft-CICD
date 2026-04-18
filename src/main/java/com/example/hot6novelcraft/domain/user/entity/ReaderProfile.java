@@ -22,7 +22,7 @@ public class ReaderProfile extends BaseEntity {
     @Column(nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String preferredGenres;
 
     @Enumerated(EnumType.STRING)
@@ -54,8 +54,12 @@ public class ReaderProfile extends BaseEntity {
 
     // 독자 프로필 수정
     public void readerUpdateProfile(String preferredGenres, ReadingGoal readingGoal) {
-        this.preferredGenres = preferredGenres;
-        this.readingGoal = readingGoal;
+        if(preferredGenres != null) {
+            this.preferredGenres = preferredGenres;
+        }
+        if(readingGoal != null) {
+            this.readingGoal = readingGoal;
+        }
         this.updatedAt = LocalDateTime.now();
     }
 }

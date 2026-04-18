@@ -24,6 +24,7 @@ public class JwtUtil {
     private static final long REFRESH_TOKEN_TIME = 10 * 60 * 1000L; // RT 발급 유효 10분
     private static final long TEMP_TOKEN_TIME = 5 * 60 * 1000L; // 임시 토큰 5분
     private static final long SOCIAL_TOKEN_TIME = 10 * 60 * 1000L; // 소셜 가입용 10분
+    private static final long RECOVERY_TIME = 10 * 60 * 1000L; // 계정 복구 맟 파기 임시 토큰 10분
 
     private SecretKey secretKey;
     private JwtParser jwtparser;
@@ -40,6 +41,15 @@ public class JwtUtil {
                 .build();
     }
 
+    /**
+     * ======== 토큰 생성 ========
+     * 1. AccessToken
+     * 2. RefreshToken
+     * 3. TempToken : 공통 회원가입 -> 작가/독자 회원가입 임시 토큰
+     * 4. SocialToken
+     * 5. RecoveryToken : 탈퇴 후 계정 복구 및 즉시 파기(30일 이전) 임시 토큰
+     * =============================
+     */
     public String createAccessToken(String email, UserRole role) {
         Date now = new Date();
 
@@ -65,7 +75,6 @@ public class JwtUtil {
                 .compact();
     }
 
-    // 임시 토큰 생성 (공통 가입 완료 후 발급)
     public String createTempToken(String email) {
         Date now = new Date();
 
@@ -75,6 +84,30 @@ public class JwtUtil {
                 .claim("type", "TEMP")
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + TEMP_TOKEN_TIME))
+                .signWith(secretKey, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    public String createSocialToken(String email) {
+        Date now = new Date();
+
+        return BEARER_PREFIX + Jwts.builder()
+                .subject(email)
+                .claim("type", "SOCIAL")
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + SOCIAL_TOKEN_TIME))
+                .signWith(secretKey, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    public String createRecoveryToken(String email) {
+        Date now = new Date();
+
+        return BEARER_PREFIX + Jwts.builder()
+                .subject(email)
+                .claim("type","RECOVERY")
+                .issuedAt(now)
+                .expiration(new Date(System.currentTimeMillis() + RECOVERY_TIME))
                 .signWith(secretKey, Jwts.SIG.HS256)
                 .compact();
     }
@@ -129,30 +162,27 @@ public class JwtUtil {
         return getClaims(token).getSubject();
     }
 
+    /**
+     * ======== 토큰 여부 확인 ========
+     * 1. RefreshToken
+     * 2. TempToken : 공통 회원가입 -> 작가/독자 회원가입 임시 토큰
+     * 3. SocialToken
+     * 4. RecoveryToken : 탈퇴 후 계정 복구 및 파기(30일 이전) 임시 토큰
+     * =============================
+     */
     public boolean isRefreshToken(String token) {
         return "REFRESH".equals(getClaims(token).get("type", String.class));
     }
 
-    // 임시 토큰 여부 확인
     public boolean isTempToken(String token) {
         return "TEMP".equals(getClaims(token).get("type", String.class));
     }
 
-    // 소셜 로그인 토큰 (담긴 정보: email, type=SOCIAL)
-    public String createSocialToken(String email) {
-        Date now = new Date();
-
-        return BEARER_PREFIX + Jwts.builder()
-                .subject(email)
-                .claim("type", "SOCIAL")
-                .issuedAt(now)
-                .expiration(new Date(now.getTime() + SOCIAL_TOKEN_TIME))
-                .signWith(secretKey, Jwts.SIG.HS256)
-                .compact();
-    }
-
-    // 소셜 토큰 여부 확인
     public boolean isSocialToken(String token) {
         return "SOCIAL".equals(getClaims(token).get("type", String.class));
+    }
+
+    public boolean isRecoveryToken(String token) {
+        return "RECOVERY".equals(getClaims(token).get("type", String.class));
     }
 }

@@ -86,4 +86,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(BaseResponse.fail(HttpStatus.BAD_REQUEST.name(), "요청 파라미터가 유효하지 않습니다"));
     }
+
+    @ExceptionHandler(value = WithdrawalPendingException.class)
+    public ResponseEntity<BaseResponse<Object>> handleWithdrawalPendingException(WithdrawalPendingException e) {
+        log.warn("탈퇴 유예 유저 로그인 시도: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(BaseResponse.fail(HttpStatus.CONFLICT.name(), "탈퇴 유예 유저가 로그인을 시도했습니다", e.getRecoveryToken()
+                ));
+    }
 }

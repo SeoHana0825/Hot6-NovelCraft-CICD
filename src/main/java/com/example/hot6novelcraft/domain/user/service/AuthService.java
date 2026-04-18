@@ -1,6 +1,7 @@
 package com.example.hot6novelcraft.domain.user.service;
 
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
+import com.example.hot6novelcraft.common.exception.WithdrawalPendingException;
 import com.example.hot6novelcraft.common.exception.domain.NovelExceptionEnum;
 import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
 import com.example.hot6novelcraft.common.security.JwtUtil;
@@ -29,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 
 @Slf4j(topic = "AuthService")
 @Service
@@ -71,14 +71,13 @@ public class AuthService {
         User user = userDetails.getUser();
 
         if(user.isDeleted()) {
-            throw new ServiceErrorException(UserExceptionEnum.ERR_USER_WITHDRAWAL_PENDING_CONFLICT);
+
+            // 계정 복구 및 초기 파기 요청 임시 토큰
+            String recoveryToken = jwtUtil.createRecoveryToken(user.getEmail());
+            throw new WithdrawalPendingException(UserExceptionEnum.ERR_USER_WITHDRAWAL_PENDING_CONFLICT, recoveryToken);
         }
 
-        // 비밀번호 검증
-        if(!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw new ServiceErrorException(UserExceptionEnum.ERR_INVALID_EMAIL_OR_PASSWORD);
-        }
-
+        // 정상 일반 유저 토큰 발급
         String accessToken = jwtUtil.createAccessToken(user.getEmail(), user.getRole());
         String refreshToken = jwtUtil.createRefreshToken(user.getEmail());
 

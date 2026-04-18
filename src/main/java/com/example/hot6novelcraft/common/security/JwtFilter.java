@@ -3,6 +3,9 @@ package com.example.hot6novelcraft.common.security;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.service.UserCacheService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +21,7 @@ import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 
 @Slf4j(topic = "JwtFilter")
@@ -47,6 +51,8 @@ public class JwtFilter extends OncePerRequestFilter {
                     , "/api/auth/nickname/check"
                     , "/api/auth/phone/send"
                     , "/api/auth/phone/verify"
+                    , "/api/auth/users/restore"
+                    , "/api/auth/users/abandon-recovery"
                     , "/payment-test.html"
                     , "/social-login-test.html"
                     , "/chat-test.html"

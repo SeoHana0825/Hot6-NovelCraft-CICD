@@ -13,4 +13,8 @@ public record BaseResponse<T> (
     public static <T> BaseResponse<T> fail(String status, String message) {
         return new BaseResponse<>(false, status, message, null);
     }
+
+    public static <T> BaseResponse<T> fail(String status, String message, T data) {
+        return new BaseResponse<>(true, status, message, data);
+    }
 }
