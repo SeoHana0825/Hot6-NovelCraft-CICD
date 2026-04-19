@@ -622,18 +622,25 @@ function buildMsgEl(msg) {
   let contentHtml = '';
 
   if (msg.messageType === 'FILE' && msg.fileUrl) {
-    const fileName = msg.content || '첨부파일';
-    const isImage = /\.(jpg|jpeg|png|gif)$/i.test(msg.fileUrl);
-
-    if (isImage) {
-      // 이미지 파일은 썸네일로 표시
-      contentHtml = `
-        <div>${escHtml(fileName)}</div>
-        <img src="${msg.fileUrl}" class="msg-file-img" onclick="window.open('${msg.fileUrl}', '_blank')" alt="${escHtml(fileName)}" />`;
+    const safeUrl = sanitizeFileUrl(msg.fileUrl);
+    if (!safeUrl) {
+      contentHtml = '⚠️ 유효하지 않은 파일 URL';
     } else {
-      // 문서 파일은 링크로 표시
-      contentHtml = `
-        📄 <a href="${msg.fileUrl}" target="_blank" class="msg-file-link">${escHtml(fileName)}</a>`;
+      const fileName = msg.content || '첨부파일';
+      const isImage = /\.(jpg|jpeg|png|gif)$/i.test(safeUrl);
+
+      if (isImage) {
+        // 이미지 파일은 썸네일로 표시 (XSS 방지: onclick 제거, a 태그로 감싸기)
+        contentHtml = `
+          <div>${escHtml(fileName)}</div>
+          <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">
+            <img src="${safeUrl}" class="msg-file-img" alt="${escHtml(fileName)}" />
+          </a>`;
+      } else {
+        // 문서 파일은 링크로 표시
+        contentHtml = `
+          📄 <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="msg-file-link">${escHtml(fileName)}</a>`;
+      }
     }
   } else {
     // 일반 텍스트 메시지
@@ -786,7 +793,7 @@ async function handleFileSelect(event) {
     // S3에 업로드
     const fileUrl = await uploadFile(file);
 
-    // 파일 메시지 전송
+    // 파일 메시지 전송 (WebSocket 연결 끊김 시 예외 발생)
     sendFileMessage(file.name, fileUrl);
 
     // 입력 초기화
@@ -795,8 +802,8 @@ async function handleFileSelect(event) {
     alert('파일 업로드 실패: ' + e.message);
     event.target.value = '';
   } finally {
-    // 항상 버튼 상태 복구
-    fileBtn.disabled = false;
+    // WebSocket 연결 상태에 따라 버튼 활성화
+    fileBtn.disabled = !stompClient?.connected;
     fileBtn.textContent = '📎';
   }
 }
@@ -821,7 +828,9 @@ async function uploadFile(file) {
 }
 
 function sendFileMessage(fileName, fileUrl) {
-  if (!stompClient?.connected || !currentRoom) return;
+  if (!stompClient?.connected || !currentRoom) {
+    throw new Error('채팅 연결이 끊어졌습니다. 다시 시도해주세요.');
+  }
 
   stompClient.publish({
     destination: `/app/chat/${currentRoom.id}`,
@@ -910,6 +919,19 @@ function escHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/\n/g, '<br>');
+}
+
+function sanitizeFileUrl(raw) {
+  try {
+    const u = new URL(raw, location.origin);
+    // http/https 스킴만 허용 (javascript:, data: 등 차단)
+    if (!['http:', 'https:'].includes(u.protocol)) {
+      return null;
+    }
+    return u.href;
+  } catch {
+    return null;
+  }
 }
 
 // ──────────────────────────────────────────

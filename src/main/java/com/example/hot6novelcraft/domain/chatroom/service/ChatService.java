@@ -20,6 +20,7 @@ import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,12 @@ public class ChatService {
     private final MentorshipRepository mentorshipRepository;
     private final MentorRepository mentorRepository;
     private final UserRepository userRepository;
+
+    @Value("${cloud.aws.s3.bucket}")
+    private String s3BucketName;
+
+    @Value("${cloud.aws.region.static}")
+    private String s3Region;
 
     /**
      * 채팅방 생성 or 기존 채팅방 반환.
@@ -133,9 +140,13 @@ public class ChatService {
             throw new ServiceErrorException(ChatExceptionEnum.ERR_INVALID_MESSAGE);
         }
 
-        // FILE 타입일 경우 fileUrl 필수
+        // FILE 타입일 경우 fileUrl 필수 및 출처 검증
         if (request.messageType() == MessageType.FILE) {
             if (request.fileUrl() == null || request.fileUrl().isBlank()) {
+                throw new ServiceErrorException(ChatExceptionEnum.ERR_INVALID_MESSAGE);
+            }
+            // S3 버킷 URL만 허용 (링크 위·변조 방지)
+            if (!isValidS3Url(request.fileUrl())) {
                 throw new ServiceErrorException(ChatExceptionEnum.ERR_INVALID_MESSAGE);
             }
         }
@@ -143,8 +154,8 @@ public class ChatService {
         ChatRoom room = getChatRoomOrThrow(roomId);
         validateActiveParticipant(room, senderId);
 
-        // fileUrl이 있으면 createWithFile() 사용, 없으면 create() 사용
-        ChatMessage message = (request.fileUrl() != null && !request.fileUrl().isBlank())
+        // messageType에 따라 적절한 팩토리 메서드 사용
+        ChatMessage message = (request.messageType() == MessageType.FILE)
                 ? chatMessageRepository.save(ChatMessage.createWithFile(roomId, senderId, request.content(), request.messageType(), request.fileUrl()))
                 : chatMessageRepository.save(ChatMessage.create(roomId, senderId, request.content(), request.messageType()));
 
@@ -203,5 +214,21 @@ public class ChatService {
         if (user.getRole() != UserRole.AUTHOR) {
             throw new ServiceErrorException(ChatExceptionEnum.ERR_NOT_AUTHOR);
         }
+    }
+
+    /**
+     * S3 버킷 URL 검증 - 링크 위·변조 방지
+     */
+    private boolean isValidS3Url(String fileUrl) {
+        if (fileUrl == null || fileUrl.isBlank()) {
+            return false;
+        }
+
+        // 허용되는 S3 URL 패턴:
+        // https://hot6-novelcraft-chat.s3.ap-northeast-2.amazonaws.com/chat/...
+        String expectedPrefix = String.format("https://%s.s3.%s.amazonaws.com/chat/",
+                s3BucketName, s3Region);
+
+        return fileUrl.startsWith(expectedPrefix);
     }
 }

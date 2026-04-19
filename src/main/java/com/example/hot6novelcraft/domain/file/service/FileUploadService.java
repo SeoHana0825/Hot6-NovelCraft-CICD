@@ -12,6 +12,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -21,12 +22,17 @@ import java.util.UUID;
 public class FileUploadService {
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif", "pdf", "txt", "docx", "xlsx");
-    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/gif",
-            "application/pdf", "text/plain",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    // 확장자별 허용 MIME 타입 매핑 (확장자-MIME 불일치 우회 방지)
+    private static final Map<String, Set<String>> ALLOWED_TYPE_MAP = Map.of(
+            "jpg", Set.of("image/jpeg"),
+            "jpeg", Set.of("image/jpeg"),
+            "png", Set.of("image/png"),
+            "gif", Set.of("image/gif"),
+            "pdf", Set.of("application/pdf"),
+            "txt", Set.of("text/plain"),
+            "docx", Set.of("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            "xlsx", Set.of("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     );
 
     private final S3Client s3Client;
@@ -85,12 +91,15 @@ public class FileUploadService {
         }
 
         String extension = extractExtension(originalFilename);
-        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+        String contentType = file.getContentType();
+
+        if (contentType == null) {
             throw new ServiceErrorException(FileExceptionEnum.ERR_FILE_NOT_SUPPORTED);
         }
 
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
+        // 확장자별 허용 MIME 타입 매핑으로 검증 (확장자-MIME 불일치 우회 방지)
+        Set<String> allowedTypes = ALLOWED_TYPE_MAP.get(extension);
+        if (allowedTypes == null || !allowedTypes.contains(contentType)) {
             throw new ServiceErrorException(FileExceptionEnum.ERR_FILE_NOT_SUPPORTED);
         }
     }
