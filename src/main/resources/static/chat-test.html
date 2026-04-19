@@ -619,6 +619,10 @@ function connectWs(roomId) {
       setWsStatus('connected');
       document.getElementById('sendBtn').disabled = false;
 
+      stompClient.subscribe('/user/queue/errors', frame => {
+        appendSystemMsg('오류: ' + frame.body);
+      });
+
       stompClient.subscribe(`/topic/chat/${roomId}`, frame => {
         const event = JSON.parse(frame.body);
 

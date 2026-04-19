@@ -2,27 +2,29 @@ package com.example.hot6novelcraft.domain.chatroom.controller;
 
 import com.example.hot6novelcraft.common.dto.BaseResponse;
 import com.example.hot6novelcraft.common.dto.PageResponse;
+import com.example.hot6novelcraft.domain.chatroom.chatredispubsub.ChatRedisPublisher;
 import com.example.hot6novelcraft.domain.chatroom.dto.response.ChatEventResponse;
 import com.example.hot6novelcraft.domain.chatroom.dto.response.ChatMessageResponse;
 import com.example.hot6novelcraft.domain.chatroom.dto.response.ChatRoomResponse;
 import com.example.hot6novelcraft.domain.chatroom.service.ChatService;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/chatrooms")
 @RequiredArgsConstructor
 public class ChatRoomController {
 
     private final ChatService chatService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ChatRedisPublisher chatRedisPublisher;
 
     /**
      * 채팅방 생성 또는 기존 채팅방 반환
@@ -67,7 +69,7 @@ public class ChatRoomController {
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Long userId = userDetails.getUser().getId();
         chatService.leaveChatRoom(roomId, userId);
-        messagingTemplate.convertAndSend("/topic/chat/" + roomId, ChatEventResponse.leave(roomId, userId));
+        chatRedisPublisher.publish(roomId, ChatEventResponse.leave(roomId, userId));
         return BaseResponse.success("200", "채팅방 나가기 완료", null);
     }
 
@@ -80,7 +82,7 @@ public class ChatRoomController {
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
         Long userId = userDetails.getUser().getId();
         chatService.markMessagesAsRead(roomId, userId);
-        messagingTemplate.convertAndSend("/topic/chat/" + roomId, ChatEventResponse.read(roomId, userId));
+        chatRedisPublisher.publish(roomId, ChatEventResponse.read(roomId, userId));
         return BaseResponse.success("200", "읽음 처리 완료", null);
     }
 }

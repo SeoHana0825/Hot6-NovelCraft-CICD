@@ -46,8 +46,4 @@ public class ChatMessage extends BaseEntity {
     public static ChatMessage create(Long roomId, Long senderId, String content, MessageType messageType) {
         return new ChatMessage(roomId, senderId, content, messageType);
     }
-
-    public void markAsRead() {
-        this.isRead = true;
-    }
 }

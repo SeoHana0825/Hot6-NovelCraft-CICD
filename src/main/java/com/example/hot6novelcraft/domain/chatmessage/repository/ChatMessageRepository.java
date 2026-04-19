@@ -22,7 +22,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     List<Object[]> countUnreadByRoomIds(@Param("roomIds") List<Long> roomIds, @Param("userId") Long userId);
 
     // 상대방이 보낸 메시지를 읽음 처리
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE ChatMessage m SET m.isRead = true WHERE m.roomId = :roomId AND m.senderId != :userId AND m.isRead = false")
-    void markAllAsRead(@Param("roomId") Long roomId, @Param("userId") Long userId);
+    int markAllAsRead(@Param("roomId") Long roomId, @Param("userId") Long userId);
 }

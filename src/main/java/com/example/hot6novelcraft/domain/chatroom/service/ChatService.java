@@ -18,6 +18,7 @@ import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatService {
@@ -122,6 +124,14 @@ public class ChatService {
      */
     @Transactional
     public ChatMessageResponse saveMessage(Long roomId, Long senderId, ChatMessageRequest request) {
+        // 메시지 타입 및 내용 검증
+        if (request.messageType() == null) {
+            throw new ServiceErrorException(ChatExceptionEnum.ERR_INVALID_MESSAGE);
+        }
+        if (request.content() == null || request.content().isBlank()) {
+            throw new ServiceErrorException(ChatExceptionEnum.ERR_INVALID_MESSAGE);
+        }
+
         ChatRoom room = getChatRoomOrThrow(roomId);
         validateActiveParticipant(room, senderId);
         ChatMessage message = chatMessageRepository.save(
@@ -150,7 +160,12 @@ public class ChatService {
     public void markMessagesAsRead(Long roomId, Long userId) {
         ChatRoom room = getChatRoomOrThrow(roomId);
         validateActiveParticipant(room, userId);
-        chatMessageRepository.markAllAsRead(roomId, userId);
+
+        int updatedCount = chatMessageRepository.markAllAsRead(roomId, userId);
+
+        if (updatedCount > 0) {
+            log.info("[Chat] {} 개 메시지 읽음 처리 완료 roomId={} userId={}", updatedCount, roomId, userId);
+        }
     }
 
     private ChatRoom getChatRoomOrThrow(Long roomId) {
