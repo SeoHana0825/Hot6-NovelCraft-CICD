@@ -46,4 +46,10 @@ public class ChatMessage extends BaseEntity {
     public static ChatMessage create(Long roomId, Long senderId, String content, MessageType messageType) {
         return new ChatMessage(roomId, senderId, content, messageType);
     }
+
+    public static ChatMessage createWithFile(Long roomId, Long senderId, String content, MessageType messageType, String fileUrl) {
+        ChatMessage message = new ChatMessage(roomId, senderId, content, messageType);
+        message.fileUrl = fileUrl;
+        return message;
+    }
 }

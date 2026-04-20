@@ -9,6 +9,8 @@ public record ChatMessageRequest(
     String content,
 
     @NotNull(message = "메시지 타입은 필수입니다")
-    MessageType messageType
+    MessageType messageType,
+
+    String fileUrl  // FILE 타입 메시지일 때만 사용 (선택적)
 ) {
 }

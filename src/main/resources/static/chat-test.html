@@ -181,6 +181,14 @@
       max-height: 100px; transition: border-color .2s; font-family: inherit;
     }
     #msgInput:focus { border-color: #4f46e5; }
+    .btn-file {
+      width: 44px; height: 44px; border-radius: 50%; background: #f3f4f6;
+      color: #6b7280; border: 1.5px solid #e2e8f0; cursor: pointer; font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s; flex-shrink: 0;
+    }
+    .btn-file:hover { background: #ede9ff; color: #4f46e5; border-color: #4f46e5; }
+    .btn-file:disabled { background: #f9fafb; color: #d1d5db; cursor: not-allowed; }
     .btn-send {
       width: 44px; height: 44px; border-radius: 50%; background: #4f46e5;
       color: #fff; border: none; cursor: pointer; font-size: 18px;
@@ -189,6 +197,21 @@
     }
     .btn-send:hover { background: #4338ca; }
     .btn-send:disabled { background: #a5b4fc; cursor: not-allowed; }
+    .file-preview {
+      padding: 8px 12px; background: #f3f4f6; border-radius: 8px;
+      font-size: 12px; color: #6b7280; display: flex; align-items: center;
+      gap: 8px; margin-bottom: 8px;
+    }
+    .file-preview button {
+      background: none; border: none; cursor: pointer; color: #ef4444;
+      font-size: 16px; padding: 0;
+    }
+    .msg-file-link {
+      color: #4f46e5; text-decoration: underline; cursor: pointer;
+    }
+    .msg-file-img {
+      max-width: 200px; border-radius: 8px; margin-top: 6px; cursor: pointer;
+    }
 
     /* 빈 채팅 화면 */
     .chat-empty {
@@ -307,6 +330,8 @@
         </div>
 
         <div class="input-area">
+          <input type="file" id="fileInput" style="display:none" onchange="handleFileSelect(event)" />
+          <button class="btn-file" id="fileBtn" onclick="document.getElementById('fileInput').click()" disabled title="파일 첨부">📎</button>
           <textarea id="msgInput" rows="1" placeholder="메시지를 입력하세요..."
                     oninput="autoResize(this)">
           </textarea>
@@ -594,11 +619,39 @@ function buildMsgEl(msg) {
 
   const time = msg.createdAt ? formatTime(msg.createdAt) : '';
 
+  let contentHtml = '';
+
+  if (msg.messageType === 'FILE' && msg.fileUrl) {
+    const safeUrl = sanitizeFileUrl(msg.fileUrl);
+    if (!safeUrl) {
+      contentHtml = '⚠️ 유효하지 않은 파일 URL';
+    } else {
+      const fileName = msg.content || '첨부파일';
+      const isImage = /\.(jpg|jpeg|png|gif)$/i.test(safeUrl);
+
+      if (isImage) {
+        // 이미지 파일은 썸네일로 표시 (XSS 방지: onclick 제거, a 태그로 감싸기)
+        contentHtml = `
+          <div>${escHtml(fileName)}</div>
+          <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">
+            <img src="${safeUrl}" class="msg-file-img" alt="${escHtml(fileName)}" />
+          </a>`;
+      } else {
+        // 문서 파일은 링크로 표시
+        contentHtml = `
+          📄 <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="msg-file-link">${escHtml(fileName)}</a>`;
+      }
+    }
+  } else {
+    // 일반 텍스트 메시지
+    contentHtml = escHtml(msg.content);
+  }
+
   row.innerHTML = `
     <div class="msg-avatar">${isMine ? '🙋' : '🧑‍🏫'}</div>
     <div class="msg-bubble-wrap">
       ${!isMine ? `<div class="msg-sender">ID: ${msg.senderId}</div>` : ''}
-      <div class="msg-bubble">${escHtml(msg.content)}</div>
+      <div class="msg-bubble">${contentHtml}</div>
       <div class="msg-time">${time}${isMine && msg.isRead ? ' ✓' : ''}</div>
     </div>`;
   return row;
@@ -618,6 +671,7 @@ function connectWs(roomId) {
     onConnect: () => {
       setWsStatus('connected');
       document.getElementById('sendBtn').disabled = false;
+      document.getElementById('fileBtn').disabled = false;
 
       stompClient.subscribe('/user/queue/errors', frame => {
         appendSystemMsg('오류: ' + frame.body);
@@ -652,6 +706,7 @@ function connectWs(roomId) {
     onDisconnect: () => {
       setWsStatus('disconnected');
       document.getElementById('sendBtn').disabled = true;
+      document.getElementById('fileBtn').disabled = true;
     },
     onStompError: frame => {
       console.error('STOMP error', frame);
@@ -669,6 +724,7 @@ function disconnectWs() {
   }
   setWsStatus('disconnected');
   document.getElementById('sendBtn').disabled = true;
+  document.getElementById('fileBtn').disabled = true;
 }
 
 function setWsStatus(state) {
@@ -699,6 +755,91 @@ function sendMessage() {
 
   input.value = '';
   input.style.height = 'auto';
+}
+
+// ──────────────────────────────────────────
+//  파일 업로드
+// ──────────────────────────────────────────
+async function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // 파일 크기 검증 (10MB)
+  const MAX_SIZE = 10 * 1024 * 1024;
+  if (file.size > MAX_SIZE) {
+    alert('파일 크기는 최대 10MB까지 가능합니다.');
+    event.target.value = '';
+    return;
+  }
+
+  // 허용 파일 타입 검증
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+
+  if (!allowedTypes.includes(file.type)) {
+    alert('지원하지 않는 파일 형식입니다.\n이미지/문서 파일만 업로드 가능합니다.');
+    event.target.value = '';
+    return;
+  }
+
+  const fileBtn = document.getElementById('fileBtn');
+
+  try {
+    // 파일 업로드 중 표시
+    fileBtn.disabled = true;
+    fileBtn.textContent = '⏳';
+
+    // S3에 업로드
+    const fileUrl = await uploadFile(file);
+
+    // 파일 메시지 전송 (WebSocket 연결 끊김 시 예외 발생)
+    sendFileMessage(file.name, fileUrl);
+
+    // 입력 초기화
+    event.target.value = '';
+  } catch (e) {
+    alert('파일 업로드 실패: ' + e.message);
+    event.target.value = '';
+  } finally {
+    // WebSocket 연결 상태에 따라 버튼 활성화
+    fileBtn.disabled = !stompClient?.connected;
+    fileBtn.textContent = '📎';
+  }
+}
+
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch('/api/files/chat', {
+    method: 'POST',
+    headers: { 'Authorization': token },
+    body: formData
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || `HTTP ${res.status}`);
+  }
+
+  return data.data.fileUrl;
+}
+
+function sendFileMessage(fileName, fileUrl) {
+  if (!stompClient?.connected || !currentRoom) {
+    throw new Error('채팅 연결이 끊어졌습니다. 다시 시도해주세요.');
+  }
+
+  stompClient.publish({
+    destination: `/app/chat/${currentRoom.id}`,
+    body: JSON.stringify({
+      content: fileName,
+      messageType: 'FILE',
+      fileUrl: fileUrl
+    })
+  });
 }
 
 function appendRealtimeMsg(msg) {
@@ -778,6 +919,19 @@ function escHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/\n/g, '<br>');
+}
+
+function sanitizeFileUrl(raw) {
+  try {
+    const u = new URL(raw, location.origin);
+    // http/https 스킴만 허용 (javascript:, data: 등 차단)
+    if (!['http:', 'https:'].includes(u.protocol)) {
+      return null;
+    }
+    return u.href;
+  } catch {
+    return null;
+  }
 }
 
 // ──────────────────────────────────────────
