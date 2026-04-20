@@ -24,12 +24,12 @@ public interface EpisodeRepository extends JpaRepository<Episode, Long>, CustomE
     boolean existsByNovelIdAndEpisodeNumberLessThanAndStatusNotAndIsDeletedFalse(Long novelId, int episodeNumber, EpisodeStatus status);
 
     // 좋아요 +
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Episode e SET e.likeCount = e.likeCount + 1 WHERE e.id = :episodeId")
     void incrementLikeCount(@Param("episodeId") Long episodeId);
 
     // 좋아요 -
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Episode e SET e.likeCount = e.likeCount - 1 WHERE e.id = :episodeId AND e.likeCount > 0")
     void decrementLikeCount(@Param("episodeId") Long episodeId);
 
