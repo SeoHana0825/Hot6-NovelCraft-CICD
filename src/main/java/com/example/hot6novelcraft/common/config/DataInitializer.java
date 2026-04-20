@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-//@Profile({"local", "dev", "test"})
+@Profile({"local", "dev", "test"})
 public class DataInitializer implements ApplicationRunner {
 
     private final UserRepository userRepository;
@@ -44,7 +44,9 @@ public class DataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
 
         // 기존 데이터가 있으면 스킵 (에러 방지)
-        if (novelRepository.count() > 0) {
+        if (novelRepository.count() > 0
+                || authorProfileRepository.count() > 0
+                || novelRepository.count() > 0) {
             log.info("[DataInitializer] 기존 소설 데이터 존재 → 더미데이터 삽입 스킵");
             return;
         }
@@ -105,7 +107,7 @@ public class DataInitializer implements ApplicationRunner {
         episodeRepository.save(episode);
 
         // 3. Redis ZSET에 랭킹 스코어(조회수) 등록
-        redisTemplate.opsForZSet().add(REALTIME_RANKING_KEY, String.valueOf(saved.getId()), realtimeScore);
-        redisTemplate.opsForZSet().add(WEEKLY_RANKING_KEY, String.valueOf(saved.getId()), weeklyScore);
+        redisTemplate.opsForZSet().incrementScore(REALTIME_RANKING_KEY, String.valueOf(saved.getId()), realtimeScore);
+        redisTemplate.opsForZSet().incrementScore(WEEKLY_RANKING_KEY, String.valueOf(saved.getId()), weeklyScore);
     }
 }

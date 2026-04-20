@@ -14,7 +14,10 @@ public enum NovelExceptionEnum implements ErrorCode {
 
     // 찜
     NOVEL_SELF_BOOKMARK_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "본인 소설은 찜할 수 없습니다."),
-    NOVEL_NOT_VIEWABLE(HttpStatus.BAD_REQUEST, "볼 수 없는 상태의 소설입니다.");
+    NOVEL_NOT_VIEWABLE(HttpStatus.BAD_REQUEST, "볼 수 없는 상태의 소설입니다."),
+
+    // 랭킹
+    INVALID_RANKING_TYPE(HttpStatus.BAD_REQUEST, "유효하지 않은 랭킹 타입입니다.");
 
     private final HttpStatus httpStatus;
     private final String message;

@@ -63,9 +63,16 @@ public class EpisodeCacheService {
      * 어뷰징 체크 통과 시에만 호출
      * 서하나 */
     public void increaseRankingScore(Long novelId) {
-        redisTemplate.opsForZSet().incrementScore(REALTIME_RANKING_KEY, novelId, 1);
-        redisTemplate.opsForZSet().incrementScore(WEEKLY_RANKING_KEY, novelId, 1);
-        log.debug("[랭킹 점수 증가] novelId: {}, 실시간/주간 랭킹 +1", novelId);
+
+        String stringNovelId = String.valueOf(novelId);
+
+        try {
+            redisTemplate.opsForZSet().incrementScore(REALTIME_RANKING_KEY, stringNovelId, 1);
+            redisTemplate.opsForZSet().incrementScore(WEEKLY_RANKING_KEY, stringNovelId, 1);
+            log.debug("[랭킹 점수 증가] novelId: {}, 실시간/주간 랭킹 +1", novelId);
+        } catch (RuntimeException e) {
+            log.warn("[랭킹 점수 증가 실패] novelIdL {}", novelId, e);
+        }
     }
 
     // 인기작 여부 판별
