@@ -36,7 +36,7 @@ public class CustomEpisodeCommentRepositoryImpl implements CustomEpisodeCommentR
                 .from(comment)
                 .join(user).on(comment.userId.eq(user.id))
                 .where(comment.episodeId.eq(episodeId))
-                .orderBy(comment.createdAt.desc())
+                .orderBy(comment.createdAt.desc(), comment.id.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
@@ -44,6 +44,7 @@ public class CustomEpisodeCommentRepositoryImpl implements CustomEpisodeCommentR
         Long total = queryFactory
                 .select(comment.count())
                 .from(comment)
+                .join(user).on(comment.userId.eq(user.id))
                 .where(comment.episodeId.eq(episodeId))
                 .fetchOne();
 

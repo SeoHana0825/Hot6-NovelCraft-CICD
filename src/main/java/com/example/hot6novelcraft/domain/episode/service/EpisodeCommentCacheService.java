@@ -37,7 +37,8 @@ public class EpisodeCommentCacheService {
                     new TypeReference<PageResponse<EpisodeCommentListResponse>>() {}
             );
         } catch (Exception e) {
-            log.warn("[Comment Cache] 역직렬화 실패: {}", e.getMessage());
+            redisTemplate.delete(key);
+            log.warn("[Comment Cache] 역직렬화 실패 key={}", key, e);
             return null;
         }
     }
