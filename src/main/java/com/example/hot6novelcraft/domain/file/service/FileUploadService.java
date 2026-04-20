@@ -12,6 +12,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -102,9 +103,12 @@ public class FileUploadService {
             throw new ServiceErrorException(FileExceptionEnum.ERR_FILE_NOT_SUPPORTED);
         }
 
+        // MIME 타입 정규화 (charset 등 파라미터 제거)
+        String normalizedContentType = contentType.split(";", 2)[0].trim().toLowerCase(Locale.ROOT);
+
         // 확장자별 허용 MIME 타입 매핑으로 검증 (확장자-MIME 불일치 우회 방지)
         Set<String> allowedTypes = ALLOWED_TYPE_MAP.get(extension);
-        if (allowedTypes == null || !allowedTypes.contains(contentType)) {
+        if (allowedTypes == null || !allowedTypes.contains(normalizedContentType)) {
             throw new ServiceErrorException(FileExceptionEnum.ERR_FILE_NOT_SUPPORTED);
         }
     }
