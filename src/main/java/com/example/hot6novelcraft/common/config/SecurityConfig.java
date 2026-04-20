@@ -86,6 +86,8 @@ public class SecurityConfig {
                                 , "/api/webhooks/portone"
                                 , "/api/auth/social/signup/**"
                                 , "/api/auth/login/oauth2/**"
+                                , "/api/search/**"
+                                , "/api/novels/**"
                                 , "/oauth2/authorize/**"
                                 , "/error"
                                 , "/*.html"
