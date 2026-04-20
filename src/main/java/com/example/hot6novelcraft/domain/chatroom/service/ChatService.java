@@ -41,10 +41,10 @@ public class ChatService {
     private final MentorRepository mentorRepository;
     private final UserRepository userRepository;
 
-    @Value("${cloud.aws.s3.bucket}")
+    @Value("${spring.cloud.aws.s3.bucket}")
     private String s3BucketName;
 
-    @Value("${cloud.aws.region.static}")
+    @Value("${spring.cloud.aws.region.static}")
     private String s3Region;
 
     /**
