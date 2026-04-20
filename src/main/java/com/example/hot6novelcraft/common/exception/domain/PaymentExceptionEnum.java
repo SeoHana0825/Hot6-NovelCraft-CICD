@@ -17,7 +17,8 @@ public enum PaymentExceptionEnum implements ErrorCode {
     , ERR_INSUFFICIENT_POINT(HttpStatus.BAD_REQUEST, "포인트가 부족합니다")
     , ERR_POINT_NOT_FOUND(HttpStatus.NOT_FOUND, "포인트 정보를 찾을 수 없습니다")
     , ERR_PAYMENT_PROCESSING(HttpStatus.CONFLICT, "결제가 이미 처리 중입니다. 잠시 후 다시 시도해주세요")
-    , ERR_PAYMENT_ALREADY_CANCELING(HttpStatus.CONFLICT, "환불이 이미 진행 중입니다. 잠시 후 다시 시도해주세요");
+    , ERR_PAYMENT_ALREADY_CANCELING(HttpStatus.CONFLICT, "환불이 이미 진행 중입니다. 잠시 후 다시 시도해주세요")
+    , ERR_PAYMENT_CANNOT_CANCEL(HttpStatus.BAD_REQUEST, "취소할 수 없는 결제 상태입니다");
 
     private final HttpStatus httpStatus;
     private final String message;
