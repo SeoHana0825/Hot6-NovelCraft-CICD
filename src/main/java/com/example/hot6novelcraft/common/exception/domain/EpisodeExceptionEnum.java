@@ -17,7 +17,11 @@ public enum EpisodeExceptionEnum implements ErrorCode {
     EPISODE_PREVIOUS_NOT_PUBLISHED(HttpStatus.BAD_REQUEST, "이전 회차를 먼저 발행해야 합니다."),
     EPISODE_NOT_PUBLISHED(HttpStatus.BAD_REQUEST, "발행되지 않은 회차입니다."),
     EPISODE_POINT_REQUIRED(HttpStatus.PAYMENT_REQUIRED, "포인트 결제가 필요한 회차입니다."),
-    EPISODE_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "본문 내용이 없는 회차는 발행할 수 없습니다.");
+    EPISODE_CONTENT_EMPTY(HttpStatus.BAD_REQUEST, "본문 내용이 없는 회차는 발행할 수 없습니다."),
+    EPISODE_ALREADY_PURCHASED(HttpStatus.CONFLICT, "이미 구매한 회차입니다."),
+    EPISODE_FREE_NO_PURCHASE(HttpStatus.BAD_REQUEST, "무료 회차는 구매할 수 없습니다."),
+    EPISODE_NOT_AVAILABLE_FOR_PURCHASE(HttpStatus.BAD_REQUEST, "구매할 수 없는 회차입니다. (미발행 또는 삭제됨)"),
+    NOVEL_NO_PURCHASABLE_EPISODES(HttpStatus.BAD_REQUEST, "구매 가능한 회차가 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String message;

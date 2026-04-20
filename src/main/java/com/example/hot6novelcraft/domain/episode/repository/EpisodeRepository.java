@@ -64,4 +64,8 @@ public interface EpisodeRepository extends JpaRepository<Episode, Long>, CustomE
         if (novelIds == null || novelIds.isEmpty()) return 0L;
         return sumLikeCountByNovelIdInRaw(novelIds);
     }
+
+    // 소설의 발행된 유료 회차 목록 조회 (구매용)
+    @Query("SELECT e FROM Episode e WHERE e.novelId = :novelId AND e.status = 'PUBLISHED' AND e.isFree = false AND e.isDeleted = false ORDER BY e.episodeNumber ASC")
+    List<Episode> findPublishedPaidEpisodesByNovelId(@Param("novelId") Long novelId);
 }
