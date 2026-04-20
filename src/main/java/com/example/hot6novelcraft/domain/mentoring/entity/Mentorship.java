@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "mentorships")
 public class Mentorship extends BaseEntity {
+    private LocalDateTime rejectedAt;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,11 +55,12 @@ public class Mentorship extends BaseEntity {
     private LocalDateTime completedAt;
 
     public static Mentorship create(Long mentorId, Long menteeId, Long currentNovelId,
-                                    String motivation, String manuscriptUrl) {
+                                    String motivation, String manuscriptUrl, String title) {
         Mentorship mentorship = new Mentorship();
         mentorship.mentorId = mentorId;
         mentorship.menteeId = menteeId;
         mentorship.currentNovelId = currentNovelId;
+        mentorship.title = title;
         mentorship.motivation = motivation;
         mentorship.manuscriptUrl = manuscriptUrl;
         mentorship.status = MentorshipStatus.PENDING;
@@ -73,6 +75,7 @@ public class Mentorship extends BaseEntity {
 
     public void reject() {
         this.status = MentorshipStatus.REJECTED;
+        this.rejectedAt = LocalDateTime.now();
     }
 
     public void complete() {

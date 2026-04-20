@@ -11,6 +11,8 @@ import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringReceive
 import com.example.hot6novelcraft.domain.mentoring.service.MentoringService;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -29,8 +31,8 @@ public class MentoringController {
     @GetMapping("/received")
     public ResponseEntity<BaseResponse<PageResponse<MentoringReceivedResponse>>> getReceivedMentorings(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
     ) {
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         PageResponse<MentoringReceivedResponse> response =
@@ -59,10 +61,11 @@ public class MentoringController {
         return ResponseEntity.ok(BaseResponse.success("200", "멘티 거절이 완료되었습니다", null));
     }
 
-    @GetMapping("/{mentoringId}/documents/{fileId}")
+    //@GetMapping("/{mentoringId}/documents/{fileId}") // TODO:S3 연동후 해당 도메인으로 이용
+    @GetMapping("/{mentoringId}/documents")
     public ResponseEntity<BaseResponse<ManuscriptUrlResponse>> getManuscriptUrl(
             @PathVariable Long mentoringId,
-            @PathVariable String fileId, // TODO: S3 연동 후 presigned URL 생성 시 활용
+            //@PathVariable String fileId, // TODO: S3 연동 후 presigned URL 생성 시 활용
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
         String url = mentoringService.getManuscriptDownloadUrl(

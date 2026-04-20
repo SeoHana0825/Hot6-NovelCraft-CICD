@@ -24,7 +24,7 @@ public interface MentorshipRepository extends JpaRepository<Mentorship, Long> {
                                                     @Param("status") MentorshipStatus status,
                                                     @Param("startOfMonth") LocalDateTime startOfMonth);
 
-    @Query("SELECT COUNT(m) FROM Mentorship m WHERE m.mentorId = :mentorId AND m.status = :status AND m.createdAt >= :startOfMonth")
+    @Query("SELECT COUNT(m) FROM Mentorship m WHERE m.mentorId = :mentorId AND m.status = :status AND m.rejectedAt >= :startOfMonth")
     long countRejectedThisMonth(@Param("mentorId") Long mentorId,
                                 @Param("status") MentorshipStatus status,
                                 @Param("startOfMonth") LocalDateTime startOfMonth);

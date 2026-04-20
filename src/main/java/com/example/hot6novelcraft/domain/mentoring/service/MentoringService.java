@@ -7,7 +7,6 @@ import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
 import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedback;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorFeedbackRepository;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
-import com.example.hot6novelcraft.domain.mentor.dto.response.MentorStatisticsResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.request.MentoringFeedbackRequest;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringDetailResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringFeedbackResponse;
@@ -25,7 +24,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -39,9 +37,11 @@ public class MentoringService {
     private final NovelRepository novelRepository;
     private final MentorFeedbackRepository mentorFeedbackRepository;
 
+    public Page<MentoringReceivedResponse> getReceivedMentorings(Long userId, Pageable pageable) {
+        Mentor mentor = mentorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
 
-    public Page<MentoringReceivedResponse> getReceivedMentorings(Long mentorId, Pageable pageable) {
-        return mentorshipRepository.findAllByMentorIdOrderByCreatedAtDesc(mentorId, pageable)
+        return mentorshipRepository.findAllByMentorIdOrderByCreatedAtDesc(mentor.getId(), pageable)
                 .map(mentorship -> {
                     String menteeName = userRepository.findByIdAndIsDeletedFalse(mentorship.getMenteeId())
                             .map(User::getNickname)
@@ -57,11 +57,14 @@ public class MentoringService {
     }
 
     @Transactional
-    public void acceptMentee(Long mentoringId, Long menteeId, Long mentorId) {
+    public void acceptMentee(Long mentoringId, Long menteeId, Long userId) {
+        Mentor mentor = mentorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
+
         Mentorship mentorship = mentorshipRepository.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
-        if (!mentorship.getMentorId().equals(mentorId)) {
+        if (!mentorship.getMentorId().equals(mentor.getId())) {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_UNAUTHORIZED);
         }
 
@@ -73,9 +76,6 @@ public class MentoringService {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_ALREADY_PROCESSED);
         }
 
-        Mentor mentor = mentorRepository.findById(mentorId)
-                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
-
         mentor.decreaseSlot();
         mentorship.approve();
 
@@ -84,11 +84,14 @@ public class MentoringService {
     }
 
     @Transactional
-    public void rejectMentee(Long mentoringId, Long menteeId, Long mentorId) {
+    public void rejectMentee(Long mentoringId, Long menteeId, Long userId) {
+        Mentor mentor = mentorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
+
         Mentorship mentorship = mentorshipRepository.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
-        if (!mentorship.getMentorId().equals(mentorId)) {
+        if (!mentorship.getMentorId().equals(mentor.getId())) {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_UNAUTHORIZED);
         }
 
@@ -106,11 +109,14 @@ public class MentoringService {
     }
 
     @Transactional
-    public String getManuscriptDownloadUrl(Long mentoringId, Long mentorId) {
+    public String getManuscriptDownloadUrl(Long mentoringId, Long userId) {
+        Mentor mentor = mentorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
+
         Mentorship mentorship = mentorshipRepository.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
-        if (!mentorship.getMentorId().equals(mentorId)) {
+        if (!mentorship.getMentorId().equals(mentor.getId())) {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_UNAUTHORIZED);
         }
 
@@ -127,11 +133,14 @@ public class MentoringService {
     }
 
     @Transactional
-    public void completeMentoring(Long mentoringId, Long mentorId) {
+    public void completeMentoring(Long mentoringId, Long userId) {
+        Mentor mentor = mentorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
+
         Mentorship mentorship = mentorshipRepository.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
-        if (!mentorship.getMentorId().equals(mentorId)) {
+        if (!mentorship.getMentorId().equals(mentor.getId())) {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_UNAUTHORIZED);
         }
 
@@ -139,23 +148,24 @@ public class MentoringService {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_ACCEPTED);
         }
 
-        Mentor mentor = mentorRepository.findById(mentorId)
-                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
-
         mentor.increaseSlot();
         mentorship.complete();
 
         // TODO: 멘티에게 종료 알림 발송 (알림 팀원 개발 후 연동)
     }
-    public MentoringDetailResponse getMentoringDetail(Long mentoringId, Long mentorId) {
+
+    public MentoringDetailResponse getMentoringDetail(Long mentoringId, Long userId) {
+        Mentor mentor = mentorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
+
         Mentorship mentorship = mentorshipRepository.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
-        if (!mentorship.getMentorId().equals(mentorId)) {
+        if (!mentorship.getMentorId().equals(mentor.getId())) {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_UNAUTHORIZED);
         }
 
-        String mentorName = userRepository.findByIdAndIsDeletedFalse(mentorId)
+        String mentorName = userRepository.findByIdAndIsDeletedFalse(userId)
                 .map(User::getNickname)
                 .orElse("알 수 없는 사용자");
 
@@ -173,12 +183,15 @@ public class MentoringService {
     }
 
     @Transactional
-    public MentoringFeedbackResponse createFeedback(Long mentoringId, Long mentorId,
+    public MentoringFeedbackResponse createFeedback(Long mentoringId, Long userId,
                                                     MentoringFeedbackRequest request) {
+        Mentor mentor = mentorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
+
         Mentorship mentorship = mentorshipRepository.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
-        if (!mentorship.getMentorId().equals(mentorId)) {
+        if (!mentorship.getMentorId().equals(mentor.getId())) {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_UNAUTHORIZED);
         }
 
@@ -186,7 +199,7 @@ public class MentoringService {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_FEEDBACK_ONLY_ACCEPTED);
         }
 
-        MentorFeedback feedback = MentorFeedback.create(mentoringId, mentorId, request.content());
+        MentorFeedback feedback = MentorFeedback.create(mentoringId, mentor.getId(), request.content());
         mentorFeedbackRepository.save(feedback);
         mentorship.increaseSession();
 

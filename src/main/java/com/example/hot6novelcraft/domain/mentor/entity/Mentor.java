@@ -57,8 +57,12 @@ public class Mentor extends BaseEntity {
     @Column(length = 500)
     private String rejectReason;
 
+    @Version
+    private Long version;
+
     public void approve() {
         this.status = MentorStatus.APPROVED;
+        this.rejectReason = null;
     }
 
     public void reject(String rejectReason) {
