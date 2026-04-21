@@ -270,17 +270,22 @@ class MentoringControllerTest {
         @Test
         @DisplayName("정상 조회 시 200 반환")
         void getMentoringDetail_success_returns_200() {
+            // title → novelTitle, FeedbackInfo에 title/sessionNumber 추가
             MentoringDetailResponse mockResponse = new MentoringDetailResponse(
                     MENTORING_ID,
-                    "백엔드 자바 스프링 프로젝트 멘토링",
+                    "자바 백엔드 로드맵",   // novelTitle
                     "김철수",
                     "전민우",
                     MentorshipStatus.ACCEPTED,
                     LocalDateTime.now(),
                     3,
                     List.of(
-                            new MentoringDetailResponse.FeedbackInfo(1L, "ERD 설계 및 API 명세 작성", LocalDateTime.now()),
-                            new MentoringDetailResponse.FeedbackInfo(2L, "Spring Security 설정", LocalDateTime.now())
+                            new MentoringDetailResponse.FeedbackInfo(
+                                    1L, "1회차 피드백", 1,
+                                    "ERD 설계 및 API 명세 작성", LocalDateTime.now()),
+                            new MentoringDetailResponse.FeedbackInfo(
+                                    2L, "2회차 피드백", 2,
+                                    "Spring Security 설정", LocalDateTime.now())
                     )
             );
             given(mentoringService.getMentoringDetail(MENTORING_ID, USER_ID)).willReturn(mockResponse);
@@ -293,10 +298,15 @@ class MentoringControllerTest {
             assertThat(response.getBody().success()).isTrue();
             assertThat(response.getBody().status()).isEqualTo("200");
             assertThat(response.getBody().data().mentoringId()).isEqualTo(MENTORING_ID);
+            assertThat(response.getBody().data().novelTitle()).isEqualTo("자바 백엔드 로드맵");
             assertThat(response.getBody().data().mentorName()).isEqualTo("김철수");
             assertThat(response.getBody().data().menteeName()).isEqualTo("전민우");
             assertThat(response.getBody().data().totalSessions()).isEqualTo(3);
             assertThat(response.getBody().data().feedbacks()).hasSize(2);
+            assertThat(response.getBody().data().feedbacks().get(0).title()).isEqualTo("1회차 피드백");
+            assertThat(response.getBody().data().feedbacks().get(0).sessionNumber()).isEqualTo(1);
+            assertThat(response.getBody().data().feedbacks().get(1).title()).isEqualTo("2회차 피드백");
+            assertThat(response.getBody().data().feedbacks().get(1).sessionNumber()).isEqualTo(2);
             verify(mentoringService, times(1)).getMentoringDetail(MENTORING_ID, USER_ID);
         }
 
@@ -305,7 +315,7 @@ class MentoringControllerTest {
         void getMentoringDetail_no_feedbacks_returns_empty_list() {
             MentoringDetailResponse mockResponse = new MentoringDetailResponse(
                     MENTORING_ID,
-                    "백엔드 자바 스프링 프로젝트 멘토링",
+                    "자바 백엔드 로드맵",   // novelTitle
                     "김철수",
                     "전민우",
                     MentorshipStatus.ACCEPTED,
@@ -327,8 +337,11 @@ class MentoringControllerTest {
         @DisplayName("응답 메시지 확인")
         void getMentoringDetail_message_check() {
             MentoringDetailResponse mockResponse = new MentoringDetailResponse(
-                    MENTORING_ID, "제목", "김철수", "전민우",
-                    MentorshipStatus.ACCEPTED, LocalDateTime.now(), 0, List.of()
+                    MENTORING_ID,
+                    "자바 백엔드 로드맵",   // novelTitle
+                    "김철수", "전민우",
+                    MentorshipStatus.ACCEPTED,
+                    LocalDateTime.now(), 0, List.of()
             );
             given(mentoringService.getMentoringDetail(MENTORING_ID, USER_ID)).willReturn(mockResponse);
 
@@ -348,8 +361,18 @@ class MentoringControllerTest {
         @Test
         @DisplayName("정상 피드백 작성 시 201 반환")
         void createFeedback_success_returns_201() {
-            MentoringFeedbackRequest request = new MentoringFeedbackRequest("ERD 설계 및 API 명세 작성");
-            MentoringFeedbackResponse mockResponse = new MentoringFeedbackResponse(1L, MENTORING_ID, "ERD 설계 및 API 명세 작성", LocalDateTime.now()
+            // title 추가
+            MentoringFeedbackRequest request = new MentoringFeedbackRequest(
+                    "1회차 피드백",
+                    "ERD 설계 및 API 명세 작성"
+            );
+            // title, sessionNumber 추가
+            MentoringFeedbackResponse mockResponse = new MentoringFeedbackResponse(
+                    1L, MENTORING_ID,
+                    "1회차 피드백",
+                    1,
+                    "ERD 설계 및 API 명세 작성",
+                    LocalDateTime.now()
             );
             given(mentoringService.createFeedback(eq(MENTORING_ID), eq(USER_ID), any())).willReturn(mockResponse);
 
@@ -362,6 +385,8 @@ class MentoringControllerTest {
             assertThat(response.getBody().status()).isEqualTo("201");
             assertThat(response.getBody().data().feedbackId()).isEqualTo(1L);
             assertThat(response.getBody().data().mentoringId()).isEqualTo(MENTORING_ID);
+            assertThat(response.getBody().data().title()).isEqualTo("1회차 피드백");
+            assertThat(response.getBody().data().sessionNumber()).isEqualTo(1);
             assertThat(response.getBody().data().content()).isEqualTo("ERD 설계 및 API 명세 작성");
             verify(mentoringService, times(1)).createFeedback(eq(MENTORING_ID), eq(USER_ID), any());
         }
@@ -369,9 +394,15 @@ class MentoringControllerTest {
         @Test
         @DisplayName("응답 메시지 확인")
         void createFeedback_message_check() {
-            MentoringFeedbackRequest request = new MentoringFeedbackRequest("ERD 설계 및 API 명세 작성");
+            MentoringFeedbackRequest request = new MentoringFeedbackRequest(
+                    "1회차 피드백",
+                    "ERD 설계 및 API 명세 작성"
+            );
             MentoringFeedbackResponse mockResponse = new MentoringFeedbackResponse(
-                    1L, MENTORING_ID, "ERD 설계 및 API 명세 작성", LocalDateTime.now()
+                    1L, MENTORING_ID,
+                    "1회차 피드백", 1,
+                    "ERD 설계 및 API 명세 작성",
+                    LocalDateTime.now()
             );
             given(mentoringService.createFeedback(eq(MENTORING_ID), eq(USER_ID), any())).willReturn(mockResponse);
 

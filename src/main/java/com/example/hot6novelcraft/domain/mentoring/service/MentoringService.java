@@ -174,13 +174,17 @@ public class MentoringService {
                 .map(User::getNickname)
                 .orElse("알 수 없는 사용자");
 
+        String novelTitle = novelRepository.findById(mentorship.getCurrentNovelId())  // 추가
+                .map(Novel::getTitle)
+                .orElse("알 수 없는 소설");
+
         List<MentoringDetailResponse.FeedbackInfo> feedbacks = mentorFeedbackRepository
                 .findAllByMentorshipIdOrderByCreatedAtAsc(mentoringId)
                 .stream()
                 .map(MentoringDetailResponse.FeedbackInfo::from)
                 .toList();
 
-        return MentoringDetailResponse.of(mentorship, mentorName, menteeName, feedbacks);
+        return MentoringDetailResponse.of(mentorship, mentorName, menteeName, novelTitle, feedbacks);
     }
 
     @Transactional
@@ -200,7 +204,15 @@ public class MentoringService {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_FEEDBACK_ONLY_ACCEPTED);
         }
 
-        MentorFeedback feedback = MentorFeedback.create(mentoringId, mentor.getId(), request.content());
+        int nextSession = mentorship.getTotalSessions() + 1;  // 다음 회차 계산
+
+        MentorFeedback feedback = MentorFeedback.create(
+                mentoringId,
+                mentor.getId(),
+                request.title(),        // 추가
+                nextSession,            // 추가
+                request.content()
+        );
         mentorFeedbackRepository.save(feedback);
         mentorship.increaseSession();
 

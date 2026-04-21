@@ -23,7 +23,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -55,7 +54,6 @@ class MentorControllerTest {
                 .role(UserRole.AUTHOR)
                 .build();
 
-        // Reflection으로 id 설정 (Builder에 id가 없으므로)
         try {
             java.lang.reflect.Field idField = User.class.getDeclaredField("id");
             idField.setAccessible(true);
@@ -76,7 +74,6 @@ class MentorControllerTest {
         @Test
         @DisplayName("정상 등록 시 201 반환")
         void register_success_returns_201() {
-            // given
             MentorRegisterRequest request = new MentorRegisterRequest(
                     "판타지 장르를 10년째 쓰고 있습니다",
                     List.of("판타지", "로판"),
@@ -95,11 +92,9 @@ class MentorControllerTest {
 
             given(mentorService.register(eq(USER_ID), any(), any())).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorRegisterResponse>> response =
                     mentorController.register(userDetails, request);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().success()).isTrue();
@@ -111,7 +106,6 @@ class MentorControllerTest {
         @Test
         @DisplayName("자동 승인된 경우 APPROVED 상태 반환")
         void register_approved_returns_approved_status() {
-            // given
             MentorRegisterRequest request = new MentorRegisterRequest(
                     "판타지 장르를 10년째 쓰고 있습니다",
                     List.of("판타지"),
@@ -126,11 +120,9 @@ class MentorControllerTest {
 
             given(mentorService.register(eq(USER_ID), any(), any())).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorRegisterResponse>> response =
                     mentorController.register(userDetails, request);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
             assertThat(response.getBody().data().status()).isEqualTo(MentorStatus.APPROVED);
         }
@@ -145,13 +137,12 @@ class MentorControllerTest {
         @Test
         @DisplayName("정상 수정 시 200 반환")
         void update_success_returns_200() {
-            // given
             MentorUpdateRequest request = new MentorUpdateRequest(
                     "수정된 소개글입니다. 판타지 장르 10년차입니다",
                     List.of("판타지"),
                     List.of("문장력"),
-                    "2024년 공모전 대상 수상",  // careerHistory
-                    List.of("방향 제시형"),      // mentoringStyles
+                    "2024년 공모전 대상 수상",
+                    List.of("방향 제시형"),
                     5,
                     false,
                     "성실한 분 환영합니다"
@@ -161,11 +152,9 @@ class MentorControllerTest {
 
             given(mentorService.update(eq(USER_ID), any())).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorUpdateResponse>> response =
                     mentorController.update(userDetails, request);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().success()).isTrue();
@@ -177,26 +166,18 @@ class MentorControllerTest {
         @Test
         @DisplayName("일부 필드만 수정해도 200 반환")
         void update_partial_fields_returns_200() {
-            // given
             MentorUpdateRequest partialRequest = new MentorUpdateRequest(
-                    null,
-                    null,
-                    null,
-                    "경력 추가",  // careerHistory
-                    null,         // mentoringStyles
-                    null,
-                    null,
-                    null
+                    null, null, null,
+                    "경력 추가",
+                    null, null, null, null
             );
 
             MentorUpdateResponse mockResponse = new MentorUpdateResponse(1L, LocalDateTime.now());
             given(mentorService.update(eq(USER_ID), any())).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorUpdateResponse>> response =
                     mentorController.update(userDetails, partialRequest);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         }
     }
@@ -210,7 +191,6 @@ class MentorControllerTest {
         @Test
         @DisplayName("정상 조회 시 200 반환")
         void getMyProfile_success_returns_200() {
-            // given
             MentorProfileResponse mockResponse = new MentorProfileResponse(
                     1L,
                     "판타지 장르를 10년째 쓰고 있습니다",
@@ -227,11 +207,9 @@ class MentorControllerTest {
 
             given(mentorService.getMyProfile(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorProfileResponse>> response =
                     mentorController.getMyProfile(userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().success()).isTrue();
@@ -244,7 +222,6 @@ class MentorControllerTest {
         @Test
         @DisplayName("응답 메시지 확인")
         void getMyProfile_message_check() {
-            // given
             MentorProfileResponse mockResponse = new MentorProfileResponse(
                     1L, "소개글", List.of(), List.of(),
                     CareerLevel.INTRODUCTION, null, List.of(),
@@ -253,14 +230,13 @@ class MentorControllerTest {
 
             given(mentorService.getMyProfile(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorProfileResponse>> response =
                     mentorController.getMyProfile(userDetails);
 
-            // then
             assertThat(response.getBody().message()).isEqualTo("내 멘토 프로필 조회 성공");
         }
     }
+
     // ===================== getMyStatus 테스트 =====================
 
     @Nested
@@ -270,17 +246,14 @@ class MentorControllerTest {
         @Test
         @DisplayName("PENDING 상태 조회 시 200 반환")
         void getMyStatus_pending_returns_200() {
-            // given
             MentorStatusResponse mockResponse = new MentorStatusResponse(
                     1L, MentorStatus.PENDING, null
             );
             given(mentorService.getMyStatus(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorStatusResponse>> response =
                     mentorController.getMyStatus(userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().success()).isTrue();
@@ -293,17 +266,14 @@ class MentorControllerTest {
         @Test
         @DisplayName("APPROVED 상태 조회 시 rejectReason null 반환")
         void getMyStatus_approved_returns_200() {
-            // given
             MentorStatusResponse mockResponse = new MentorStatusResponse(
                     1L, MentorStatus.APPROVED, null
             );
             given(mentorService.getMyStatus(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorStatusResponse>> response =
                     mentorController.getMyStatus(userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().data().status()).isEqualTo(MentorStatus.APPROVED);
             assertThat(response.getBody().data().rejectReason()).isNull();
@@ -312,17 +282,14 @@ class MentorControllerTest {
         @Test
         @DisplayName("REJECTED 상태 조회 시 rejectReason 반환")
         void getMyStatus_rejected_returns_rejectReason() {
-            // given
             MentorStatusResponse mockResponse = new MentorStatusResponse(
                     1L, MentorStatus.REJECTED, "전문성 기준 미달입니다"
             );
             given(mentorService.getMyStatus(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorStatusResponse>> response =
                     mentorController.getMyStatus(userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().data().status()).isEqualTo(MentorStatus.REJECTED);
             assertThat(response.getBody().data().rejectReason()).isEqualTo("전문성 기준 미달입니다");
@@ -331,20 +298,19 @@ class MentorControllerTest {
         @Test
         @DisplayName("응답 메시지 확인")
         void getMyStatus_message_check() {
-            // given
             MentorStatusResponse mockResponse = new MentorStatusResponse(
                     1L, MentorStatus.PENDING, null
             );
             given(mentorService.getMyStatus(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorStatusResponse>> response =
                     mentorController.getMyStatus(userDetails);
 
-            // then
             assertThat(response.getBody().message()).isEqualTo("멘토 등록 상태 조회가 완료되었습니다");
         }
     }
+
+    // ===================== getStatistics 테스트 =====================
 
     @Nested
     @DisplayName("GET /api/mentors/me/statistics - 멘토링 통계 조회")
@@ -353,15 +319,12 @@ class MentorControllerTest {
         @Test
         @DisplayName("정상 조회 시 200 반환")
         void getStatistics_success_returns_200() {
-            // given
             MentorStatisticsResponse mockResponse = new MentorStatisticsResponse(3L, 1L, 2L);
             given(mentorService.getStatistics(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorStatisticsResponse>> response =
                     mentorController.getStatistics(userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().success()).isTrue();
@@ -375,15 +338,12 @@ class MentorControllerTest {
         @Test
         @DisplayName("통계가 모두 0인 경우 200 반환")
         void getStatistics_all_zero_returns_200() {
-            // given
             MentorStatisticsResponse mockResponse = new MentorStatisticsResponse(0L, 0L, 0L);
             given(mentorService.getStatistics(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorStatisticsResponse>> response =
                     mentorController.getStatistics(userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().data().pendingCount()).isEqualTo(0L);
             assertThat(response.getBody().data().thisMonthAcceptedCount()).isEqualTo(0L);
@@ -393,18 +353,18 @@ class MentorControllerTest {
         @Test
         @DisplayName("응답 메시지 확인")
         void getStatistics_message_check() {
-            // given
             MentorStatisticsResponse mockResponse = new MentorStatisticsResponse(0L, 0L, 0L);
             given(mentorService.getStatistics(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorStatisticsResponse>> response =
                     mentorController.getStatistics(userDetails);
 
-            // then
             assertThat(response.getBody().message()).isEqualTo("멘토링 통계 조회가 완료되었습니다");
         }
     }
+
+    // ===================== getMyMentees 테스트 =====================
+
     @Nested
     @DisplayName("GET /api/mentors/me/mentees - 내 멘티 목록 조회")
     class GetMyMenteesTest {
@@ -412,7 +372,6 @@ class MentorControllerTest {
         @Test
         @DisplayName("정상 조회 시 200 반환")
         void getMyMentees_success_returns_200() {
-            // given
             MenteeInfoResponse mockMentee = new MenteeInfoResponse(
                     10L, 501L, "홍길동", "자바 백엔드 로드맵",
                     5, 2, MentorshipStatus.ACCEPTED,
@@ -420,11 +379,9 @@ class MentorControllerTest {
             );
             given(mentorService.getMyMentees(USER_ID)).willReturn(List.of(mockMentee));
 
-            // when
             ResponseEntity<BaseResponse<List<MenteeInfoResponse>>> response =
                     mentorController.getMyMentees(userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().success()).isTrue();
@@ -439,14 +396,11 @@ class MentorControllerTest {
         @Test
         @DisplayName("멘티가 없는 경우 빈 리스트 반환")
         void getMyMentees_empty_returns_200() {
-            // given
             given(mentorService.getMyMentees(USER_ID)).willReturn(List.of());
 
-            // when
             ResponseEntity<BaseResponse<List<MenteeInfoResponse>>> response =
                     mentorController.getMyMentees(userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().data()).isEmpty();
         }
@@ -454,17 +408,17 @@ class MentorControllerTest {
         @Test
         @DisplayName("응답 메시지 확인")
         void getMyMentees_message_check() {
-            // given
             given(mentorService.getMyMentees(USER_ID)).willReturn(List.of());
 
-            // when
             ResponseEntity<BaseResponse<List<MenteeInfoResponse>>> response =
                     mentorController.getMyMentees(userDetails);
 
-            // then
             assertThat(response.getBody().message()).isEqualTo("내 멘티 목록 조회가 완료되었습니다");
         }
     }
+
+    // ===================== getStatisticsDetail 테스트 =====================
+
     @Nested
     @DisplayName("GET /api/mentors/me/statistics/detail - 멘토링 통계 상세 조회")
     class GetStatisticsDetailTest {
@@ -472,17 +426,14 @@ class MentorControllerTest {
         @Test
         @DisplayName("정상 조회 시 200 반환")
         void getStatisticsDetail_success_returns_200() {
-            // given
             MentorStatisticsDetailResponse mockResponse = new MentorStatisticsDetailResponse(
                     12L, 34L, 4.9
             );
             given(mentorService.getStatisticsDetail(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorStatisticsDetailResponse>> response =
                     mentorController.getStatisticsDetail(userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().success()).isTrue();
@@ -496,17 +447,14 @@ class MentorControllerTest {
         @Test
         @DisplayName("리뷰가 없는 경우 만족도 0.0 반환")
         void getStatisticsDetail_no_reviews_returns_zero() {
-            // given
             MentorStatisticsDetailResponse mockResponse = new MentorStatisticsDetailResponse(
                     0L, 0L, 0.0
             );
             given(mentorService.getStatisticsDetail(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorStatisticsDetailResponse>> response =
                     mentorController.getStatisticsDetail(userDetails);
 
-            // then
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().data().totalMentees()).isEqualTo(0L);
             assertThat(response.getBody().data().completedSessions()).isEqualTo(0L);
@@ -516,15 +464,12 @@ class MentorControllerTest {
         @Test
         @DisplayName("응답 메시지 확인")
         void getStatisticsDetail_message_check() {
-            // given
             MentorStatisticsDetailResponse mockResponse = new MentorStatisticsDetailResponse(0L, 0L, 0.0);
             given(mentorService.getStatisticsDetail(USER_ID)).willReturn(mockResponse);
 
-            // when
             ResponseEntity<BaseResponse<MentorStatisticsDetailResponse>> response =
                     mentorController.getStatisticsDetail(userDetails);
 
-            // then
             assertThat(response.getBody().message()).isEqualTo("멘토링 통계 상세 조회가 완료되었습니다");
         }
     }

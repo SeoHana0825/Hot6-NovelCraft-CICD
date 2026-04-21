@@ -51,29 +51,14 @@ class MentorServiceTest {
     @InjectMocks
     private MentorService mentorService;
 
-    @Mock
-    private MentorshipRepository mentorshipRepository;
-
-    @Mock
-    private MentorFeedbackRepository mentorFeedbackRepository;
-
-    @Mock
-    private UserRepository userRepository;
-
-    @Mock
-    private NovelRepository novelRepository;
-
-    @Mock
-    private MentorRepository mentorRepository;
-
-    @Mock
-    private EpisodeRepository episodeRepository;
-
-    @Mock
-    private ObjectMapper objectMapper;
-
-    @Mock
-    private MentorshipReviewRepository mentorshipReviewRepository;
+    @Mock private MentorshipRepository mentorshipRepository;
+    @Mock private MentorFeedbackRepository mentorFeedbackRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private NovelRepository novelRepository;
+    @Mock private MentorRepository mentorRepository;
+    @Mock private EpisodeRepository episodeRepository;
+    @Mock private ObjectMapper objectMapper;
+    @Mock private MentorshipReviewRepository mentorshipReviewRepository;
 
     private static final Long USER_ID = 1L;
 
@@ -523,8 +508,9 @@ class MentorServiceTest {
 
         @BeforeEach
         void setUp() {
-            mentorship = Mentorship.create(MENTOR_ENTITY_ID, 501L, 100L, "신청 동기",
-                    "https://s3.amazonaws.com/file.pdf", "자바 백엔드 로드맵");
+            // title 제거 — Mentorship.create() 시그니처 변경 반영
+            mentorship = Mentorship.create(MENTOR_ENTITY_ID, 501L, 100L,
+                    "신청 동기", "https://s3.amazonaws.com/file.pdf");
             mentorship.approve();
 
             try {
@@ -572,7 +558,10 @@ class MentorServiceTest {
         @Test
         @DisplayName("최근 피드백이 있는 경우 lastFeedbackAt 반환")
         void getMyMentees_with_last_feedback() {
-            MentorFeedback feedback = MentorFeedback.create(10L, USER_ID, "피드백 내용");
+            // MentorFeedback.create() 시그니처 변경 반영 — title, sessionNumber 추가
+            MentorFeedback feedback = MentorFeedback.create(
+                    10L, USER_ID, "1회차 피드백", 1, "피드백 내용"
+            );
 
             try {
                 java.lang.reflect.Field createdAtField = feedback.getClass().getSuperclass().getDeclaredField("createdAt");

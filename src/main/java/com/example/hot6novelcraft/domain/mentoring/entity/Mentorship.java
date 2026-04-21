@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "mentorships")
 public class Mentorship extends BaseEntity {
-    private LocalDateTime rejectedAt;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,8 +33,7 @@ public class Mentorship extends BaseEntity {
     @Column(length = 500)
     private String manuscriptUrl;
 
-    @Column(length = 200)
-    private String title;
+    // title 제거
 
     @Column(nullable = false)
     private int totalSessions = 0;
@@ -47,20 +45,16 @@ public class Mentorship extends BaseEntity {
     @Column(nullable = false)
     private int manuscriptDownloadCount = 0;
 
-    public void increaseManuscriptDownloadCount() {
-        this.manuscriptDownloadCount++;
-    }
-
     private LocalDateTime acceptedAt;
     private LocalDateTime completedAt;
+    private LocalDateTime rejectedAt;
 
     public static Mentorship create(Long mentorId, Long menteeId, Long currentNovelId,
-                                    String motivation, String manuscriptUrl, String title) {
+                                    String motivation, String manuscriptUrl) {
         Mentorship mentorship = new Mentorship();
         mentorship.mentorId = mentorId;
         mentorship.menteeId = menteeId;
         mentorship.currentNovelId = currentNovelId;
-        mentorship.title = title;
         mentorship.motivation = motivation;
         mentorship.manuscriptUrl = manuscriptUrl;
         mentorship.status = MentorshipStatus.PENDING;
@@ -85,5 +79,9 @@ public class Mentorship extends BaseEntity {
 
     public void increaseSession() {
         this.totalSessions++;
+    }
+
+    public void increaseManuscriptDownloadCount() {
+        this.manuscriptDownloadCount++;
     }
 }

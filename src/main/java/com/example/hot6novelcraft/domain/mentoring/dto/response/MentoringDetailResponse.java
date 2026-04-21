@@ -9,7 +9,7 @@ import java.util.List;
 
 public record MentoringDetailResponse(
         Long mentoringId,
-        String title,
+        String novelTitle,          // title → novelTitle 로 교체
         String mentorName,
         String menteeName,
         MentorshipStatus status,
@@ -19,12 +19,16 @@ public record MentoringDetailResponse(
 ) {
     public record FeedbackInfo(
             Long feedbackId,
+            String title,           // 추가
+            int sessionNumber,      // 추가
             String content,
             LocalDateTime createdAt
     ) {
         public static FeedbackInfo from(MentorFeedback feedback) {
             return new FeedbackInfo(
                     feedback.getId(),
+                    feedback.getTitle(),
+                    feedback.getSessionNumber(),
                     feedback.getContent(),
                     feedback.getCreatedAt()
             );
@@ -32,10 +36,11 @@ public record MentoringDetailResponse(
     }
 
     public static MentoringDetailResponse of(Mentorship mentorship, String mentorName,
-                                             String menteeName, List<FeedbackInfo> feedbacks) {
+                                             String menteeName, String novelTitle,
+                                             List<FeedbackInfo> feedbacks) {
         return new MentoringDetailResponse(
                 mentorship.getId(),
-                mentorship.getTitle(),
+                novelTitle,
                 mentorName,
                 menteeName,
                 mentorship.getStatus(),
