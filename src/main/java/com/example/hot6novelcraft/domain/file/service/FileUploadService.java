@@ -39,7 +39,7 @@ public class FileUploadService {
             "txt", Set.of("text/plain"),
             "docx", Set.of("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
             "xlsx", Set.of("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-            "hwp", Set.of("application/x-hwp", "application/haansofthwp", "application/octet-stream")
+            "hwp", Set.of("application/x-hwp", "application/haansofthwp")
     );
 
     private final S3Client s3Client;
@@ -152,7 +152,7 @@ public class FileUploadService {
 
         } catch (Exception e) {
             log.error("[S3] Presigned URL 발급 실패: {}", s3Key, e);
-            throw new ServiceErrorException(FileExceptionEnum.ERR_FILE_UPLOAD_FAILED);
+            throw new ServiceErrorException(FileExceptionEnum.ERR_PRESIGNED_URL_FAILED);
         }
     }
 

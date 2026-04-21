@@ -1,7 +1,9 @@
 package com.example.hot6novelcraft.domain.mentoring.service;
 
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
+import com.example.hot6novelcraft.common.exception.domain.MentorExceptionEnum;
 import com.example.hot6novelcraft.common.exception.domain.MentoringExceptionEnum;
+import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
 import com.example.hot6novelcraft.domain.file.service.FileUploadService;
 import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
@@ -37,7 +39,7 @@ public class MentorshipService {
 
         // 작가 권한 확인
         User mentee = userRepository.findById(menteeId)
-                .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
+                .orElseThrow(() -> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
 
         if (mentee.getRole() != UserRole.AUTHOR) {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_AUTHOR);
@@ -45,7 +47,7 @@ public class MentorshipService {
 
         // 멘토 조회 (못 찾으면 NOT_FOUND)
         Mentor mentor = mentorRepository.findByUserId(request.mentorId())
-                .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
+                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
 
         // 본인한테 신청 불가
         if (mentor.getUserId().equals(menteeId)) {

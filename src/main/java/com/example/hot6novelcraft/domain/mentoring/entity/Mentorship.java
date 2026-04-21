@@ -21,10 +21,10 @@ public class Mentorship extends BaseEntity {
     @Column(nullable = false)
     private Long mentorId;
 
-    @Column
+    @Column(nullable = false)
     private Long menteeId;
 
-    @Column(nullable = false)
+    @Column
     private Long currentNovelId;
 
     @Column(length = 500)
