@@ -4,7 +4,7 @@ import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.MentoringExceptionEnum;
 import com.example.hot6novelcraft.common.exception.domain.MentorExceptionEnum;
 import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
-import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedback;
+import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedbackV2;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorFeedbackRepository;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
 import com.example.hot6novelcraft.domain.mentoring.dto.request.MentoringFeedbackRequest;
@@ -13,7 +13,7 @@ import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringFeedbac
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringReceivedResponse;
 import com.example.hot6novelcraft.domain.mentoring.entity.Mentorship;
 import com.example.hot6novelcraft.domain.mentoring.entity.enums.MentorshipStatus;
-import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepository;
+import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepositoryV2;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import com.example.hot6novelcraft.domain.user.entity.User;
@@ -29,9 +29,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class MentoringService {
+public class MentoringServiceV1 {
 
-    private final MentorshipRepository mentorshipRepository;
+    private final MentorshipRepositoryV2 mentorshipRepositoryV2;
     private final MentorRepository mentorRepository;
     private final UserRepository userRepository;
     private final NovelRepository novelRepository;
@@ -41,14 +41,12 @@ public class MentoringService {
         Mentor mentor = mentorRepository.findByUserId(userId)
                 .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
 
-        // TODO: 고도화 시 QueryDSL로 멘티명/소설명 JOIN 조회로 교체 (현재 N+1 발생 가능)
-        return mentorshipRepository.findAllByMentorIdOrderByCreatedAtDesc(mentor.getId(), pageable)
+        return mentorshipRepositoryV2.findAllByMentorIdOrderByCreatedAtDesc(mentor.getId(), pageable)
                 .map(mentorship -> {
                     String menteeName = userRepository.findByIdAndIsDeletedFalse(mentorship.getMenteeId())
                             .map(User::getNickname)
                             .orElse("알 수 없는 사용자");
 
-                    // TODO: 고도화 시 NovelRepository에 findByIdAndIsDeletedFalse 추가 후 교체
                     String title = novelRepository.findById(mentorship.getCurrentNovelId())
                             .map(Novel::getTitle)
                             .orElse("알 수 없는 소설");
@@ -62,7 +60,7 @@ public class MentoringService {
         Mentor mentor = mentorRepository.findByUserId(userId)
                 .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
 
-        Mentorship mentorship = mentorshipRepository.findById(mentoringId)
+        Mentorship mentorship = mentorshipRepositoryV2.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
         if (!mentorship.getMentorId().equals(mentor.getId())) {
@@ -79,9 +77,6 @@ public class MentoringService {
 
         mentor.decreaseSlot();
         mentorship.approve();
-
-        // TODO: 1:1 채팅방 자동 생성 (채팅 팀원 개발 후 연동)
-        // TODO: 멘티에게 수락 알림 발송 (알림 팀원 개발 후 연동)
     }
 
     @Transactional
@@ -89,7 +84,7 @@ public class MentoringService {
         Mentor mentor = mentorRepository.findByUserId(userId)
                 .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
 
-        Mentorship mentorship = mentorshipRepository.findById(mentoringId)
+        Mentorship mentorship = mentorshipRepositoryV2.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
         if (!mentorship.getMentorId().equals(mentor.getId())) {
@@ -105,8 +100,6 @@ public class MentoringService {
         }
 
         mentorship.reject();
-
-        // TODO: 멘티에게 거절 알림 발송 (알림 팀원 개발 후 연동)
     }
 
     @Transactional
@@ -114,7 +107,7 @@ public class MentoringService {
         Mentor mentor = mentorRepository.findByUserId(userId)
                 .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
 
-        Mentorship mentorship = mentorshipRepository.findById(mentoringId)
+        Mentorship mentorship = mentorshipRepositoryV2.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
         if (!mentorship.getMentorId().equals(mentor.getId())) {
@@ -127,9 +120,6 @@ public class MentoringService {
 
         mentorship.increaseManuscriptDownloadCount();
 
-        // TODO: S3 연동 후 아래 주석 해제 및 return 문 교체
-        // return s3Service.generatePresignedUrl(mentorship.getManuscriptUrl());
-
         return mentorship.getManuscriptUrl();
     }
 
@@ -138,7 +128,7 @@ public class MentoringService {
         Mentor mentor = mentorRepository.findByUserId(userId)
                 .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
 
-        Mentorship mentorship = mentorshipRepository.findById(mentoringId)
+        Mentorship mentorship = mentorshipRepositoryV2.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
         if (!mentorship.getMentorId().equals(mentor.getId())) {
@@ -151,15 +141,13 @@ public class MentoringService {
 
         mentor.increaseSlot();
         mentorship.complete();
-
-        // TODO: 멘티에게 종료 알림 발송 (알림 팀원 개발 후 연동)
     }
 
     public MentoringDetailResponse getMentoringDetail(Long mentoringId, Long userId) {
         Mentor mentor = mentorRepository.findByUserId(userId)
                 .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
 
-        Mentorship mentorship = mentorshipRepository.findById(mentoringId)
+        Mentorship mentorship = mentorshipRepositoryV2.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
         if (!mentorship.getMentorId().equals(mentor.getId())) {
@@ -174,7 +162,8 @@ public class MentoringService {
                 .map(User::getNickname)
                 .orElse("알 수 없는 사용자");
 
-        String novelTitle = novelRepository.findById(mentorship.getCurrentNovelId())  // 추가
+        // V1: findById (soft-delete 미적용)
+        String novelTitle = novelRepository.findById(mentorship.getCurrentNovelId())
                 .map(Novel::getTitle)
                 .orElse("알 수 없는 소설");
 
@@ -187,13 +176,14 @@ public class MentoringService {
         return MentoringDetailResponse.of(mentorship, mentorName, menteeName, novelTitle, feedbacks);
     }
 
+    // V1: sessionNumber 동시성 보호 없음
     @Transactional
     public MentoringFeedbackResponse createFeedback(Long mentoringId, Long userId,
                                                     MentoringFeedbackRequest request) {
         Mentor mentor = mentorRepository.findByUserId(userId)
                 .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
 
-        Mentorship mentorship = mentorshipRepository.findById(mentoringId)
+        Mentorship mentorship = mentorshipRepositoryV2.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
         if (!mentorship.getMentorId().equals(mentor.getId())) {
@@ -204,13 +194,13 @@ public class MentoringService {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_FEEDBACK_ONLY_ACCEPTED);
         }
 
-        int nextSession = mentorship.getTotalSessions() + 1;  // 다음 회차 계산
+        int nextSession = mentorship.getTotalSessions() + 1;
 
-        MentorFeedback feedback = MentorFeedback.create(
+        MentorFeedbackV2 feedback = MentorFeedbackV2.create(
                 mentoringId,
                 mentor.getId(),
-                request.title(),        // 추가
-                nextSession,            // 추가
+                request.title(),
+                nextSession,
                 request.content()
         );
         mentorFeedbackRepository.save(feedback);

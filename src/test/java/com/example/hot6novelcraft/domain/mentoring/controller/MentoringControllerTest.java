@@ -8,7 +8,7 @@ import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringDetailR
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringFeedbackResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringReceivedResponse;
 import com.example.hot6novelcraft.domain.mentoring.entity.enums.MentorshipStatus;
-import com.example.hot6novelcraft.domain.mentoring.service.MentoringService;
+import com.example.hot6novelcraft.domain.mentoring.service.MentoringServiceV1;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
@@ -40,7 +40,7 @@ class MentoringControllerTest {
     private MentoringController mentoringController;
 
     @Mock
-    private MentoringService mentoringService;
+    private MentoringServiceV1 mentoringServiceV1;
 
     private UserDetailsImpl userDetails;
     private static final Long USER_ID = 1L;
@@ -81,7 +81,7 @@ class MentoringControllerTest {
                     LocalDateTime.now(), MentorshipStatus.PENDING
             );
             PageImpl<MentoringReceivedResponse> page = new PageImpl<>(List.of(item));
-            given(mentoringService.getReceivedMentorings(eq(USER_ID), any())).willReturn(page);
+            given(mentoringServiceV1.getReceivedMentorings(eq(USER_ID), any())).willReturn(page);
 
             ResponseEntity<BaseResponse<PageResponse<MentoringReceivedResponse>>> response =
                     mentoringController.getReceivedMentorings(userDetails, 0, 10);
@@ -92,14 +92,14 @@ class MentoringControllerTest {
             assertThat(response.getBody().status()).isEqualTo("COMMON-200");
             assertThat(response.getBody().data().content()).hasSize(1);
             assertThat(response.getBody().data().content().get(0).mentoringId()).isEqualTo(MENTORING_ID);
-            verify(mentoringService, times(1)).getReceivedMentorings(eq(USER_ID), any());
+            verify(mentoringServiceV1, times(1)).getReceivedMentorings(eq(USER_ID), any());
         }
 
         @Test
         @DisplayName("빈 목록 조회 시 200 반환")
         void getReceivedMentorings_empty_returns_200() {
             PageImpl<MentoringReceivedResponse> emptyPage = new PageImpl<>(List.of());
-            given(mentoringService.getReceivedMentorings(eq(USER_ID), any())).willReturn(emptyPage);
+            given(mentoringServiceV1.getReceivedMentorings(eq(USER_ID), any())).willReturn(emptyPage);
 
             ResponseEntity<BaseResponse<PageResponse<MentoringReceivedResponse>>> response =
                     mentoringController.getReceivedMentorings(userDetails, 0, 10);
@@ -113,7 +113,7 @@ class MentoringControllerTest {
         @DisplayName("응답 메시지 확인")
         void getReceivedMentorings_message_check() {
             PageImpl<MentoringReceivedResponse> emptyPage = new PageImpl<>(List.of());
-            given(mentoringService.getReceivedMentorings(eq(USER_ID), any())).willReturn(emptyPage);
+            given(mentoringServiceV1.getReceivedMentorings(eq(USER_ID), any())).willReturn(emptyPage);
 
             ResponseEntity<BaseResponse<PageResponse<MentoringReceivedResponse>>> response =
                     mentoringController.getReceivedMentorings(userDetails, 0, 10);
@@ -131,7 +131,7 @@ class MentoringControllerTest {
         @Test
         @DisplayName("정상 수락 시 200 반환")
         void acceptMentee_success_returns_200() {
-            doNothing().when(mentoringService).acceptMentee(MENTORING_ID, MENTEE_ID, USER_ID);
+            doNothing().when(mentoringServiceV1).acceptMentee(MENTORING_ID, MENTEE_ID, USER_ID);
 
             ResponseEntity<BaseResponse<Void>> response =
                     mentoringController.acceptMentee(MENTORING_ID, MENTEE_ID, userDetails);
@@ -141,13 +141,13 @@ class MentoringControllerTest {
             assertThat(response.getBody().success()).isTrue();
             assertThat(response.getBody().status()).isEqualTo("200");
             assertThat(response.getBody().data()).isNull();
-            verify(mentoringService, times(1)).acceptMentee(MENTORING_ID, MENTEE_ID, USER_ID);
+            verify(mentoringServiceV1, times(1)).acceptMentee(MENTORING_ID, MENTEE_ID, USER_ID);
         }
 
         @Test
         @DisplayName("응답 메시지 확인")
         void acceptMentee_message_check() {
-            doNothing().when(mentoringService).acceptMentee(MENTORING_ID, MENTEE_ID, USER_ID);
+            doNothing().when(mentoringServiceV1).acceptMentee(MENTORING_ID, MENTEE_ID, USER_ID);
 
             ResponseEntity<BaseResponse<Void>> response =
                     mentoringController.acceptMentee(MENTORING_ID, MENTEE_ID, userDetails);
@@ -165,7 +165,7 @@ class MentoringControllerTest {
         @Test
         @DisplayName("정상 거절 시 200 반환")
         void rejectMentee_success_returns_200() {
-            doNothing().when(mentoringService).rejectMentee(MENTORING_ID, MENTEE_ID, USER_ID);
+            doNothing().when(mentoringServiceV1).rejectMentee(MENTORING_ID, MENTEE_ID, USER_ID);
 
             ResponseEntity<BaseResponse<Void>> response =
                     mentoringController.rejectMentee(MENTORING_ID, MENTEE_ID, userDetails);
@@ -175,13 +175,13 @@ class MentoringControllerTest {
             assertThat(response.getBody().success()).isTrue();
             assertThat(response.getBody().status()).isEqualTo("200");
             assertThat(response.getBody().data()).isNull();
-            verify(mentoringService, times(1)).rejectMentee(MENTORING_ID, MENTEE_ID, USER_ID);
+            verify(mentoringServiceV1, times(1)).rejectMentee(MENTORING_ID, MENTEE_ID, USER_ID);
         }
 
         @Test
         @DisplayName("응답 메시지 확인")
         void rejectMentee_message_check() {
-            doNothing().when(mentoringService).rejectMentee(MENTORING_ID, MENTEE_ID, USER_ID);
+            doNothing().when(mentoringServiceV1).rejectMentee(MENTORING_ID, MENTEE_ID, USER_ID);
 
             ResponseEntity<BaseResponse<Void>> response =
                     mentoringController.rejectMentee(MENTORING_ID, MENTEE_ID, userDetails);
@@ -200,7 +200,7 @@ class MentoringControllerTest {
         @DisplayName("정상 조회 시 200 반환")
         void getManuscriptUrl_success_returns_200() {
             String mockUrl = "https://s3.amazonaws.com/bucket/file123.pdf";
-            given(mentoringService.getManuscriptDownloadUrl(MENTORING_ID, USER_ID)).willReturn(mockUrl);
+            given(mentoringServiceV1.getManuscriptDownloadUrl(MENTORING_ID, USER_ID)).willReturn(mockUrl);
 
             ResponseEntity<BaseResponse<ManuscriptUrlResponse>> response =
                     mentoringController.getManuscriptUrl(MENTORING_ID, userDetails);
@@ -211,13 +211,13 @@ class MentoringControllerTest {
             assertThat(response.getBody().status()).isEqualTo("200");
             assertThat(response.getBody().data().mentoringId()).isEqualTo(MENTORING_ID);
             assertThat(response.getBody().data().manuscriptUrl()).isEqualTo(mockUrl);
-            verify(mentoringService, times(1)).getManuscriptDownloadUrl(MENTORING_ID, USER_ID);
+            verify(mentoringServiceV1, times(1)).getManuscriptDownloadUrl(MENTORING_ID, USER_ID);
         }
 
         @Test
         @DisplayName("응답 메시지 확인")
         void getManuscriptUrl_message_check() {
-            given(mentoringService.getManuscriptDownloadUrl(MENTORING_ID, USER_ID))
+            given(mentoringServiceV1.getManuscriptDownloadUrl(MENTORING_ID, USER_ID))
                     .willReturn("https://s3.amazonaws.com/bucket/file123.pdf");
 
             ResponseEntity<BaseResponse<ManuscriptUrlResponse>> response =
@@ -236,7 +236,7 @@ class MentoringControllerTest {
         @Test
         @DisplayName("정상 종료 시 200 반환")
         void completeMentoring_success_returns_200() {
-            doNothing().when(mentoringService).completeMentoring(MENTORING_ID, USER_ID);
+            doNothing().when(mentoringServiceV1).completeMentoring(MENTORING_ID, USER_ID);
 
             ResponseEntity<BaseResponse<Void>> response =
                     mentoringController.completeMentoring(MENTORING_ID, userDetails);
@@ -246,13 +246,13 @@ class MentoringControllerTest {
             assertThat(response.getBody().success()).isTrue();
             assertThat(response.getBody().status()).isEqualTo("200");
             assertThat(response.getBody().data()).isNull();
-            verify(mentoringService, times(1)).completeMentoring(MENTORING_ID, USER_ID);
+            verify(mentoringServiceV1, times(1)).completeMentoring(MENTORING_ID, USER_ID);
         }
 
         @Test
         @DisplayName("응답 메시지 확인")
         void completeMentoring_message_check() {
-            doNothing().when(mentoringService).completeMentoring(MENTORING_ID, USER_ID);
+            doNothing().when(mentoringServiceV1).completeMentoring(MENTORING_ID, USER_ID);
 
             ResponseEntity<BaseResponse<Void>> response =
                     mentoringController.completeMentoring(MENTORING_ID, userDetails);
@@ -288,7 +288,7 @@ class MentoringControllerTest {
                                     "Spring Security 설정", LocalDateTime.now())
                     )
             );
-            given(mentoringService.getMentoringDetail(MENTORING_ID, USER_ID)).willReturn(mockResponse);
+            given(mentoringServiceV1.getMentoringDetail(MENTORING_ID, USER_ID)).willReturn(mockResponse);
 
             ResponseEntity<BaseResponse<MentoringDetailResponse>> response =
                     mentoringController.getMentoringDetail(MENTORING_ID, userDetails);
@@ -307,7 +307,7 @@ class MentoringControllerTest {
             assertThat(response.getBody().data().feedbacks().get(0).sessionNumber()).isEqualTo(1);
             assertThat(response.getBody().data().feedbacks().get(1).title()).isEqualTo("2회차 피드백");
             assertThat(response.getBody().data().feedbacks().get(1).sessionNumber()).isEqualTo(2);
-            verify(mentoringService, times(1)).getMentoringDetail(MENTORING_ID, USER_ID);
+            verify(mentoringServiceV1, times(1)).getMentoringDetail(MENTORING_ID, USER_ID);
         }
 
         @Test
@@ -323,7 +323,7 @@ class MentoringControllerTest {
                     0,
                     List.of()
             );
-            given(mentoringService.getMentoringDetail(MENTORING_ID, USER_ID)).willReturn(mockResponse);
+            given(mentoringServiceV1.getMentoringDetail(MENTORING_ID, USER_ID)).willReturn(mockResponse);
 
             ResponseEntity<BaseResponse<MentoringDetailResponse>> response =
                     mentoringController.getMentoringDetail(MENTORING_ID, userDetails);
@@ -343,7 +343,7 @@ class MentoringControllerTest {
                     MentorshipStatus.ACCEPTED,
                     LocalDateTime.now(), 0, List.of()
             );
-            given(mentoringService.getMentoringDetail(MENTORING_ID, USER_ID)).willReturn(mockResponse);
+            given(mentoringServiceV1.getMentoringDetail(MENTORING_ID, USER_ID)).willReturn(mockResponse);
 
             ResponseEntity<BaseResponse<MentoringDetailResponse>> response =
                     mentoringController.getMentoringDetail(MENTORING_ID, userDetails);
@@ -374,7 +374,7 @@ class MentoringControllerTest {
                     "ERD 설계 및 API 명세 작성",
                     LocalDateTime.now()
             );
-            given(mentoringService.createFeedback(eq(MENTORING_ID), eq(USER_ID), any())).willReturn(mockResponse);
+            given(mentoringServiceV1.createFeedback(eq(MENTORING_ID), eq(USER_ID), any())).willReturn(mockResponse);
 
             ResponseEntity<BaseResponse<MentoringFeedbackResponse>> response =
                     mentoringController.createFeedback(MENTORING_ID, userDetails, request);
@@ -388,7 +388,7 @@ class MentoringControllerTest {
             assertThat(response.getBody().data().title()).isEqualTo("1회차 피드백");
             assertThat(response.getBody().data().sessionNumber()).isEqualTo(1);
             assertThat(response.getBody().data().content()).isEqualTo("ERD 설계 및 API 명세 작성");
-            verify(mentoringService, times(1)).createFeedback(eq(MENTORING_ID), eq(USER_ID), any());
+            verify(mentoringServiceV1, times(1)).createFeedback(eq(MENTORING_ID), eq(USER_ID), any());
         }
 
         @Test
@@ -404,7 +404,7 @@ class MentoringControllerTest {
                     "ERD 설계 및 API 명세 작성",
                     LocalDateTime.now()
             );
-            given(mentoringService.createFeedback(eq(MENTORING_ID), eq(USER_ID), any())).willReturn(mockResponse);
+            given(mentoringServiceV1.createFeedback(eq(MENTORING_ID), eq(USER_ID), any())).willReturn(mockResponse);
 
             ResponseEntity<BaseResponse<MentoringFeedbackResponse>> response =
                     mentoringController.createFeedback(MENTORING_ID, userDetails, request);

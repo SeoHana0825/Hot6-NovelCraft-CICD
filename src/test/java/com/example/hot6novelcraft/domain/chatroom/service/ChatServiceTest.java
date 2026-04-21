@@ -14,7 +14,7 @@ import com.example.hot6novelcraft.domain.chatroom.repository.ChatRoomRepository;
 import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
 import com.example.hot6novelcraft.domain.mentoring.entity.Mentorship;
-import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepository;
+import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepositoryV2;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
@@ -58,7 +58,7 @@ class ChatServiceTest {
     private ChatMessageRepository chatMessageRepository;
 
     @Mock
-    private MentorshipRepository mentorshipRepository;
+    private MentorshipRepositoryV2 mentorshipRepositoryV2;
 
     @Mock
     private MentorRepository mentorRepository;
@@ -134,7 +134,7 @@ class ChatServiceTest {
             User mentorUser = createMockUser(MENTOR_USER_ID, UserRole.AUTHOR);
             User menteeUser = createMockUser(MENTEE_USER_ID, UserRole.AUTHOR);
 
-            given(mentorshipRepository.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
+            given(mentorshipRepositoryV2.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
             given(mentorRepository.findById(MENTOR_ID)).willReturn(Optional.of(mentor));
             given(userRepository.findById(MENTOR_USER_ID)).willReturn(Optional.of(mentorUser));
             given(userRepository.findById(MENTEE_USER_ID)).willReturn(Optional.of(menteeUser));
@@ -158,7 +158,7 @@ class ChatServiceTest {
             User mentorUser = createMockUser(MENTOR_USER_ID, UserRole.AUTHOR);
             User menteeUser = createMockUser(MENTEE_USER_ID, UserRole.AUTHOR);
 
-            given(mentorshipRepository.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
+            given(mentorshipRepositoryV2.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
             given(mentorRepository.findById(MENTOR_ID)).willReturn(Optional.of(mentor));
             given(userRepository.findById(MENTOR_USER_ID)).willReturn(Optional.of(mentorUser));
             given(userRepository.findById(MENTEE_USER_ID)).willReturn(Optional.of(menteeUser));
@@ -183,7 +183,7 @@ class ChatServiceTest {
             User mentorUser = createMockUser(MENTOR_USER_ID, UserRole.AUTHOR);
             User menteeUser = createMockUser(MENTEE_USER_ID, UserRole.AUTHOR);
 
-            given(mentorshipRepository.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
+            given(mentorshipRepositoryV2.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
             given(mentorRepository.findById(MENTOR_ID)).willReturn(Optional.of(mentor));
             given(userRepository.findById(MENTOR_USER_ID)).willReturn(Optional.of(mentorUser));
             given(userRepository.findById(MENTEE_USER_ID)).willReturn(Optional.of(menteeUser));
@@ -207,7 +207,7 @@ class ChatServiceTest {
             User mentorUser = createMockUser(MENTOR_USER_ID, UserRole.AUTHOR);
             User menteeUser = createMockUser(MENTEE_USER_ID, UserRole.AUTHOR);
 
-            given(mentorshipRepository.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
+            given(mentorshipRepositoryV2.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
             given(mentorRepository.findById(MENTOR_ID)).willReturn(Optional.of(mentor));
             given(userRepository.findById(MENTOR_USER_ID)).willReturn(Optional.of(mentorUser));
             given(userRepository.findById(MENTEE_USER_ID)).willReturn(Optional.of(menteeUser));
@@ -229,7 +229,7 @@ class ChatServiceTest {
         @DisplayName("실패 - Mentorship 없을 시 예외")
         void getOrCreateChatRoom_mentorshipNotFound_throwsException() {
             // given
-            given(mentorshipRepository.findById(MENTORSHIP_ID)).willReturn(Optional.empty());
+            given(mentorshipRepositoryV2.findById(MENTORSHIP_ID)).willReturn(Optional.empty());
 
             // when & then
             assertThatThrownBy(() -> chatService.getOrCreateChatRoom(MENTORSHIP_ID, MENTOR_USER_ID))
@@ -244,7 +244,7 @@ class ChatServiceTest {
             Mentorship mentorship = createMockMentorship();
             Mentor mentor = createMockMentor();
 
-            given(mentorshipRepository.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
+            given(mentorshipRepositoryV2.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
             given(mentorRepository.findById(MENTOR_ID)).willReturn(Optional.of(mentor));
 
             // when & then
@@ -261,7 +261,7 @@ class ChatServiceTest {
             Mentor mentor = createMockMentor();
             User mentorUser = createMockUser(MENTOR_USER_ID, UserRole.READER);
 
-            given(mentorshipRepository.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
+            given(mentorshipRepositoryV2.findById(MENTORSHIP_ID)).willReturn(Optional.of(mentorship));
             given(mentorRepository.findById(MENTOR_ID)).willReturn(Optional.of(mentor));
             given(userRepository.findById(MENTOR_USER_ID)).willReturn(Optional.of(mentorUser));
 

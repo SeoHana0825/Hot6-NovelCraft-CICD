@@ -1,6 +1,6 @@
 package com.example.hot6novelcraft.domain.mentoring.dto.response;
 
-import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedback;
+import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedbackV2;
 import com.example.hot6novelcraft.domain.mentoring.entity.Mentorship;
 import com.example.hot6novelcraft.domain.mentoring.entity.enums.MentorshipStatus;
 
@@ -24,7 +24,7 @@ public record MentoringDetailResponse(
             String content,
             LocalDateTime createdAt
     ) {
-        public static FeedbackInfo from(MentorFeedback feedback) {
+        public static FeedbackInfo from(MentorFeedbackV2 feedback) {
             return new FeedbackInfo(
                     feedback.getId(),
                     feedback.getTitle(),

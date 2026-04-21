@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface NovelRepository extends JpaRepository<Novel, Long>, CustomNovelRepository  {
 
@@ -22,4 +23,7 @@ public interface NovelRepository extends JpaRepository<Novel, Long>, CustomNovel
     // 작가의 삭제되지 않은 소설 ID 목록 조회
     @Query("SELECT n.id FROM Novel n WHERE n.authorId = :authorId AND n.isDeleted = false")
     List<Long> findNovelIdsByAuthorId(@Param("authorId") Long authorId);
+
+    // V2: soft-delete 조건 포함 조회 — findById 대신 사용
+    Optional<Novel> findByIdAndIsDeletedFalse(Long id);
 }

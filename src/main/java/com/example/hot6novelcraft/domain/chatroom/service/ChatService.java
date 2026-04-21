@@ -14,7 +14,7 @@ import com.example.hot6novelcraft.domain.chatroom.repository.ChatRoomRepository;
 import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
 import com.example.hot6novelcraft.domain.mentoring.entity.Mentorship;
-import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepository;
+import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepositoryV2;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
@@ -37,7 +37,7 @@ public class ChatService {
 
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
-    private final MentorshipRepository mentorshipRepository;
+    private final MentorshipRepositoryV2 mentorshipRepositoryV2;
     private final MentorRepository mentorRepository;
     private final UserRepository userRepository;
 
@@ -53,7 +53,7 @@ public class ChatService {
      */
     @Transactional
     public ChatRoomResponse getOrCreateChatRoom(Long mentorshipId, Long userId) {
-        Mentorship mentorship = mentorshipRepository.findById(mentorshipId)
+        Mentorship mentorship = mentorshipRepositoryV2.findById(mentorshipId)
                 .orElseThrow(() -> new ServiceErrorException(ChatExceptionEnum.ERR_MENTORSHIP_NOT_FOUND));
 
         // mentorship.getMentorId() = mentors 테이블의 PK → Mentor 엔티티로 실제 users.id 조회

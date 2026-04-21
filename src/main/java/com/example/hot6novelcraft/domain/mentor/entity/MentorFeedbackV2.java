@@ -6,11 +6,15 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+// V2: (mentorship_id, session_number) 유니크 제약 추가 — 동시성 이슈 방어
 @Entity
-@Table(name = "mentorship_feedbacks")
+@Table(
+        name = "mentorship_feedbacks",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"mentorship_id", "session_number"})
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class MentorFeedback extends BaseEntity {
+public class MentorFeedbackV2 extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,16 +27,16 @@ public class MentorFeedback extends BaseEntity {
     private Long authorId;
 
     @Column(length = 200, nullable = false)
-    private String title;           // 이동: Mentorship.title → MentorFeedback.title
+    private String title;
 
     @Column(nullable = false)
-    private int sessionNumber;      // 추가: 몇 회차 피드백인지
+    private int sessionNumber;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
-    private MentorFeedback(Long mentorshipId, Long authorId, String title,
-                           int sessionNumber, String content) {
+    private MentorFeedbackV2(Long mentorshipId, Long authorId, String title,
+                             int sessionNumber, String content) {
         this.mentorshipId  = mentorshipId;
         this.authorId      = authorId;
         this.title         = title;
@@ -40,8 +44,8 @@ public class MentorFeedback extends BaseEntity {
         this.content       = content;
     }
 
-    public static MentorFeedback create(Long mentorshipId, Long authorId, String title,
-                                        int sessionNumber, String content) {
-        return new MentorFeedback(mentorshipId, authorId, title, sessionNumber, content);
+    public static MentorFeedbackV2 create(Long mentorshipId, Long authorId, String title,
+                                          int sessionNumber, String content) {
+        return new MentorFeedbackV2(mentorshipId, authorId, title, sessionNumber, content);
     }
 }

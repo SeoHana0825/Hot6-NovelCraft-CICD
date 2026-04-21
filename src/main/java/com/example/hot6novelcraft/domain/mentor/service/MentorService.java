@@ -8,12 +8,12 @@ import com.example.hot6novelcraft.domain.mentor.dto.request.MentorRegisterReques
 import com.example.hot6novelcraft.domain.mentor.dto.request.MentorUpdateRequest;
 import com.example.hot6novelcraft.domain.mentor.dto.response.*;
 import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
-import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedback;
+import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedbackV2;
 import com.example.hot6novelcraft.domain.mentor.entity.enums.MentorStatus;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorFeedbackRepository;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
 import com.example.hot6novelcraft.domain.mentoring.entity.enums.MentorshipStatus;
-import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepository;
+import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepositoryV2;
 import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipReviewRepository;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
@@ -42,7 +42,7 @@ public class MentorService {
     private static final long INTERMEDIATE_MIN_LIKES = 100L;
 
     private final MentorRepository mentorRepository;
-    private final MentorshipRepository mentorshipRepository;
+    private final MentorshipRepositoryV2 mentorshipRepositoryV2;
     private final MentorFeedbackRepository mentorFeedbackRepository;
     private final UserRepository userRepository;
     private final NovelRepository novelRepository;
@@ -151,13 +151,13 @@ public class MentorService {
         LocalDateTime startOfMonth = LocalDateTime.now()
                 .withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
 
-        long pendingCount = mentorshipRepository.countByMentorIdAndStatus(
+        long pendingCount = mentorshipRepositoryV2.countByMentorIdAndStatus(
                 mentor.getId(), MentorshipStatus.PENDING);
 
-        long thisMonthAcceptedCount = mentorshipRepository.countAcceptedThisMonth(
+        long thisMonthAcceptedCount = mentorshipRepositoryV2.countAcceptedThisMonth(
                 mentor.getId(), startOfMonth);
 
-        long thisMonthRejectedCount = mentorshipRepository.countRejectedThisMonth(
+        long thisMonthRejectedCount = mentorshipRepositoryV2.countRejectedThisMonth(
                 mentor.getId(), startOfMonth);
 
         return MentorStatisticsResponse.of(pendingCount, thisMonthAcceptedCount, thisMonthRejectedCount);
@@ -172,7 +172,7 @@ public class MentorService {
         Mentor mentor = mentorRepository.findByUserId(userId)
                 .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
 
-        return mentorshipRepository.findAllByMentorIdAndStatus(mentor.getId(), MentorshipStatus.ACCEPTED)
+        return mentorshipRepositoryV2.findAllByMentorIdAndStatus(mentor.getId(), MentorshipStatus.ACCEPTED)
                 .stream()
                 .map(mentorship -> {
                     String menteeName = userRepository.findByIdAndIsDeletedFalse(mentorship.getMenteeId())
@@ -186,7 +186,7 @@ public class MentorService {
 
                     LocalDateTime lastFeedbackAt = mentorFeedbackRepository
                             .findTopByMentorshipIdOrderByCreatedAtDesc(mentorship.getId())
-                            .map(MentorFeedback::getCreatedAt)
+                            .map(MentorFeedbackV2::getCreatedAt)
                             .orElse(null);
 
                     return MenteeInfoResponse.of(mentorship, menteeName, novelTitle, lastFeedbackAt);

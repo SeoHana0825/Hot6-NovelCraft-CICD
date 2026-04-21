@@ -8,13 +8,13 @@ import com.example.hot6novelcraft.domain.mentor.dto.request.MentorRegisterReques
 import com.example.hot6novelcraft.domain.mentor.dto.request.MentorUpdateRequest;
 import com.example.hot6novelcraft.domain.mentor.dto.response.*;
 import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
-import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedback;
+import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedbackV2;
 import com.example.hot6novelcraft.domain.mentor.entity.enums.MentorStatus;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorFeedbackRepository;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
 import com.example.hot6novelcraft.domain.mentoring.entity.Mentorship;
 import com.example.hot6novelcraft.domain.mentoring.entity.enums.MentorshipStatus;
-import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepository;
+import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepositoryV2;
 import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipReviewRepository;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
@@ -51,7 +51,7 @@ class MentorServiceTest {
     @InjectMocks
     private MentorService mentorService;
 
-    @Mock private MentorshipRepository mentorshipRepository;
+    @Mock private MentorshipRepositoryV2 mentorshipRepositoryV2;
     @Mock private MentorFeedbackRepository mentorFeedbackRepository;
     @Mock private UserRepository userRepository;
     @Mock private NovelRepository novelRepository;
@@ -454,11 +454,11 @@ class MentorServiceTest {
         @DisplayName("정상적으로 통계 조회")
         void getStatistics_success() {
             given(mentorRepository.findByUserId(USER_ID)).willReturn(Optional.of(mentor));
-            given(mentorshipRepository.countByMentorIdAndStatus(MENTOR_ID, MentorshipStatus.PENDING))
+            given(mentorshipRepositoryV2.countByMentorIdAndStatus(MENTOR_ID, MentorshipStatus.PENDING))
                     .willReturn(3L);
-            given(mentorshipRepository.countAcceptedThisMonth(eq(MENTOR_ID), any(LocalDateTime.class)))
+            given(mentorshipRepositoryV2.countAcceptedThisMonth(eq(MENTOR_ID), any(LocalDateTime.class)))
                     .willReturn(1L);
-            given(mentorshipRepository.countRejectedThisMonth(eq(MENTOR_ID), any(LocalDateTime.class)))
+            given(mentorshipRepositoryV2.countRejectedThisMonth(eq(MENTOR_ID), any(LocalDateTime.class)))
                     .willReturn(2L);
 
             MentorStatisticsResponse response = mentorService.getStatistics(USER_ID);
@@ -473,9 +473,9 @@ class MentorServiceTest {
         @DisplayName("통계가 모두 0인 경우 정상 조회")
         void getStatistics_all_zero() {
             given(mentorRepository.findByUserId(USER_ID)).willReturn(Optional.of(mentor));
-            given(mentorshipRepository.countByMentorIdAndStatus(any(), any())).willReturn(0L);
-            given(mentorshipRepository.countAcceptedThisMonth(any(), any())).willReturn(0L);
-            given(mentorshipRepository.countRejectedThisMonth(any(), any())).willReturn(0L);
+            given(mentorshipRepositoryV2.countByMentorIdAndStatus(any(), any())).willReturn(0L);
+            given(mentorshipRepositoryV2.countAcceptedThisMonth(any(), any())).willReturn(0L);
+            given(mentorshipRepositoryV2.countRejectedThisMonth(any(), any())).willReturn(0L);
 
             MentorStatisticsResponse response = mentorService.getStatistics(USER_ID);
 
@@ -539,7 +539,7 @@ class MentorServiceTest {
         @DisplayName("정상 조회 - 멘티 목록 반환")
         void getMyMentees_success() {
             given(mentorRepository.findByUserId(USER_ID)).willReturn(Optional.of(mentor));
-            given(mentorshipRepository.findAllByMentorIdAndStatus(MENTOR_ENTITY_ID, MentorshipStatus.ACCEPTED))
+            given(mentorshipRepositoryV2.findAllByMentorIdAndStatus(MENTOR_ENTITY_ID, MentorshipStatus.ACCEPTED))
                     .willReturn(List.of(mentorship));
             given(userRepository.findByIdAndIsDeletedFalse(501L)).willReturn(Optional.of(mentee));
             given(novelRepository.findById(100L)).willReturn(Optional.of(novel));
@@ -559,7 +559,7 @@ class MentorServiceTest {
         @DisplayName("최근 피드백이 있는 경우 lastFeedbackAt 반환")
         void getMyMentees_with_last_feedback() {
             // MentorFeedback.create() 시그니처 변경 반영 — title, sessionNumber 추가
-            MentorFeedback feedback = MentorFeedback.create(
+            MentorFeedbackV2 feedback = MentorFeedbackV2.create(
                     10L, USER_ID, "1회차 피드백", 1, "피드백 내용"
             );
 
@@ -572,7 +572,7 @@ class MentorServiceTest {
             }
 
             given(mentorRepository.findByUserId(USER_ID)).willReturn(Optional.of(mentor));
-            given(mentorshipRepository.findAllByMentorIdAndStatus(MENTOR_ENTITY_ID, MentorshipStatus.ACCEPTED))
+            given(mentorshipRepositoryV2.findAllByMentorIdAndStatus(MENTOR_ENTITY_ID, MentorshipStatus.ACCEPTED))
                     .willReturn(List.of(mentorship));
             given(userRepository.findByIdAndIsDeletedFalse(501L)).willReturn(Optional.of(mentee));
             given(novelRepository.findById(100L)).willReturn(Optional.of(novel));
@@ -588,7 +588,7 @@ class MentorServiceTest {
         @DisplayName("멘티가 탈퇴한 경우 알 수 없는 사용자 반환")
         void getMyMentees_deleted_mentee() {
             given(mentorRepository.findByUserId(USER_ID)).willReturn(Optional.of(mentor));
-            given(mentorshipRepository.findAllByMentorIdAndStatus(MENTOR_ENTITY_ID, MentorshipStatus.ACCEPTED))
+            given(mentorshipRepositoryV2.findAllByMentorIdAndStatus(MENTOR_ENTITY_ID, MentorshipStatus.ACCEPTED))
                     .willReturn(List.of(mentorship));
             given(userRepository.findByIdAndIsDeletedFalse(501L)).willReturn(Optional.empty());
             given(novelRepository.findById(100L)).willReturn(Optional.of(novel));
@@ -604,7 +604,7 @@ class MentorServiceTest {
         @DisplayName("소설이 없는 경우 알 수 없는 소설 반환")
         void getMyMentees_deleted_novel() {
             given(mentorRepository.findByUserId(USER_ID)).willReturn(Optional.of(mentor));
-            given(mentorshipRepository.findAllByMentorIdAndStatus(MENTOR_ENTITY_ID, MentorshipStatus.ACCEPTED))
+            given(mentorshipRepositoryV2.findAllByMentorIdAndStatus(MENTOR_ENTITY_ID, MentorshipStatus.ACCEPTED))
                     .willReturn(List.of(mentorship));
             given(userRepository.findByIdAndIsDeletedFalse(501L)).willReturn(Optional.of(mentee));
             given(novelRepository.findById(100L)).willReturn(Optional.empty());
@@ -620,7 +620,7 @@ class MentorServiceTest {
         @DisplayName("멘티가 없는 경우 빈 리스트 반환")
         void getMyMentees_empty() {
             given(mentorRepository.findByUserId(USER_ID)).willReturn(Optional.of(mentor));
-            given(mentorshipRepository.findAllByMentorIdAndStatus(MENTOR_ENTITY_ID, MentorshipStatus.ACCEPTED))
+            given(mentorshipRepositoryV2.findAllByMentorIdAndStatus(MENTOR_ENTITY_ID, MentorshipStatus.ACCEPTED))
                     .willReturn(List.of());
 
             List<MenteeInfoResponse> result = mentorService.getMyMentees(USER_ID);

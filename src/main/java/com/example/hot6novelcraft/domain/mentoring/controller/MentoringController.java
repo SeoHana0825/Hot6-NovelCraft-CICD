@@ -4,18 +4,15 @@ import com.example.hot6novelcraft.common.dto.BaseResponse;
 import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.request.MentoringFeedbackRequest;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.ManuscriptUrlResponse;
-import com.example.hot6novelcraft.domain.mentor.dto.response.MentorStatisticsResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringDetailResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringFeedbackResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentoringReceivedResponse;
-import com.example.hot6novelcraft.domain.mentoring.service.MentoringService;
+import com.example.hot6novelcraft.domain.mentoring.service.MentoringServiceV1;
+import com.example.hot6novelcraft.domain.mentoring.service.MentoringServiceV2;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,81 +20,180 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/mentorings")
 public class MentoringController {
 
-    private final MentoringService mentoringService;
+    private final MentoringServiceV1 mentoringServiceV1;       // V1
+    private final MentoringServiceV2 mentoringServiceV2;   // V2
 
-    @GetMapping("/received")
-    public ResponseEntity<BaseResponse<PageResponse<MentoringReceivedResponse>>> getReceivedMentorings(
+    // ===================== 공통 엔드포인트 (V1 / V2 동일) =====================
+
+    @GetMapping("/api/v1/mentorings/received")
+    public ResponseEntity<BaseResponse<PageResponse<MentoringReceivedResponse>>> getReceivedMentoringsV1(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        PageResponse<MentoringReceivedResponse> response =
-                PageResponse.register(mentoringService.getReceivedMentorings(
-                        userDetails.getUser().getId(), pageable));
-        return ResponseEntity.ok(BaseResponse.success("COMMON-200", "접수된 멘토링 목록 조회가 완료되었습니다", response));
+        return ResponseEntity.ok(
+                BaseResponse.success("COMMON-200", "접수된 멘토링 목록 조회가 완료되었습니다",
+                        PageResponse.register(mentoringServiceV1.getReceivedMentorings(
+                                userDetails.getUser().getId(), PageRequest.of(page, size))))
+        );
     }
 
-    @PatchMapping("/{mentoringId}/mentees/{menteeId}/accept")
-    public ResponseEntity<BaseResponse<Void>> acceptMentee(
+    @GetMapping("/api/v2/mentorings/received")
+    public ResponseEntity<BaseResponse<PageResponse<MentoringReceivedResponse>>> getReceivedMentoringsV2(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(
+                BaseResponse.success("COMMON-200", "접수된 멘토링 목록 조회가 완료되었습니다",
+                        PageResponse.register(mentoringServiceV2.getReceivedMentorings(
+                                userDetails.getUser().getId(), PageRequest.of(page, size))))
+        );
+    }
+
+    // ===================== 멘티 수락 =====================
+
+    @PatchMapping("/api/v1/mentorings/{mentoringId}/mentees/{menteeId}/accept")
+    public ResponseEntity<BaseResponse<Void>> acceptMenteeV1(
             @PathVariable Long mentoringId,
             @PathVariable Long menteeId,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        mentoringService.acceptMentee(mentoringId, menteeId, userDetails.getUser().getId());
+        mentoringServiceV1.acceptMentee(mentoringId, menteeId, userDetails.getUser().getId());
         return ResponseEntity.ok(BaseResponse.success("200", "멘티 수락이 완료되었습니다", null));
     }
 
-    @PatchMapping("/{mentoringId}/mentees/{menteeId}/reject")
-    public ResponseEntity<BaseResponse<Void>> rejectMentee(
+    @PatchMapping("/api/v2/mentorings/{mentoringId}/mentees/{menteeId}/accept")
+    public ResponseEntity<BaseResponse<Void>> acceptMenteeV2(
             @PathVariable Long mentoringId,
             @PathVariable Long menteeId,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        mentoringService.rejectMentee(mentoringId, menteeId, userDetails.getUser().getId());
+        mentoringServiceV2.acceptMentee(mentoringId, menteeId, userDetails.getUser().getId());
+        return ResponseEntity.ok(BaseResponse.success("200", "멘티 수락이 완료되었습니다", null));
+    }
+
+    // ===================== 멘티 거절 =====================
+
+    @PatchMapping("/api/v1/mentorings/{mentoringId}/mentees/{menteeId}/reject")
+    public ResponseEntity<BaseResponse<Void>> rejectMenteeV1(
+            @PathVariable Long mentoringId,
+            @PathVariable Long menteeId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        mentoringServiceV1.rejectMentee(mentoringId, menteeId, userDetails.getUser().getId());
         return ResponseEntity.ok(BaseResponse.success("200", "멘티 거절이 완료되었습니다", null));
     }
 
-    //@GetMapping("/{mentoringId}/documents/{fileId}") // TODO:S3 연동후 해당 도메인으로 이용
-    @GetMapping("/{mentoringId}/documents")
-    public ResponseEntity<BaseResponse<ManuscriptUrlResponse>> getManuscriptUrl(
+    @PatchMapping("/api/v2/mentorings/{mentoringId}/mentees/{menteeId}/reject")
+    public ResponseEntity<BaseResponse<Void>> rejectMenteeV2(
             @PathVariable Long mentoringId,
-            //@PathVariable String fileId, // TODO: S3 연동 후 presigned URL 생성 시 활용
+            @PathVariable Long menteeId,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        String url = mentoringService.getManuscriptDownloadUrl(
-                mentoringId, userDetails.getUser().getId());
-        return ResponseEntity.ok(BaseResponse.success("200", "원고 다운로드 URL 조회가 완료되었습니다",
-                ManuscriptUrlResponse.of(mentoringId, url)));
+        mentoringServiceV2.rejectMentee(mentoringId, menteeId, userDetails.getUser().getId());
+        return ResponseEntity.ok(BaseResponse.success("200", "멘티 거절이 완료되었습니다", null));
     }
-    @PatchMapping("/{mentoringId}/complete")
-    public ResponseEntity<BaseResponse<Void>> completeMentoring(
+
+    // ===================== 원고 다운로드 =====================
+
+    @GetMapping("/api/v1/mentorings/{mentoringId}/documents")
+    public ResponseEntity<BaseResponse<ManuscriptUrlResponse>> getManuscriptUrlV1(
             @PathVariable Long mentoringId,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        mentoringService.completeMentoring(mentoringId, userDetails.getUser().getId());
+        String url = mentoringServiceV1.getManuscriptDownloadUrl(mentoringId, userDetails.getUser().getId());
+        return ResponseEntity.ok(
+                BaseResponse.success("200", "원고 다운로드 URL 조회가 완료되었습니다",
+                        new ManuscriptUrlResponse(mentoringId, url))
+        );
+    }
+
+    @GetMapping("/api/v2/mentorings/{mentoringId}/documents")
+    public ResponseEntity<BaseResponse<ManuscriptUrlResponse>> getManuscriptUrlV2(
+            @PathVariable Long mentoringId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        String url = mentoringServiceV2.getManuscriptDownloadUrl(mentoringId, userDetails.getUser().getId());
+        return ResponseEntity.ok(
+                BaseResponse.success("200", "원고 다운로드 URL 조회가 완료되었습니다",
+                        new ManuscriptUrlResponse(mentoringId, url))
+        );
+    }
+
+    // ===================== 멘토링 종료 =====================
+
+    @PatchMapping("/api/v1/mentorings/{mentoringId}/complete")
+    public ResponseEntity<BaseResponse<Void>> completeMentoringV1(
+            @PathVariable Long mentoringId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        mentoringServiceV1.completeMentoring(mentoringId, userDetails.getUser().getId());
         return ResponseEntity.ok(BaseResponse.success("200", "멘토링이 종료되었습니다", null));
     }
-    @GetMapping("/{mentoringId}")
-    public ResponseEntity<BaseResponse<MentoringDetailResponse>> getMentoringDetail(
+
+    @PatchMapping("/api/v2/mentorings/{mentoringId}/complete")
+    public ResponseEntity<BaseResponse<Void>> completeMentoringV2(
             @PathVariable Long mentoringId,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        MentoringDetailResponse response = mentoringService.getMentoringDetail(
-                mentoringId, userDetails.getUser().getId());
-        return ResponseEntity.ok(BaseResponse.success("200", "멘토링 상세 정보 조회가 완료되었습니다", response));
+        mentoringServiceV2.completeMentoring(mentoringId, userDetails.getUser().getId());
+        return ResponseEntity.ok(BaseResponse.success("200", "멘토링이 종료되었습니다", null));
     }
-    @PostMapping("/{mentoringId}/feedbacks")
-    public ResponseEntity<BaseResponse<MentoringFeedbackResponse>> createFeedback(
+
+    // ===================== 멘토링 상세 조회 =====================
+
+    @GetMapping("/api/v1/mentorings/{mentoringId}")
+    public ResponseEntity<BaseResponse<MentoringDetailResponse>> getMentoringDetailV1(
+            @PathVariable Long mentoringId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        MentoringDetailResponse response =
+                mentoringServiceV1.getMentoringDetail(mentoringId, userDetails.getUser().getId());
+        return ResponseEntity.ok(
+                BaseResponse.success("200", "멘토링 상세 정보 조회가 완료되었습니다", response)
+        );
+    }
+
+    // V2: soft-delete 적용된 소설 제목 조회
+    @GetMapping("/api/v2/mentorings/{mentoringId}")
+    public ResponseEntity<BaseResponse<MentoringDetailResponse>> getMentoringDetailV2(
+            @PathVariable Long mentoringId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        MentoringDetailResponse response =
+                mentoringServiceV2.getMentoringDetail(mentoringId, userDetails.getUser().getId());
+        return ResponseEntity.ok(
+                BaseResponse.success("200", "멘토링 상세 정보 조회가 완료되었습니다", response)
+        );
+    }
+
+    // ===================== 피드백 작성 =====================
+
+    // V1: 동시성 보호 없음
+    @PostMapping("/api/v1/mentorings/{mentoringId}/feedbacks")
+    public ResponseEntity<BaseResponse<MentoringFeedbackResponse>> createFeedbackV1(
             @PathVariable Long mentoringId,
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody MentoringFeedbackRequest request
     ) {
-        MentoringFeedbackResponse response = mentoringService.createFeedback(
-                mentoringId, userDetails.getUser().getId(), request);
+        MentoringFeedbackResponse response =
+                mentoringServiceV1.createFeedback(mentoringId, userDetails.getUser().getId(), request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(BaseResponse.success("201", "피드백이 등록되었습니다", response));
+    }
+
+    // V2: 비관적 락 + 유니크 제약으로 동시성 보호, @Size 검증 추가
+    @PostMapping("/api/v2/mentorings/{mentoringId}/feedbacks")
+    public ResponseEntity<BaseResponse<MentoringFeedbackResponse>> createFeedbackV2(
+            @PathVariable Long mentoringId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @Valid @RequestBody MentoringFeedbackRequest request
+    ) {
+        MentoringFeedbackResponse response =
+                mentoringServiceV2.createFeedback(mentoringId, userDetails.getUser().getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.success("201", "피드백이 등록되었습니다", response));
     }
