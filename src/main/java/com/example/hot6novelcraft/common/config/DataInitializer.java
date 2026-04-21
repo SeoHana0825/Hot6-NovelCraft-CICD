@@ -17,6 +17,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,9 @@ public class DataInitializer implements ApplicationRunner {
     // 랭킹 테스트 및 에피소드 생성을 위한 의존성 추가
     private final RedisTemplate<String, Object> redisTemplate;
     private final EpisodeRepository episodeRepository;
+
+    // 직접 쿼리를 날리기 위해 JdbcTemplate 추가
+    private final JdbcTemplate jdbcTemplate;
 
     private static final String REALTIME_RANKING_KEY = "ranking:novel:realtime";
     private static final String WEEKLY_RANKING_KEY = "ranking:novel:weekly";
@@ -77,6 +81,27 @@ public class DataInitializer implements ApplicationRunner {
         saveNovelAndRanking(user1.getId(), "이세계 던전 공략", "꾸준한 인기 소설", "FANTASY", "DUNGEON,GROWTH", 2000, 40000);
         saveNovelAndRanking(user3.getId(), "심해의 군주", "바다물 판타지", "FANTASY", "DUNGEON,MUNCHKIN", 5000, 30000);
         saveNovelAndRanking(user2.getId(), "비밀스러운 계약", "잔잔한 로맨스", "ROMANCE", "ROMANCE,HEALING", 1500, 8000);
+
+        log.info("[DataInitializer] 더미데이터 및 Redis 랭킹 세팅 완료 ✅");
+
+
+        // ========================
+        // 3. 신작 조회 테스트용 날짜 강제 조작 (JPA Auditing 무시하고 직접 SQL 실행)
+        // ========================
+        log.info("[DataInitializer] 테스트용 소설 생성일자 조작 시작...");
+
+        // 정상 노출 데이터 (1달 이내)
+        jdbcTemplate.execute("UPDATE novels SET created_at = DATE_SUB(NOW(), INTERVAL 1 DAY), status = 'ONGOING', is_deleted = false WHERE id = 1");
+        jdbcTemplate.execute("UPDATE novels SET created_at = DATE_SUB(NOW(), INTERVAL 15 DAY), status = 'ONGOING', is_deleted = false WHERE id = 2");
+        jdbcTemplate.execute("UPDATE novels SET created_at = DATE_SUB(NOW(), INTERVAL 29 DAY), status = 'ONGOING', is_deleted = false WHERE id = 3");
+
+        // 기간 초과 데이터 (1달 초과 - 리스트에 안 나와야 함)
+        jdbcTemplate.execute("UPDATE novels SET created_at = DATE_SUB(NOW(), INTERVAL 2 MONTH), status = 'ONGOING', is_deleted = false WHERE id = 4");
+        jdbcTemplate.execute("UPDATE novels SET created_at = DATE_SUB(NOW(), INTERVAL 6 MONTH), status = 'ONGOING', is_deleted = false WHERE id = 5");
+
+        // 상태 불만족 데이터
+        jdbcTemplate.execute("UPDATE novels SET created_at = NOW(), status = 'PENDING', is_deleted = false WHERE id = 6");
+        jdbcTemplate.execute("UPDATE novels SET created_at = NOW(), status = 'ONGOING', is_deleted = true WHERE id = 7");
 
         log.info("[DataInitializer] 더미데이터 및 Redis 랭킹 세팅 완료 ✅");
     }

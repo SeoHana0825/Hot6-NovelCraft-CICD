@@ -187,6 +187,48 @@ public class NovelService {
         return response;
     }
 
+    /**
+     * 신작용 소설 목록 조회 V2(QueryDSL+Redis캐싱)
+     * 한 달 신작 리스트 (limit 50 작품)
+     * 서하나
+     **/
+    @Transactional
+    public List<NovelListResponse> getNewNovelList(String genre, NovelStatus status, int limit) {
+
+        String cacheKey = NOVEL_LIST_CACHE_KEY
+                + "type:new::"
+                + "genre:" + genre + "::"
+                + "status:" + status + "::"
+                + "limit:" + limit;
+
+        // Redis 캐시 확인
+        Object cached = null;
+        try {
+            cached = redisTemplate.opsForValue().get(cacheKey);
+        } catch (RuntimeException e) {
+            log.warn("소설 리스트 캐시를 읽어내는데 실패했습니다. key={}", cacheKey, e);
+        }
+
+        if (cached != null) {
+            log.debug("===== [신작 캐시 HIT] key={} =====", cacheKey);
+            return (List<NovelListResponse>) cached; // List 타입 캐스팅
+        }
+
+        log.debug("===== [신작 캐시 MISS] key={} DB 조회 =====", cacheKey);
+
+        // 3. DB 조회 (캐시에 없을 때만)
+        List<NovelListResponse> response = novelRepository.findNewNovelList(genre, status, limit);
+
+        // 4. Redis 캐시에 결과 저장
+        try {
+            redisTemplate.opsForValue().set(cacheKey, response, NOVEL_LIST_CACHE_TTL);
+            log.debug("===== [신작 캐시 저장] key={} TTL=30분 =====", cacheKey);
+        } catch (RuntimeException e) {
+            log.warn("New novel list cache write failed. key={}", cacheKey, e);
+        }
+
+        return response;
+    }
 
     // 소설 상세 조회 (QueryDSL + 인덱싱)
     @Transactional(readOnly = true)

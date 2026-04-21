@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -149,6 +150,46 @@ public class CustomNovelRepositoryImpl implements CustomNovelRepository {
                 .fetchOne();
 
         return new PageImpl<>(content, pageable, total != null ? total : 0);
+    }
+
+    /**
+     * 신작용 소설 목록 조회 (한 달 신작 리스트)
+     * 서하나
+     **/
+    @Override
+    public List<NovelListResponse> findNewNovelList(String genre, NovelStatus status, int limit) {
+        QNovel novel = QNovel.novel;
+        QUser user = QUser.user;
+
+        // 한 달 전 날짜 계산
+        LocalDateTime oneMonthAgo = LocalDateTime.now().minusMonths(1);
+
+        return queryFactory
+                .select(Projections.constructor(NovelListResponse.class,
+                        novel.id,
+                        novel.title,
+                        novel.genre,
+                        novel.tags,
+                        novel.status,
+                        novel.coverImageUrl,
+                        novel.viewCount,
+                        novel.bookmarkCount,
+                        user.nickname
+                        ))
+                .from(novel)
+                .join(user).on(novel.authorId.eq(user.id))
+                .where(
+                        novel.isDeleted.eq(false)
+                        , novel.status.ne(NovelStatus.PENDING)
+                        , genreEq(genre)
+                        , statusEq(status)
+                        , novel.createdAt.goe(oneMonthAgo) // 한 달 이내 신작 소설들
+                )
+                .orderBy(novel.createdAt.desc())
+                .limit(limit)
+                .fetch();
+
+
     }
 
     // 장르 필터링 (null이면 조건X)
