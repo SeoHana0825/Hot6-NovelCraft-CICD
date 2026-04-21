@@ -3,6 +3,7 @@ package com.example.hot6novelcraft.domain.mentoring.service;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.MentoringExceptionEnum;
 import com.example.hot6novelcraft.common.exception.domain.MentorExceptionEnum;
+import com.example.hot6novelcraft.domain.file.service.FileUploadService;
 import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
 import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedback;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorFeedbackRepository;
@@ -36,6 +37,9 @@ public class MentoringService {
     private final UserRepository userRepository;
     private final NovelRepository novelRepository;
     private final MentorFeedbackRepository mentorFeedbackRepository;
+
+    private final FileUploadService fileUploadService;
+
 
     public Page<MentoringReceivedResponse> getReceivedMentorings(Long userId, Pageable pageable) {
         Mentor mentor = mentorRepository.findByUserId(userId)
@@ -117,7 +121,7 @@ public class MentoringService {
         Mentorship mentorship = mentorshipRepository.findById(mentoringId)
                 .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
 
-        if (!mentorship.getMentorId().equals(mentor.getId())) {
+        if (!mentorship.getMentorId().equals(mentor.getUserId())) {
             throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_UNAUTHORIZED);
         }
 
@@ -127,10 +131,8 @@ public class MentoringService {
 
         mentorship.increaseManuscriptDownloadCount();
 
-        // TODO: S3 연동 후 아래 주석 해제 및 return 문 교체
-        // return s3Service.generatePresignedUrl(mentorship.getManuscriptUrl());
-
-        return mentorship.getManuscriptUrl();
+        // S3 Presigned URL 발급 (1시간 유효)
+        return fileUploadService.generateManuscriptPresignedUrl(mentorship.getManuscriptUrl());
     }
 
     @Transactional

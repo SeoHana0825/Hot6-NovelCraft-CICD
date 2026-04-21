@@ -2,6 +2,7 @@ package com.example.hot6novelcraft.domain.mentoring.service;
 
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.MentoringExceptionEnum;
+import com.example.hot6novelcraft.domain.file.service.FileUploadService;
 import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
 import com.example.hot6novelcraft.domain.mentoring.dto.request.MentorshipCreateRequest;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -27,6 +29,8 @@ public class MentorshipService {
     private final MentorshipRepository mentorshipRepository;
     private final MentorRepository mentorRepository;
     private final UserRepository userRepository;
+
+    private final FileUploadService fileUploadService;
 
     @Transactional
     public MentorshipCreateResponse applyMentorship(Long menteeId, MentorshipCreateRequest request) {
@@ -67,7 +71,7 @@ public class MentorshipService {
                 menteeId,
                 request.currentNovelId(),
                 request.motivation(),
-                null,
+                request.manuscriptUrl(),
                 null
         );
 
@@ -75,5 +79,23 @@ public class MentorshipService {
         log.info("[Mentorship] 멘토링 신청 완료 menteeId={} mentorId={}", menteeId, request.mentorId());
 
         return MentorshipCreateResponse.from(saved.getId());
+    }
+
+    /**
+     * 멘토링 원고 파일 업로드
+     * - 작가 권한만 업로드 가능
+     * 정은식
+     */
+    public String uploadManuscript(MultipartFile file, Long menteeId) {
+
+        // 작가 권한 확인
+        User mentee = userRepository.findById(menteeId)
+                .orElseThrow(() -> new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_FOUND));
+
+        if (mentee.getRole() != UserRole.AUTHOR) {
+            throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_AUTHOR);
+        }
+
+        return fileUploadService.uploadManuscript(file);
     }
 }
