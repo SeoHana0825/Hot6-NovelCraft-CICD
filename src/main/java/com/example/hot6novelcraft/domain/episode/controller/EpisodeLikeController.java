@@ -30,7 +30,7 @@ public class EpisodeLikeController {
         String message = response.isLiked() ? "좋아요 성공" : "좋아요 취소";
 
         return ResponseEntity.ok(
-                BaseResponse.success("OK", message, response)
+                BaseResponse.success("200", message, response)
         );
     }
 }

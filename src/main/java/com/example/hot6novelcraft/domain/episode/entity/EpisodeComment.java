@@ -12,7 +12,13 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "comments")
+@Table(
+        name = "comments",
+        indexes = {
+                @Index(name = "idx_comments_episode", columnList = "episodeId"),
+                @Index(name = "idx_comments_user", columnList = "userId")
+        }
+)
 public class EpisodeComment extends BaseEntity {
 
     @Id
@@ -28,26 +34,11 @@ public class EpisodeComment extends BaseEntity {
     @Column(nullable = false, length =500)
     private String content;
 
-    @Column(nullable = false)
-    private boolean isDeleted = false;
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        updatedAt = LocalDateTime.now();
-    }
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 
     @Builder
     public EpisodeComment(Long userId, Long episodeId, String content) {
         this.userId = userId;
         this.episodeId = episodeId;
         this.content = content;
-        this.isDeleted = false;
     }
 }
