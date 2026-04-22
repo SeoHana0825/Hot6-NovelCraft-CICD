@@ -31,9 +31,10 @@ public class RedisUtil {
     }
 
     /** SMS 인증번호 저장 및 재사용 방지 및 삭제
-    * 1. 데이터 조회
-    * 2. 데이터 삭제 (인증 성공 후 바로 삭제)
-    * 3. 데이터 저장 (TTL 사용)
+    * 1. 데이터 조회 - get
+    * 2. 데이터 삭제 (인증 성공 후 바로 삭제) -delete
+    * 3. 데이터 저장 (TTL 사용) - set
+    * 4. 일일 전송 제한 (중복 전송 방지 및 비용 과금 방지) - incrementAndExpire
     **/
     public Object get(String key) {
         return redisTemplate.opsForValue().get(key);
@@ -45,6 +46,18 @@ public class RedisUtil {
 
     public void set(String key, Object value, long duration) {
         redisTemplate.opsForValue().set(key, value, Duration.ofMinutes(duration));
+    }
+
+    public Long incrementAndExpire(String key, long durationMinutes) {
+        Long count = redisTemplate.opsForValue().increment(key);
+
+        // 최초 요청일 경우에만 24시간 TTL 설정
+        if (count != null && count == 1) {
+            redisTemplate.expire(key, Duration.ofMinutes(durationMinutes));
+        }
+
+        log.debug("[Redis] count={}", count);
+        return count;
     }
 
     /**

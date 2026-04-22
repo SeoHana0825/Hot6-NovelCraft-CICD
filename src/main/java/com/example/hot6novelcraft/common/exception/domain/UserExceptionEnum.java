@@ -26,6 +26,7 @@ public enum UserExceptionEnum implements ErrorCode {
     , ERR_INVALID_PHONE(HttpStatus.BAD_REQUEST, "인증번호가 만료되었습니다")
     , ERR_INVALID_PHONE_VERIFICATION(HttpStatus.UNAUTHORIZED,"휴대폰 인증이 유효하지 않습니다")
     , ERR_PHONE_NOT_VERIFIED(HttpStatus.CONFLICT, "휴대폰 인증을 다시해주세요")
+    , ERR_EXCEED_SMS_LIMIT(HttpStatus.BAD_REQUEST, "휴대폰 일일 전송 횟수(5회)가 초과되었습니다. 24시간 후 다시 시도해주세요")
 
     // 로그인
     , ERR_FAILED_SOCIAL(HttpStatus.NOT_FOUND, "소셜 인증에 실패했습니다")
