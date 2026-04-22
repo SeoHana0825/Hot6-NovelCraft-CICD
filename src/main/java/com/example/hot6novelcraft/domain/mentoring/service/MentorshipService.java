@@ -8,10 +8,7 @@ import com.example.hot6novelcraft.domain.file.service.FileUploadService;
 import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
 import com.example.hot6novelcraft.domain.mentoring.dto.request.MentorshipCreateRequest;
-import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorWithNickname;
-import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipCreateResponse;
-import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipDetailResponse;
-import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipListResponse;
+import com.example.hot6novelcraft.domain.mentoring.dto.response.*;
 import com.example.hot6novelcraft.domain.mentoring.entity.Mentorship;
 import com.example.hot6novelcraft.domain.mentoring.entity.enums.MentorshipStatus;
 import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepository;
@@ -147,6 +144,44 @@ public class MentorshipService {
                 mentor.getBio(),
                 mentor.getMaxMentees()
         );
+    }
+
+    // 내 멘토링 조회(멘티 시점)
+    @Transactional(readOnly = true)
+    public List<MentorshipHistoryResponse> getMyHistory(Long menteeId, MentorshipStatus status) {
+
+        // 작가 권한 확인
+        User mentee = userRepository.findById(menteeId)
+                .orElseThrow(() -> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
+
+        if (mentee.getRole() != UserRole.AUTHOR) {
+            throw new ServiceErrorException(MentoringExceptionEnum.MENTORING_NOT_AUTHOR);
+        }
+
+        // 상태 필터 여부에 따라 조회
+        List<Mentorship> mentorships;
+        if (status != null) {
+            mentorships = mentorshipRepository.findAllByMenteeIdAndStatusOrderByCreatedAtDesc(menteeId, status);
+        } else {
+            mentorships = mentorshipRepository.findAllByMenteeIdOrderByCreatedAtDesc(menteeId);
+        }
+
+        // Mentorship -> DTO 변환
+        return mentorships.stream()
+                .map(m -> {
+                    String mentorNickname = mentorRepository.findById(m.getMentorId())
+                            .flatMap(mentor -> userRepository.findById(mentor.getUserId()))
+                            .map(User::getNickname)
+                            .orElse("알 수 없는 멘토");
+
+                    return new MentorshipHistoryResponse(
+                            m.getId(),
+                            mentorNickname,
+                            m.getStatus(),
+                            m.getCreatedAt()
+                    );
+                })
+                .toList();
     }
 
     // JSON 문자열을 List<String>으로 변환

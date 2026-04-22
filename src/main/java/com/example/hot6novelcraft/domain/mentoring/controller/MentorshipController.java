@@ -4,7 +4,9 @@ import com.example.hot6novelcraft.common.dto.BaseResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.request.MentorshipCreateRequest;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipCreateResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipDetailResponse;
+import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipHistoryResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipListResponse;
+import com.example.hot6novelcraft.domain.mentoring.entity.enums.MentorshipStatus;
 import com.example.hot6novelcraft.domain.mentoring.service.MentorshipService;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.entity.enums.CareerLevel;
@@ -18,6 +20,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -69,5 +73,19 @@ public class MentorshipController {
     ) {
         MentorshipDetailResponse response = mentorshipService.getMentorDetail(mentorId);
         return ResponseEntity.ok(BaseResponse.success("200", "멘토 상세 조회 성공", response));
+    }
+
+    /**
+     * 내 멘토링 이력 조회
+     * 정은식
+     */
+    @GetMapping("/me/history")
+    public ResponseEntity<BaseResponse<List<MentorshipHistoryResponse>>> getMyHistory(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(required = false) MentorshipStatus status
+    ) {
+        Long menteeId = userDetails.getUser().getId();
+        List<MentorshipHistoryResponse> response = mentorshipService.getMyHistory(menteeId, status);
+        return ResponseEntity.ok(BaseResponse.success("200", "멘토링 이력 조회 성공", response));
     }
 }

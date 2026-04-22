@@ -10,6 +10,7 @@ import com.example.hot6novelcraft.domain.mentor.entity.enums.MentorStatus;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
 import com.example.hot6novelcraft.domain.mentoring.dto.request.MentorshipCreateRequest;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipDetailResponse;
+import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipHistoryResponse;
 import com.example.hot6novelcraft.domain.mentoring.entity.Mentorship;
 import com.example.hot6novelcraft.domain.mentoring.repository.MentorshipRepository;
 import com.example.hot6novelcraft.domain.user.entity.User;
@@ -402,6 +403,62 @@ class MentorshipServiceTest {
             assertThatThrownBy(() -> mentorshipService.getMentorDetail(999L))
                     .isInstanceOf(ServiceErrorException.class)
                     .hasMessage(MentorExceptionEnum.MENTOR_NOT_FOUND.getMessage());
+        }
+    }
+
+    // ==================== 내 멘토링 이력 조회 ====================
+    @Nested
+    @DisplayName("내 멘토링 이력 조회")
+    class GetMyHistoryTest {
+
+        @Test
+        @DisplayName("전체 이력 조회 성공")
+        void getMyHistory_success() {
+            Mentorship mentorship = Mentorship.create(
+                    MENTOR_ENTITY_ID, MENTEE_ID, NOVEL_ID, "동기",
+                    "https://s3.amazonaws.com/test.txt"
+            );
+            setField(mentorship, "id", 10L);
+
+            given(userRepository.findById(MENTEE_ID)).willReturn(Optional.of(menteeUser));
+            given(mentorshipRepository.findAllByMenteeIdOrderByCreatedAtDesc(MENTEE_ID))
+                    .willReturn(List.of(mentorship));
+            given(mentorRepository.findById(MENTOR_ENTITY_ID)).willReturn(Optional.of(mentor));
+            given(userRepository.findById(MENTOR_USER_ID)).willReturn(Optional.of(
+                    User.builder().email("m@test.com").password("pw")
+                            .nickname("멘토닉네임").role(UserRole.AUTHOR).build()
+            ));
+
+            List<MentorshipHistoryResponse> result = mentorshipService.getMyHistory(MENTEE_ID, null);
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).mentorNickname()).isEqualTo("멘토닉네임");
+        }
+
+        @Test
+        @DisplayName("작가 권한 없으면 예외")
+        void getMyHistory_not_author_throws() {
+            User reader = User.builder()
+                    .email("reader@test.com").password("pw")
+                    .nickname("독자").role(UserRole.READER).build();
+
+            given(userRepository.findById(MENTEE_ID)).willReturn(Optional.of(reader));
+
+            assertThatThrownBy(() -> mentorshipService.getMyHistory(MENTEE_ID, null))
+                    .isInstanceOf(ServiceErrorException.class)
+                    .hasMessage(MentoringExceptionEnum.MENTORING_NOT_AUTHOR.getMessage());
+        }
+
+        @Test
+        @DisplayName("이력 없으면 빈 리스트")
+        void getMyHistory_empty() {
+            given(userRepository.findById(MENTEE_ID)).willReturn(Optional.of(menteeUser));
+            given(mentorshipRepository.findAllByMenteeIdOrderByCreatedAtDesc(MENTEE_ID))
+                    .willReturn(List.of());
+
+            List<MentorshipHistoryResponse> result = mentorshipService.getMyHistory(MENTEE_ID, null);
+
+            assertThat(result).isEmpty();
         }
     }
 }

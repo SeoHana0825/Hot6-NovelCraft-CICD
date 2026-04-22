@@ -38,4 +38,10 @@ public interface MentorshipRepository extends JpaRepository<Mentorship, Long>, C
     // 멘티가 이미 PENDING,ACCEPTED 멘토링 있는지 확인 (1:1 제약)
     boolean existsByMenteeIdAndStatusIn(Long menteeId, List<MentorshipStatus> statuses);
 
+    // 멘티의 멘토링 이력 조회 (상태 필터)
+    List<Mentorship> findAllByMenteeIdAndStatusOrderByCreatedAtDesc(Long menteeId, MentorshipStatus status);
+
+    // 멘티의 멘토링 이력 전체 조회
+    List<Mentorship> findAllByMenteeIdOrderByCreatedAtDesc(Long menteeId);
+
 }
