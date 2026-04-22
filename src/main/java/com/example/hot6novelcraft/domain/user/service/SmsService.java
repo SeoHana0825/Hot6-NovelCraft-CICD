@@ -51,6 +51,16 @@ public class SmsService {
     // 인증번호 전송
     public void sendSMS(String phoneNumber) {
 
+        String limitKey = "SMS:LIMIT:" + phoneNumber;
+
+        // 24시간 기준으로 카운트 증가
+        Long requestCount = redisUtil.incrementAndExpire(limitKey, 1440);
+
+        if(requestCount != null && requestCount > 5) {
+            log.warn("[SMS] 일일 전송 횟수 5회 초과, 수신번호: {}", phoneNumber);
+            throw new ServiceErrorException(UserExceptionEnum.ERR_EXCEED_SMS_LIMIT);
+        }
+
         // 랜덤한 인증번호 생성
         String randomCode = createRandomCode();
 
