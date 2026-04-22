@@ -10,6 +10,7 @@ import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
 import com.example.hot6novelcraft.domain.mentoring.dto.request.MentorshipCreateRequest;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorWithNickname;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipCreateResponse;
+import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipDetailResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipListResponse;
 import com.example.hot6novelcraft.domain.mentoring.entity.Mentorship;
 import com.example.hot6novelcraft.domain.mentoring.entity.enums.MentorshipStatus;
@@ -122,6 +123,30 @@ public class MentorshipService {
                 m.awardsCareer(),
                 m.maxMentees()
         ));
+    }
+
+    // 멘토 상세 조회(멘티 시점)
+    @Transactional(readOnly = true)
+    public MentorshipDetailResponse getMentorDetail(Long mentorId) {
+
+        Mentor mentor = mentorRepository.findById(mentorId)
+                .orElseThrow(() -> new ServiceErrorException(MentorExceptionEnum.MENTOR_NOT_FOUND));
+
+        String nickname = userRepository.findById(mentor.getUserId())
+                .map(User::getNickname)
+                .orElse("알 수 없는 사용자");
+
+        return MentorshipDetailResponse.of(
+                mentor.getId(),
+                nickname,
+                mentor.getCareerLevel(),
+                fromJson(mentor.getMainGenres()),
+                fromJson(mentor.getSpecialFields()),
+                fromJson(mentor.getMentoringStyle()),
+                mentor.getAwardsCareer(),
+                mentor.getBio(),
+                mentor.getMaxMentees()
+        );
     }
 
     // JSON 문자열을 List<String>으로 변환

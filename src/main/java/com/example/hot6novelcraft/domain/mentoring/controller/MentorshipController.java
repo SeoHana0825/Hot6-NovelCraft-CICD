@@ -3,6 +3,7 @@ package com.example.hot6novelcraft.domain.mentoring.controller;
 import com.example.hot6novelcraft.common.dto.BaseResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.request.MentorshipCreateRequest;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipCreateResponse;
+import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipDetailResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipListResponse;
 import com.example.hot6novelcraft.domain.mentoring.service.MentorshipService;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
@@ -56,5 +57,17 @@ public class MentorshipController {
     ) {
         Page<MentorshipListResponse> response = mentorshipService.getMentorList(genre, careerLevel, pageable);
         return ResponseEntity.ok(BaseResponse.success("200", "멘토 목록 조회 성공", response));
+    }
+
+    /**
+     * 멘토 상세 조회
+     * 정은식
+     */
+    @GetMapping("/mentors/{mentorId}")
+    public ResponseEntity<BaseResponse<MentorshipDetailResponse>> getMentorDetail(
+            @PathVariable Long mentorId
+    ) {
+        MentorshipDetailResponse response = mentorshipService.getMentorDetail(mentorId);
+        return ResponseEntity.ok(BaseResponse.success("200", "멘토 상세 조회 성공", response));
     }
 }
