@@ -12,6 +12,7 @@ import com.example.hot6novelcraft.domain.user.entity.QUser;
 import com.example.hot6novelcraft.domain.user.entity.enums.CareerLevel;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -108,8 +109,15 @@ public class CustomMentorshipRepositoryImpl implements CustomMentorshipRepositor
                         MentoringReceivedResponse.class,
                         mentorship.id,
                         mentorship.menteeId,
-                        menteeUser.nickname,
-                        novel.title,
+                        // null 방어 - 삭제된 유저/소설은 기본값으로 대체
+                        Expressions.cases()
+                                .when(menteeUser.nickname.isNull())
+                                .then("알 수 없는 사용자")
+                                .otherwise(menteeUser.nickname),
+                        Expressions.cases()
+                                .when(novel.title.isNull())
+                                .then("알 수 없는 소설")
+                                .otherwise(novel.title),
                         mentorship.createdAt,
                         mentorship.status
                 ))

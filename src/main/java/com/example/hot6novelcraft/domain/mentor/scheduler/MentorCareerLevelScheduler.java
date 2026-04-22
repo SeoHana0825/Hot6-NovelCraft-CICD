@@ -9,11 +9,14 @@ import com.example.hot6novelcraft.domain.mentor.repository.MentorCareerHistoryRe
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import com.example.hot6novelcraft.domain.user.entity.enums.CareerLevel;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,10 +40,15 @@ public class MentorCareerLevelScheduler {
     private final NovelRepository novelRepository;
     private final EpisodeRepository episodeRepository;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     /**
      * 매일 자정 멘토 등급 자동 조정
      * PROFICIENT(전문)는 관리자 수동 승급이므로 배치 대상 제외
      * 청크 단위(100명) 처리로 메모리 부하 개선
+     * ID ASC 정렬로 페이지 경계 고정 - 행 누락/중복 방지
+     * 청크 처리 후 flush/clear로 persistence context 누적 방지
      */
     @Scheduled(cron = "0 0 0 * * *")
     @Transactional
@@ -52,7 +60,7 @@ public class MentorCareerLevelScheduler {
         Page<Mentor> page;
 
         do {
-            Pageable pageable = PageRequest.of(pageNumber, CHUNK_SIZE);
+            Pageable pageable = PageRequest.of(pageNumber, CHUNK_SIZE, Sort.by("id").ascending());
             page = mentorRepository.findAllByStatusAndCareerLevelNot(
                     MentorStatus.APPROVED, CareerLevel.PROFICIENT, pageable
             );
@@ -60,6 +68,10 @@ public class MentorCareerLevelScheduler {
             int upgradedCount = processChunk(page.getContent());
             totalUpgradedCount += upgradedCount;
             pageNumber++;
+
+            // persistence context 누적 방지
+            entityManager.flush();
+            entityManager.clear();
 
         } while (!page.isLast());
 
