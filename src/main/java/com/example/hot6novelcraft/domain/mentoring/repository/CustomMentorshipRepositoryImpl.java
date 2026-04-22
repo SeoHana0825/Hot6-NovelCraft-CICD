@@ -32,7 +32,7 @@ public class CustomMentorshipRepositoryImpl implements CustomMentorshipRepositor
 
         // 장르 필터
         if (genre != null && !genre.isBlank()) {
-            where.and(mentor.mainGenres.contains(genre));
+            where.and(mentor.mainGenres.contains("\"" + genre + "\""));
         }
 
         // 등급 필터
