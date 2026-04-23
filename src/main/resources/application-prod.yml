@@ -1,3 +1,6 @@
+app:
+  frontend:
+    url: ${FRONTEND_URL}
 spring:
   cloud:
     aws:
@@ -7,7 +10,7 @@ spring:
       region:
         static: ap-northeast-2
       s3:
-        bucket: hot6-novelcraft-hanaa
+        bucket: hot6-novelcraft-eunsik
       stack:
         auto: false
 
