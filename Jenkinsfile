@@ -78,31 +78,31 @@ pipeline {
 
                                 # 새 컨테이너 실행 (모든 환경 변수 주입)
                                 docker run -d \\
-                                    --name novelcraft \\
-                                    --network host \\
-                                    -e SPRING_PROFILES_ACTIVE=prod \\
-                                    -e FRONTEND_URL=${FRONTEND_URL} \\
-                                    -e DB_URL=${DB_URL} \\
-                                    -e DB_USERNAME=${DB_USERNAME} \\
-                                    -e DB_PASSWORD=${DB_PASSWORD} \\
-                                    -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \\
-                                    -e AWS_SECRET_KEY=${AWS_SECRET_KEY} \\
-                                    -e REDIS_HOST=${REDIS_HOST} \\
-                                    -e GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID} \\
-                                    -e GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET} \\
-                                    -e KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID} \\
-                                    -e KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET} \\
-                                    -e NAVER_CLIENT_ID=${NAVER_CLIENT_ID} \\
-                                    -e NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET} \\
-                                    -e JWT_SECRET_KEY=${JWT_SECRET_KEY} \\
-                                    -e PORTONE_CHANNEL_KEY=${PORTONE_CHANNEL_KEY} \\
-                                    -e PORTONE_API_SECRET=${PORTONE_API_SECRET} \\
-                                    -e PORTONE_WEBHOOK_SECRET=${PORTONE_WEBHOOK_SECRET} \\
-                                    -e COOLSMS_API_KEY=${COOLSMS_API_KEY} \\
-                                    -e COOLSMS_SECRET_KEY=${COOLSMS_SECRET_KEY} \\
-                                    -e LIBRARY_API_KEY=${LIBRARY_API_KEY} \\
-                                    --restart always \\
-                                    ${DOCKER_IMAGE}:latest
+                                                --name novelcraft \\
+                                                --network host \\
+                                                -e SPRING_PROFILES_ACTIVE=prod \\
+                                                -e FRONTEND_URL="${FRONTEND_URL}" \\
+                                                -e DB_URL="${DB_URL}" \\
+                                                -e DB_USERNAME="${DB_USERNAME}" \\
+                                                -e DB_PASSWORD="${DB_PASSWORD}" \\
+                                                -e AWS_ACCESS_KEY="${AWS_ACCESS_KEY}" \\
+                                                -e AWS_SECRET_KEY="${AWS_SECRET_KEY}" \\
+                                                -e REDIS_HOST="${REDIS_HOST}" \\
+                                                -e GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID}" \\
+                                                -e GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET}" \\
+                                                -e KAKAO_CLIENT_ID="${KAKAO_CLIENT_ID}" \\
+                                                -e KAKAO_CLIENT_SECRET="${KAKAO_CLIENT_SECRET}" \\
+                                                -e NAVER_CLIENT_ID="${NAVER_CLIENT_ID}" \\
+                                                -e NAVER_CLIENT_SECRET="${NAVER_CLIENT_SECRET}" \\
+                                                -e JWT_SECRET_KEY="${JWT_SECRET_KEY}" \\
+                                                -e PORTONE_CHANNEL_KEY="${PORTONE_CHANNEL_KEY}" \\
+                                                -e PORTONE_API_SECRET="${PORTONE_API_SECRET}" \\
+                                                -e PORTONE_WEBHOOK_SECRET="${PORTONE_WEBHOOK_SECRET}" \\
+                                                -e COOLSMS_API_KEY="${COOLSMS_API_KEY}" \\
+                                                -e COOLSMS_SECRET_KEY="${COOLSMS_SECRET_KEY}" \\
+                                                -e LIBRARY_API_KEY="${LIBRARY_API_KEY}" \\
+                                                --restart always \\
+                                                ${DOCKER_IMAGE}:latest
 
                                 # 안 쓰는 이미지 정리
                                 docker image prune -f
