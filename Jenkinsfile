@@ -51,7 +51,7 @@ pipeline {
                     string(credentialsId: 'google-client-secret', variable: 'GOOGLE_CLIENT_SECRET'),
                     string(credentialsId: 'kakao-client-id',     variable: 'KAKAO_CLIENT_ID'),
                     string(credentialsId: 'kakao-client-secret', variable: 'KAKAO_CLIENT_SECRET'),
-                    string(credentialsId: 'naver-client-id', variable: 'NAVER_CLIENT_SECRET'),
+                    string(credentialsId: 'naver-client-id', variable: 'NAVER_CLIENT_ID'),
                     string(credentialsId: 'naver-client-secret', variable: 'NAVER_CLIENT_SECRET'),
                     // ===== JWT =====
                     string(credentialsId: 'jwt-secret-key',      variable: 'JWT_SECRET_KEY'),
