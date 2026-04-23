@@ -95,7 +95,7 @@ coolsms:
   api-key: ${COOLSMS_API_KEY}
   secret-key: ${COOLSMS_SECRET_KEY}
   send-number: "01012345678"
-  test-mode: false
+  test-mode: true
 
 logging:
   level:
