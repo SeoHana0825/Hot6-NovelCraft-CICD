@@ -65,12 +65,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             user = userRepository.findByEmail(email)
                     .orElseGet(() -> {
                         // 진짜 없을 때만 새로 생성 & 저장
-                        User newUser = User.socialUser(
+                        return User.socialUser(
                                 email,
                                 "SOCIAL_" + System.currentTimeMillis(),
                                 UserRole.TEMP
                         );
-                        return userRepository.save(newUser);
                     });
             log.info("[소셜 로그인] 신규 유저 감지 (임시 정보), email: {}", email);
 

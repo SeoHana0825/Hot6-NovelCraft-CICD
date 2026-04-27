@@ -24,7 +24,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.util.Optional;
 
 @Slf4j(topic = "SignupService")
@@ -91,8 +90,14 @@ public class SignupService {
     @Transactional
     public String commonSignup(CommonSignupRequest request) {
 
-        // SMS 공통 메서드 (검증만)
-        validatePhoneVerification(request.phoneNo());
+        // 회원가입 상태 조회와 삭제를 동시에 진행
+        String smsToken = "SMS:TOKEN:" + request.tempToken();
+        String verifiedPhone = (String) redisUtil.getAndDelete(smsToken);
+
+        // 폰 인증 UUID 임시 토큰 검증, 토큰 안의 폰 번호와 입력한 폰 번호가 다르면 에러
+        if (verifiedPhone == null || !verifiedPhone.equals(request.phoneNo())) {
+            throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
+        }
 
         // 이메일 및 닉네임 중복 확인
         checkEmail(request.email());
@@ -100,7 +105,7 @@ public class SignupService {
 
         String encoderPassword = passwordEncoder.encode(request.password());
 
-        // Redis 임시 토큰 Temp에 담을 정보
+        // Redis 임시 토큰 Temp에 담을 정보 (유효시간 10분)
         TempSignupRequest tempRequest = new TempSignupRequest(
                 request.email(),
                 encoderPassword,
@@ -111,9 +116,6 @@ public class SignupService {
         String redisKey = "TEMP_SIGNUP:" + request.email();
         redisUtil.set(redisKey, tempRequest, 10);
 
-        // DB 저장이 확실해 Redis 인증 정보 삭제
-        consumerPhoneVerification(request.phoneNo());
-
         log.info("공통 회원가입 임시 보관 완료 - email: {}", request.email());
 
         // 임시 JWT 유저 저장 (독자/작가 추가 가입 전 임시 상태)
@@ -123,21 +125,20 @@ public class SignupService {
     @Transactional
     public SignupResponse readerSignup(ReaderSignupRequest request, String email) {
 
-        // 먼저 소셜 가입이 있는지 확인
+        // 소셜 회원가입 : 먼저 소셜 가입이 있는지 확인과 동시에 삭제
         String socialKey = "TEMP_SOCIAL_SIGNUP:" + email;
-        TempSocialSignupRequest tempSocialSignupRequest = (TempSocialSignupRequest) redisUtil.get(socialKey);
+        TempSocialSignupRequest tempSocialSignupRequest = (TempSocialSignupRequest) redisUtil.getAndDelete(socialKey);
 
+        // 동시 요청이 들어왔을 때, 첫 번째 요청만 데이터를 받고 두 번째 요청은 null 로 반환
         if (tempSocialSignupRequest != null) {
-            redisUtil.delete(socialKey);
             return processSocialReaderSignup(request, email, tempSocialSignupRequest, socialKey);
         }
 
-        // 소셜 가입자가 없다면 "일반 회원 가입" 사용자가 있는지 확인
+        // 일반 회원가입 : 먼저 소셜 가입이 있는지 확인과 동시에 삭제
         String normalKey = "TEMP_SIGNUP:" + email;
-        TempSignupRequest tempRequest = (TempSignupRequest) redisUtil.get(normalKey);
+        TempSignupRequest tempRequest = (TempSignupRequest) redisUtil.getAndDelete(normalKey);
 
         if (tempRequest != null) {
-            redisUtil.delete(normalKey);
             return processNormalReaderSignup(request, email, tempRequest, normalKey);
         }
 
@@ -148,21 +149,19 @@ public class SignupService {
     @Transactional
     public SignupResponse authorSignup(AuthorRequest request, String email) {
 
-        // 먼저 소셜 가입이 있는지 확인
+        // 소셜 회원가입 : 먼저 소셜 가입이 있는지 확인과 동시에 삭제
         String socialKey = "TEMP_SOCIAL_SIGNUP:" + email;
-        TempSocialSignupRequest tempSocialSignupRequest = (TempSocialSignupRequest) redisUtil.get(socialKey);
+        TempSocialSignupRequest tempSocialSignupRequest = (TempSocialSignupRequest) redisUtil.getAndDelete(socialKey);
 
         if(tempSocialSignupRequest != null) {
-            redisUtil.delete(socialKey);
             return processSocialAuthorSignup(request, email, tempSocialSignupRequest, socialKey);
         }
 
-        // 소셜 가입자가 없다면 "일반 회원 가입" 사용자가 있는지 확인
+        // 일반 회원가입 : 먼저 소셜 가입이 있는지 확인과 동시에 삭제
         String normalKey = "TEMP_SIGNUP:" + email;
-        TempSignupRequest tempRequest = (TempSignupRequest) redisUtil.get(normalKey);
+        TempSignupRequest tempRequest = (TempSignupRequest) redisUtil.getAndDelete(normalKey);
 
         if(tempRequest != null) {
-            redisUtil.delete(normalKey);
             return processNormalAuthorSignup(request, email, tempRequest, normalKey);
         }
 
@@ -173,8 +172,14 @@ public class SignupService {
     @Transactional
     public AdminSignupResponse adminSignup(AdminSignupRequest request, String email) {
 
-        // SMS 공통 메서드 (검증만)
-        validatePhoneVerification(request.phoneNo());
+        // 회원가입 상태 조회와 삭제를 동시에 진행
+        String smsToken = "SMS:TOKEN:" + request.tempToken();
+        String verifiedPhone = (String) redisUtil.getAndDelete(smsToken);
+
+        // 폰 인증 UUID 임시 토큰 검증, 토큰 안의 폰 번호와 입력한 폰 번호가 다르면 에러
+        if (verifiedPhone == null || !verifiedPhone.equals(request.phoneNo())) {
+            throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
+        }
 
         // 이메일 중복 확인
         checkEmail(request.email());
@@ -189,10 +194,6 @@ public class SignupService {
         );
         userRepository.save(admin);
 
-        // DB 강제 저장 후, 저장 완료와 동시에 Redis 키 삭제
-        userRepository.flush();
-        consumerPhoneVerification(request.phoneNo());
-
         log.info("관리자 가입 완료 - email: {}", email);
 
         return AdminSignupResponse.of(admin);
@@ -206,16 +207,28 @@ public class SignupService {
     @Transactional
     public SocialSignupResponse socialCommonSignup(SocialSignupRequest request, String email, String providerId, ProviderSns providerSns) {
 
-        // SMS 공통 메서드 및 닉네임 중복 검증
-        validatePhoneVerification(request.phoneNo());
+        // 회원가입 상태 조회와 삭제를 동시에 진행
+        String smsToken = "SMS:TOKEN:" + request.tempToken();
+        String verifiedPhone = (String) redisUtil.get(smsToken);
+
+        // 폰 인증 UUID 임시 토큰 검증, 토큰 안의 폰 번호와 입력한 폰 번호가 다르면 에러
+        if (verifiedPhone == null || !verifiedPhone.equals(request.phoneNo())) {
+            throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
+        }
+
         checkNickname(request.nickname());
 
         // 소셜 유저 검증 - 탈퇴 유예 기간 유저인지 체크 및 비밀번호는 SOCIAL LOGIN으로 고정
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
+//        User user = userRepository.findByEmail(email)
+//                .orElseThrow(() -> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
 
-        if (user.isDeleted()) {
-            throw new ServiceErrorException(UserExceptionEnum.ERR_USER_WITHDRAWAL_PENDING_CONFLICT);
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        if(optionalUser.isPresent()) {
+            User user = optionalUser.get();
+            if (user.isDeleted()) {
+                throw new ServiceErrorException(UserExceptionEnum.ERR_USER_WITHDRAWAL_PENDING_CONFLICT);
+            }
+            throw new ServiceErrorException(UserExceptionEnum.ERR_ALREADY_COMPLETED_SIGNUP);
         }
 
         // 1단계 정보 DTP에 담기
@@ -231,9 +244,6 @@ public class SignupService {
         String redisKey = "TEMP_SOCIAL_SIGNUP:" + email;
         redisUtil.set(redisKey, tempSocialSignupRequest, 10);
 
-        // 처리 완료 후 RedisKey 파기 및 토큰 발급
-        consumerPhoneVerification(request.phoneNo());
-
         log.info("[소셜 공통 가입] DB 업데이트 대기 및 Redis 임시 저장 완료, email: {}", email);
 
         String tempToken = jwtUtil.createTempToken(email);
@@ -243,8 +253,18 @@ public class SignupService {
     // 소셜 독자
     private SignupResponse processSocialReaderSignup(ReaderSignupRequest request, String email, TempSocialSignupRequest tempRequest, String redisKey) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(
-                ()-> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
+//        User user = userRepository.findByEmail(email).orElseThrow(
+//                ()-> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
+//
+//        user.updateForSocialSignup(
+//                tempRequest.nickname()
+//                , tempRequest.phoneNo()
+//                , tempRequest.birthday()
+//        );
+//
+//        user.changeRole(UserRole.READER);
+
+        User user = User.socialUser(email, "SOCIAL_LOGIN_USER", UserRole.READER);
 
         user.updateForSocialSignup(
                 tempRequest.nickname()
@@ -252,12 +272,12 @@ public class SignupService {
                 , tempRequest.birthday()
         );
 
-        user.changeRole(UserRole.READER);
+        User savedUser = userRepository.save(user);
 
         SocialAuth socialAuth = SocialAuth.register(
                 tempRequest.providerSns()
                 , tempRequest.providerId()
-                , user.getId()
+                , savedUser.getId()
         );
 
         socialAuthRepository.save(socialAuth);
@@ -270,7 +290,6 @@ public class SignupService {
 
         readerProfileRepository.save(readerProfile);
 
-        redisUtil.delete(redisKey);
         return SignupResponse.of(user);
     }
 
@@ -300,7 +319,6 @@ public class SignupService {
 
         readerProfileRepository.save(readerProfile);
 
-        redisUtil.delete(redisKey);
         return SignupResponse.of(savedUser);
     }
 
@@ -339,7 +357,6 @@ public class SignupService {
 
         authorProfileRepository.save(authorProfile);
 
-        redisUtil.delete(redisKey);
         return SignupResponse.of(user);
     }
 
@@ -374,31 +391,6 @@ public class SignupService {
 
         authorProfileRepository.save(authorProfile);
 
-        redisUtil.delete(redisKey);
         return SignupResponse.of(savedUser);
-    }
-
-    /** ======== SMS 공통 메서드 ======== */
-    // SMS 전송 - 검증
-    public void validatePhoneVerification(String phoneNo) {
-        String cleanPhoneNo = phoneNo.replaceAll("-","");
-        String verifiedKey = "SMS:VERIFIED:" + cleanPhoneNo;
-
-        Object isVerified = redisUtil.get(verifiedKey);
-
-        if(isVerified == null || !"TRUE".equals(isVerified.toString())) {
-            log.info("[SMS] 인증되지 않은 번호로 접근 시도됨");
-
-            throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
-        }
-    }
-
-    // redis 키 삭제 필요할 때 - 삭제
-    public void consumerPhoneVerification(String phoneNo) {
-        String cleanPhoneNo = phoneNo.replaceAll("-","");
-        String verifiedKey = "SMS:VERIFIED:" + cleanPhoneNo;
-        redisUtil.delete(verifiedKey);
-
-        log.info("[SMS] Redis 인증 확인 및 삭제 완료, phoneNo: {} ", cleanPhoneNo);
     }
 }

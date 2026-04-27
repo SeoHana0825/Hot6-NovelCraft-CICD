@@ -5,9 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.Collections;
 
 @Slf4j
 @Component
@@ -28,6 +30,33 @@ public class RedisUtil {
 
     public boolean isBlackList(String accessToken) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(accessToken));
+    }
+
+    /** SignupService
+     * Redis 원자성 보장 (getAndDelete)
+     * */
+    public Object getAndDelete(String signupKey) {
+        return redisTemplate.opsForValue().getAndDelete(signupKey);
+    }
+
+    /** SmsService
+     * Redis 원자성 보장 및 동시성 제어 적용
+     * Lua Script를 활용한 SMS 인증번호 원자적 검증 및 삭제
+     */
+    public boolean verifyAndDeleteWithLua(String key, String expectedValue) {
+        String script =
+                "if redis.call('get', KEYS[1]) == ARGV[1] then \n" +
+                "   redis.call('del', KEYS[1]) \n" +
+                "   return 1 \n" +
+                "else \n" +
+                "   return 0 \n" +
+                "end";
+        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>(script, Long.class);
+
+        // 스크립트 실행
+        Long result = redisTemplate.execute(redisScript, Collections.singletonList(key), expectedValue);
+
+        return result != null && result == 1L;
     }
 
     /** SMS 인증번호 저장 및 재사용 방지 및 삭제

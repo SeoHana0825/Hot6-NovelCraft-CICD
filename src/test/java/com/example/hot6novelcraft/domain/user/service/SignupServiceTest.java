@@ -91,13 +91,13 @@ class SignupServiceTest {
 
     // ==================== Redis SMS 인증 공통 세팅 ====================
     private void mockSmsVerified(String phoneNo) {
-        String key = "SMS:VERIFIED:" + phoneNo;
-        given(redisUtil.get(key)).willReturn("TRUE");
+        lenient().when(redisUtil.getAndDelete(anyString())).thenReturn(phoneNo);
+        lenient().when(redisUtil.get(anyString())).thenReturn(phoneNo);
     }
 
     private void mockSmsNotVerified(String phoneNo) {
-        String key = "SMS:VERIFIED:" + phoneNo;
-        given(redisUtil.get(key)).willReturn(null);
+        lenient().when(redisUtil.getAndDelete(anyString())).thenReturn(null);
+        lenient().when(redisUtil.get(anyString())).thenReturn(null);
     }
 
     // ====================================================================
@@ -112,11 +112,12 @@ class SignupServiceTest {
         @BeforeEach
         void setUp() {
             validRequest = new CommonSignupRequest(
-                    TEST_EMAIL,
-                    TEST_PASSWORD,
-                    TEST_NICKNAME,
-                    LocalDate.of(1995, 1, 1),
-                    TEST_PHONE
+                    TEST_EMAIL
+                    , TEST_PASSWORD
+                    , TEST_NICKNAME
+                    , LocalDate.of(1995, 1, 1)
+                    , TEST_PHONE
+                    , "test-token"
             );
         }
 
@@ -133,12 +134,12 @@ class SignupServiceTest {
             given(passwordEncoder.encode(TEST_PASSWORD)).willReturn("encodedPassword");
             given(jwtUtil.createTempToken(TEST_EMAIL)).willReturn(FAKE_TEMP_TOKEN);
 
+            // when
             String result = signupService.commonSignup(validRequest);
 
-            // when
-            assertThat(result).isEqualTo(FAKE_TEMP_TOKEN);
-
             // then
+            assertThat(result).isEqualTo(FAKE_TEMP_TOKEN);
+            verify(redisUtil).getAndDelete(anyString());
             verify(redisUtil).set(
                     eq("TEMP_SIGNUP:" + TEST_EMAIL),
                     any(TempSignupRequest.class),
@@ -225,8 +226,8 @@ class SignupServiceTest {
         @DisplayName("[실패] Redis 바구니가 만료되었거나 없을 때 → ERR_INVALID_TOKEN 예외")
         void authorSignup_fail_noBasket() {
             // given
-            given(redisUtil.get("TEMP_SIGNUP:" + TEST_EMAIL)).willReturn(null);
-            given(redisUtil.get("TEMP_SOCIAL_SIGNUP:" + TEST_EMAIL)).willReturn(null);
+            given(redisUtil.getAndDelete(contains("TEMP_SIGNUP:"))).willReturn(null);
+            given(redisUtil.getAndDelete(contains("TEMP_SOCIAL_SIGNUP:"))).willReturn(null);
 
             // when & then
             assertThatThrownBy(() -> signupService.authorSignup(validRequest, TEST_EMAIL))
@@ -239,15 +240,11 @@ class SignupServiceTest {
         void authorSignup_fail_alreadyCompleted() {
             // given
             User authorUser = User.register(TEST_EMAIL, "pw", TEST_NICKNAME, TEST_PHONE, LocalDate.now(), UserRole.AUTHOR);
-            lenient().when(userRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(authorUser));
-            lenient().when(userRepository.existsByEmail(TEST_EMAIL)).thenReturn(true);
-
             // 바구니도 없는 상태 가정
             TempSignupRequest tempDto = new TempSignupRequest(TEST_EMAIL, "pw", TEST_NICKNAME, TEST_PHONE, LocalDate.now());
-            given(redisUtil.get("TEMP_SOCIAL_SIGNUP:" + TEST_EMAIL)).willReturn(null);
-            given(redisUtil.get("TEMP_SIGNUP:" + TEST_EMAIL)).willReturn(tempDto);
-
-            lenient().when(userRepository.save(any(User.class))).thenReturn(authorUser);
+            given(redisUtil.getAndDelete(contains("TEMP_SOCIAL_SIGNUP"))).willReturn(null);
+            given(redisUtil.getAndDelete(contains("TEMP_SIGNUP"))).willReturn(tempDto);
+            given(userRepository.existsByEmail(TEST_EMAIL)).willReturn(true);
 
             // when & then
             assertThatThrownBy(() -> signupService.authorSignup(validRequest, TEST_EMAIL))
@@ -268,7 +265,12 @@ class SignupServiceTest {
 
         @BeforeEach
         void setUp() {
-            validRequest = new SocialSignupRequest(TEST_NICKNAME, LocalDate.of(1995,1,1), TEST_PHONE);
+            validRequest = new SocialSignupRequest(
+                    TEST_NICKNAME
+                    , LocalDate.of(1995,1,1)
+                    , TEST_PHONE
+                    , "test-social-token"
+            );
         }
 
         @Test
@@ -276,8 +278,9 @@ class SignupServiceTest {
         void socialCommonSignup_success() {
             // given
             mockSmsVerified(TEST_PHONE);
+            given(redisUtil.get(anyString())).willReturn(TEST_PHONE);
             given(userRepository.findByNickname(TEST_NICKNAME)).willReturn(Optional.empty());
-            given(userRepository.findByEmail(TEST_EMAIL)).willReturn(Optional.of(createUser(false)));
+            given(userRepository.findByEmail(TEST_EMAIL)).willReturn(Optional.empty());
             given(jwtUtil.createTempToken(TEST_EMAIL)).willReturn(FAKE_TEMP_TOKEN);
 
             // when
@@ -285,7 +288,7 @@ class SignupServiceTest {
 
             // then
             assertThat(response.tempToken()).isEqualTo(FAKE_TEMP_TOKEN);
-
+            verify(redisUtil).get(contains("SMS:TOKEN:"));
             verify(redisUtil).set(
                     eq("TEMP_SOCIAL_SIGNUP:" + TEST_EMAIL),
                     any(TempSocialSignupRequest.class),
@@ -334,12 +337,15 @@ class SignupServiceTest {
         @Test
         @DisplayName("[실패] 닉네임 중복 → ERR_NICKNAME_ALREADY_EXISTS 예외")
         void socialCommonSignup_fail_nicknameExists() {
-            mockSmsVerified(TEST_PHONE);
+            given(redisUtil.get(anyString())).willReturn(TEST_PHONE);
+
             given(userRepository.findByNickname(TEST_NICKNAME)).willReturn(Optional.of(createUser(false)));
 
             assertThatThrownBy(() -> signupService.socialCommonSignup(validRequest, TEST_EMAIL, PROVIDER_ID, ProviderSns.GOOGLE))
                     .isInstanceOf(ServiceErrorException.class)
                     .hasMessage(UserExceptionEnum.ERR_NICKNAME_ALREADY_EXISTS.getMessage());
+
+            verify(redisUtil, never()).delete(anyString());
         }
     }
 }

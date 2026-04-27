@@ -21,7 +21,10 @@ public record AdminSignupRequest(
         String phoneNo,
 
         @NotBlank(message = "휴대폰번호 인증이 필요합니다.")
-        String phoneToken
+        String phoneToken,
+
+        @NotBlank
+        String tempToken
 
 ) {
 

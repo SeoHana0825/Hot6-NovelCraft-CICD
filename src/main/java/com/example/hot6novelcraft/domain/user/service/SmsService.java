@@ -13,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
-import java.util.Random;
+import java.util.UUID;
 
 @Slf4j(topic = "SmsService")
 @Service
@@ -53,8 +53,8 @@ public class SmsService {
 
         String limitKey = "SMS:LIMIT:" + phoneNumber;
 
-        // 24시간 기준으로 카운트 증가
-        Long requestCount = redisUtil.incrementAndExpire(limitKey, 1440);
+        // 24시간(1140) 기준으로 카운트 증가
+        Long requestCount = redisUtil.incrementAndExpire(limitKey, 1140);
 
         if(requestCount != null && requestCount > 5) {
             log.warn("[SMS] 일일 전송 횟수 5회 초과, 수신번호: {}", phoneNumber);
@@ -79,7 +79,7 @@ public class SmsService {
         Message message = new Message();
         message.setFrom(fromNumber);
         message.setTo(phoneNumber);
-        message.setText("[NovelCraft] 인증번호: [" + randomCode + "]을 입력해 주세요. 인증번호가 타인에게 유출되지 않도록 주의해주시길 바랍니다.");
+        message.setText("[NovelCraft] 인증번호: [" + randomCode + "]");
 
         try {
             SingleMessageSentResponse response = this.messageService.sendOne(
@@ -95,30 +95,23 @@ public class SmsService {
     }
 
     // 인증번호 검증 및 예외 처리
-    public boolean verifyAuthCode(String phoneNumber, String inputCode) {
+    public String verifyAuthCode(String phoneNumber, String inputCode) {
         String redisKey = "SMS:VERIFIED:" + phoneNumber;
-        Object storedCode = redisUtil.get(redisKey);
 
-        // 만료 체크 : Redis에 값이 없을 떄 (TTL 5분)
-        if(storedCode == null) {
-            log.warn("[SMS] 인증번호 만료, key: {}", redisKey);
-            throw new ServiceErrorException(UserExceptionEnum.ERR_INVALID_PHONE);
-        }
-
-        // 일치 여부 체크
-        if(!storedCode.toString().equals(inputCode)) {
+        boolean isVerified = redisUtil.verifyAndDeleteWithLua(redisKey, inputCode);
+        if(!isVerified) {
             log.error("[SMS] 인증번호 불일치, key: {}", redisKey);
             throw new ServiceErrorException(UserExceptionEnum.ERR_INVALID_PHONE_VERIFICATION);
         }
 
-        // 검증 성공 - 즉시 삭제
-        redisUtil.delete(redisKey);
+        // 검증 성공
+        String tempToken = UUID.randomUUID().toString();
 
-        String verifiedKey = "SMS:VERIFIED:" + phoneNumber;
-        redisUtil.set(verifiedKey, "TRUE", 10);
+        String tokenKey = "SMS:TOKEN:" + tempToken;
+        redisUtil.set(tokenKey, phoneNumber, 10);
         
         log.info("[SMS] 인증번호 검증 성공, key: {}", redisKey);
-        return true;
+        return tempToken;
     }
 
 }

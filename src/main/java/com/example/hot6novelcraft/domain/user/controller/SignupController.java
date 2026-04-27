@@ -57,11 +57,11 @@ public class SignupController {
     }
 
     @PostMapping("/phone/verify")
-    public ResponseEntity<BaseResponse<Void>> phoneVerifyRequest(
+    public ResponseEntity<BaseResponse<String>> phoneVerifyRequest(
             @Valid @RequestBody PhoneVerifyRequest request
     ) {
-        smsService.verifyAuthCode(request.phoneNo(), request.verificationCode());
-        return ResponseEntity.ok(BaseResponse.success("200","인증번호가 성공적으로 확인되었습니다", null));
+        String tempToken = smsService.verifyAuthCode(request.phoneNo(), request.verificationCode());
+        return ResponseEntity.ok(BaseResponse.success("200","인증번호가 성공적으로 확인되었습니다", tempToken));
     }
 
      /** ======== 회원 가입 ========
