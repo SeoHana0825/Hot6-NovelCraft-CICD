@@ -166,14 +166,18 @@ class SubscriptionServiceTest {
             given(subscriptionTransactionService.getSubscriptionForComplete(USER_ID, SUBSCRIPTION_KEY))
                     .willReturn(pendingSubscription);
             doNothing().when(subscriptionTransactionService).validateSubscriptionStillPending(SUBSCRIPTION_ID);
-            // PortOne 빌링키 결제 성공 응답 (status: PAID)
-            String portoneSuccessResponse = "{\"status\":\"PAID\",\"id\":\"payment-id\"}";
+            // POST 응답: TossPayments 실제 응답 형식 (status 없음)
+            String portonePostResponse = "{\"payment\":{\"pgTxId\":\"test-tx-id\",\"paidAt\":\"2026-01-01T00:00:00Z\"}}";
+            // GET 응답: 전체 Payment 객체 (status 포함)
+            String portoneGetResponse = "{\"status\":\"PAID\",\"id\":\"payment-id\"}";
             given(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
-                    .willReturn(ResponseEntity.ok(portoneSuccessResponse));
-            // ObjectMapper mock 설정 (JSON 파싱)
+                    .willReturn(ResponseEntity.ok(portonePostResponse));
+            given(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                    .willReturn(ResponseEntity.ok(portoneGetResponse));
+            // ObjectMapper mock 설정 (GET 응답 바디 파싱)
             com.fasterxml.jackson.databind.JsonNode mockJsonNode = mock(com.fasterxml.jackson.databind.JsonNode.class);
             com.fasterxml.jackson.databind.JsonNode mockStatusNode = mock(com.fasterxml.jackson.databind.JsonNode.class);
-            given(objectMapper.readTree(portoneSuccessResponse)).willReturn(mockJsonNode);
+            given(objectMapper.readTree(portoneGetResponse)).willReturn(mockJsonNode);
             given(mockJsonNode.path("status")).willReturn(mockStatusNode);
             given(mockStatusNode.asText()).willReturn("PAID");
             given(subscriptionTransactionService.createPaymentAndPurchase(eq(USER_ID), anyString(), eq(AMOUNT)))
@@ -196,6 +200,8 @@ class SubscriptionServiceTest {
                     .getSubscriptionForComplete(USER_ID, SUBSCRIPTION_KEY);
             verify(restTemplate, times(1))
                     .exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class));
+            verify(restTemplate, times(1))
+                    .exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class));
             verify(subscriptionTransactionService, times(1))
                     .createPaymentAndPurchase(eq(USER_ID), anyString(), eq(AMOUNT));
             verify(subscriptionTransactionService, times(1))
@@ -390,14 +396,18 @@ class SubscriptionServiceTest {
             Payment payment = createMockPayment(PAYMENT_ID, USER_ID, AMOUNT);
 
             given(redisUtil.acquireLock(anyString())).willReturn(true);
-            // PortOne 빌링키 결제 성공 응답 (status: PAID)
-            String portoneSuccessResponse = "{\"status\":\"PAID\",\"id\":\"payment-id\"}";
+            // POST 응답: TossPayments 실제 응답 형식 (status 없음)
+            String portonePostResponse = "{\"payment\":{\"pgTxId\":\"test-tx-id\",\"paidAt\":\"2026-01-01T00:00:00Z\"}}";
+            // GET 응답: 전체 Payment 객체 (status 포함)
+            String portoneGetResponse = "{\"status\":\"PAID\",\"id\":\"payment-id\"}";
             given(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
-                    .willReturn(ResponseEntity.ok(portoneSuccessResponse));
-            // ObjectMapper mock 설정 (JSON 파싱)
+                    .willReturn(ResponseEntity.ok(portonePostResponse));
+            given(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
+                    .willReturn(ResponseEntity.ok(portoneGetResponse));
+            // ObjectMapper mock 설정 (GET 응답 바디 파싱)
             com.fasterxml.jackson.databind.JsonNode mockJsonNode = mock(com.fasterxml.jackson.databind.JsonNode.class);
             com.fasterxml.jackson.databind.JsonNode mockStatusNode = mock(com.fasterxml.jackson.databind.JsonNode.class);
-            given(objectMapper.readTree(portoneSuccessResponse)).willReturn(mockJsonNode);
+            given(objectMapper.readTree(portoneGetResponse)).willReturn(mockJsonNode);
             given(mockJsonNode.path("status")).willReturn(mockStatusNode);
             given(mockStatusNode.asText()).willReturn("PAID");
             given(subscriptionTransactionService.createPaymentAndPurchase(eq(USER_ID), anyString(), eq(AMOUNT)))
