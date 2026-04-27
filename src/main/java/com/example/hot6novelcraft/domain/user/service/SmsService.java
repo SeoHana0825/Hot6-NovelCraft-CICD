@@ -54,7 +54,7 @@ public class SmsService {
         String limitKey = "SMS:LIMIT:" + phoneNumber;
 
         // 24시간(1140) 기준으로 카운트 증가
-        Long requestCount = redisUtil.incrementAndExpire(limitKey, 1140);
+        Long requestCount = redisUtil.incrementAndExpire(limitKey, 1440);
 
         if(requestCount != null && requestCount > 5) {
             log.warn("[SMS] 일일 전송 횟수 5회 초과, 수신번호: {}", phoneNumber);

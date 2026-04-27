@@ -209,7 +209,7 @@ public class SignupService {
 
         // 회원가입 상태 조회와 삭제를 동시에 진행
         String smsToken = "SMS:TOKEN:" + request.tempToken();
-        String verifiedPhone = (String) redisUtil.get(smsToken);
+        String verifiedPhone = (String) redisUtil.getAndDelete(smsToken);
 
         // 폰 인증 UUID 임시 토큰 검증, 토큰 안의 폰 번호와 입력한 폰 번호가 다르면 에러
         if (verifiedPhone == null || !verifiedPhone.equals(request.phoneNo())) {
@@ -219,9 +219,6 @@ public class SignupService {
         checkNickname(request.nickname());
 
         // 소셜 유저 검증 - 탈퇴 유예 기간 유저인지 체크 및 비밀번호는 SOCIAL LOGIN으로 고정
-//        User user = userRepository.findByEmail(email)
-//                .orElseThrow(() -> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
-
         Optional<User> optionalUser = userRepository.findByEmail(email);
         if(optionalUser.isPresent()) {
             User user = optionalUser.get();
@@ -252,17 +249,6 @@ public class SignupService {
 
     // 소셜 독자
     private SignupResponse processSocialReaderSignup(ReaderSignupRequest request, String email, TempSocialSignupRequest tempRequest, String redisKey) {
-
-//        User user = userRepository.findByEmail(email).orElseThrow(
-//                ()-> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
-//
-//        user.updateForSocialSignup(
-//                tempRequest.nickname()
-//                , tempRequest.phoneNo()
-//                , tempRequest.birthday()
-//        );
-//
-//        user.changeRole(UserRole.READER);
 
         User user = User.socialUser(email, "SOCIAL_LOGIN_USER", UserRole.READER);
 
