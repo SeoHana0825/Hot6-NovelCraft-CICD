@@ -14,20 +14,23 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class EpisodeCacheService {
 
-    private static final int BULK_SIZE = 20;
-    private static final int HOT_THRESHOLD = 50;
+    private static final int BULK_SIZE = 50;
+    private static final int HOT_THRESHOLD = 1; // K6 테스트용 기존50
 
     private static final String NOVEL_VIEW_KEY_PREFIX = "novel_view::";
     private static final String HOT_KEY_PREFIX = "novel_hot::";
     private static final String BULK_KEY_PREFIX = "episode_bulk::";
     private static final String REALTIME_RANKING_KEY = "ranking:novel:realtime";
     private static final String WEEKLY_RANKING_KEY = "ranking:novel:weekly";
+    private static final String NOVEL_VIEW_COUNT_KEY_PREFIX = "novel_view_count::";
+
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
@@ -159,8 +162,33 @@ public class EpisodeCacheService {
         log.debug("[Cache EVICT] {}", pattern);
     }
 
+    // Redis에 조회수 증가
+    public void increaseViewCount(Long novelId) {
+        String key = NOVEL_VIEW_COUNT_KEY_PREFIX + novelId;
+        redisTemplate.opsForValue().increment(key);
+    }
+
+    // Redis에 저장된 조회수 조회
+    public long getViewCount(Long novelId) {
+        String key = NOVEL_VIEW_COUNT_KEY_PREFIX + novelId;
+        Object count = redisTemplate.opsForValue().get(key);
+        return count != null ? Long.parseLong(count.toString()) : 0L;
+    }
+
+    // Redis 조회수 초기화
+    public void resetViewCount(Long novelId) {
+        String key = NOVEL_VIEW_COUNT_KEY_PREFIX + novelId;
+        redisTemplate.delete(key);
+    }
+
+    // 모든 소설 조회수 키 조회
+    public Set<String> getAllViewCountKeys() {
+        return redisTemplate.keys(NOVEL_VIEW_COUNT_KEY_PREFIX + "*");
+    }
+
     // 벌크캐시관련
     private String getBulkCacheKey(Long novelId, int bulkIndex) {
         return BULK_KEY_PREFIX + novelId + "::" + bulkIndex;
     }
 }
+

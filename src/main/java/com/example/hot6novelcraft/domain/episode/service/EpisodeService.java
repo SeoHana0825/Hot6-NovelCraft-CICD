@@ -200,8 +200,8 @@ public class EpisodeService {
             throw new ServiceErrorException(EpisodeExceptionEnum.EPISODE_NOT_PUBLISHED);
         }
 
-        // 유료 회차 접근 제어 (PointHistory 이력 체크)
-        validateEpisodeAccess(episode, userId);
+        // 유료 회차 접근 제어 (PointHistory 이력 체크) - K6테스트할때만 주석처리
+//        validateEpisodeAccess(episode, userId);
 
         // 소설 조회수 +1 (어뷰징 방지)
         increaseNovelViewCount(episode.getNovelId(), userId);
@@ -228,8 +228,8 @@ public class EpisodeService {
             throw new ServiceErrorException(EpisodeExceptionEnum.EPISODE_NOT_PUBLISHED);
         }
 
-        // 유료 회차 접근 제어 (메타 기반)
-        validateEpisodeAccessByMeta(meta, userId);
+        // 유료 회차 접근 제어 (메타 기반) - K6테스트할때만 주석처리
+//        validateEpisodeAccessByMeta(meta, userId);
 
         // 소설 조회수 +1 (어뷰징 방지)
         increaseNovelViewCount(meta.novelId(), userId);
@@ -306,10 +306,10 @@ public class EpisodeService {
     // 소설 조회수 +1 (어뷰징 방지)
     private void increaseNovelViewCount(Long novelId, Long userId) {
         if (episodeCacheService.isFirstView(userId, novelId)) {
-            novelRepository.incrementViewCount(novelId);
+            // Redis에 조회수 증가
+            episodeCacheService.increaseViewCount(novelId);
         }
 
-        // Redis 랭킹 Zset 조회수 증가 호출 - 서하나
         episodeCacheService.increaseRankingScore(novelId);
     }
 
