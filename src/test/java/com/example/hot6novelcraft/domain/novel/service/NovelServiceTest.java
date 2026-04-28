@@ -2,6 +2,7 @@ package com.example.hot6novelcraft.domain.novel.service;
 
 import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
+import com.example.hot6novelcraft.domain.episode.service.EpisodeCacheService;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelCreateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelUpdateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.response.*;
@@ -26,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,6 +49,9 @@ class NovelServiceTest {
 
     @Mock
     UserRepository userRepository;
+
+    @Mock
+    private EpisodeCacheService episodeCacheService;
 
     @Mock
     RedisTemplate<String, Object> redisTemplate;
@@ -288,9 +293,13 @@ class NovelServiceTest {
 
     @Test
     void 소설상세조회_성공() {
-        NovelDetailResponse detailResponse = mock(NovelDetailResponse.class);
+        NovelDetailResponse detailResponse = new NovelDetailResponse(
+                1L, "제목", "설명", "FANTASY", "태그",
+                NovelStatus.ONGOING, null, 100L, 0, "작가닉네임", LocalDateTime.now()
+        );
 
         given(novelRepository.findNovelDetailByNovelId(1L)).willReturn(detailResponse);
+        given(episodeCacheService.getViewCount(1L)).willReturn(0L);
 
         NovelDetailResponse response = novelService.getNovelDetail(1L);
 
