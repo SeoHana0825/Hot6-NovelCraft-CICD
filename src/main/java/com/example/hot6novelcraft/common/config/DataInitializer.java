@@ -29,9 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class DataInitializer implements ApplicationRunner {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
     private final AuthorProfileRepository authorProfileRepository;
     private final NovelRepository novelRepository;
-    private final PasswordEncoder passwordEncoder;
 
     // 랭킹 테스트 및 에피소드 생성을 위한 의존성 추가
     private final RedisTemplate<String, Object> redisTemplate;
@@ -45,9 +45,13 @@ public class DataInitializer implements ApplicationRunner {
 
     @Override
     @Transactional
+    // 슈퍼 어드민 테스트 계정 생성
     public void run(ApplicationArguments args) {
 
-        // 기존 데이터가 있으면 스킵 (에러 방지)
+        // 필수 - 슈퍼 어드민 계정은 항상 최우선으로 검증 및 생성
+        createSuperAdmin();
+
+        // 기존 소설/작가 데이터가 있으면 스킵 (에러 방지)
         if (userRepository.count() > 0
                 || authorProfileRepository.count() > 0
                 || novelRepository.count() > 0) {
@@ -103,7 +107,23 @@ public class DataInitializer implements ApplicationRunner {
         jdbcTemplate.execute("UPDATE novels SET created_at = NOW(), status = 'PENDING', is_deleted = false WHERE id = 6");
         jdbcTemplate.execute("UPDATE novels SET created_at = NOW(), status = 'ONGOING', is_deleted = true WHERE id = 7");
 
-        log.info("[DataInitializer] 더미데이터 및 Redis 랭킹 세팅 완료 ✅");
+        log.info("[DataInitializer] 더미데이터 및 Redis 랭킹 세팅 완료");
+    }
+
+    // 슈퍼 어드민 생성 전용 헬퍼 메서드
+    private void createSuperAdmin() {
+        if(!userRepository.existsByEmail("super@admin.com")) {
+            User superAdmin = User.builder()
+                    .email("super@admin.com")
+                    .password(passwordEncoder.encode("super1234567!"))
+                    .nickname("최고 관리자")
+                    .phoneNo("01010002000")
+                    .role(UserRole.SUPER_ADMIN)
+                    .build();
+
+            userRepository.save(superAdmin);
+            log.info("==== [system] 슈퍼 어드민 테스트 계정 생성 완료 ====");
+        }
     }
 
     /**

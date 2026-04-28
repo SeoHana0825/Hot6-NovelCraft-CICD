@@ -10,6 +10,10 @@ public enum UserExceptionEnum implements ErrorCode {
     , ERR_INVALID_ROLE(HttpStatus.BAD_REQUEST, "역할을 찾을 수 없습니다")
     , ERR_NOT_FOUND_EMAIL(HttpStatus.NOT_FOUND, "이메일을 찾을 수 없습니다")
 
+    // 관리자
+    , ERR_NOT_PENDING_ADMIN(HttpStatus.BAD_REQUEST, "승인 대기 중인 관리자 계정이 아닙니다")
+    , ERR_NOT_POSSIBLE_TO_REFUSE(HttpStatus.BAD_REQUEST, "승인 거절 가능한 상태가 아닙니다")
+
     // 회원가입
     , ERR_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다")
     , ERR_INVALID_EMAIL(HttpStatus.BAD_REQUEST, "이메일 형식이 올바르지 않습니다")

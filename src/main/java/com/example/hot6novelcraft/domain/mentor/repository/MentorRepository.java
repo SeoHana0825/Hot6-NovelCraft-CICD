@@ -18,4 +18,8 @@ public interface MentorRepository extends JpaRepository<Mentor, Long>, CustomMen
     Page<Mentor> findAllByStatusAndCareerLevelNot(MentorStatus status,
                                                   com.example.hot6novelcraft.domain.user.entity.enums.CareerLevel careerLevel,
                                                   Pageable pageable);
+
+    // 관리자용 - 숙련 (PROFICIENT) 등급 심사 대기 목록 조회
+    List<Mentor> findAllByStatusAndCareerLevel(MentorStatus status,
+                                               com.example.hot6novelcraft.domain.user.entity.enums.CareerLevel careerLevel);
 }

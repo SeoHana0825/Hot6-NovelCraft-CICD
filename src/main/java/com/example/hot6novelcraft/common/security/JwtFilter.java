@@ -46,6 +46,7 @@ public class JwtFilter extends OncePerRequestFilter {
     private static final List<String> PUBLIC_URLS
             = List.of(
                     "/api/auth/signup"
+                    ,"/api/auth/signup/admin"
                     ,"/api/auth/login"
                     , "/api/auth/email/check"
                     , "/api/auth/nickname/check"

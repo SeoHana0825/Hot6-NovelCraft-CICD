@@ -1,9 +1,11 @@
 package com.example.hot6novelcraft.domain.user.scheduler;
 
+import com.example.hot6novelcraft.common.security.RedisUtil;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,7 @@ import java.util.List;
 public class UserScheduler {
 
     private final UserRepository userRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     // 매일 00시에 실행
     @Scheduled(cron = "0 0 0 * * *")

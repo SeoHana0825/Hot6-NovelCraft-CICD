@@ -79,7 +79,7 @@ public class User extends BaseEntity {
                 "ADMIN_" + email,
                 phoneNo,
                 null,
-                UserRole.ADMIN
+                UserRole.PENDING_ADMIN
         );
     }
 
