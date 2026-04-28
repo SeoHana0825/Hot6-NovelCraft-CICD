@@ -67,13 +67,12 @@ public class SignupService {
         if (optionalUser.isPresent()) {
             User existingUser = optionalUser.get();
 
-            // \닉네임 주인이 탈퇴 유예(30일) 상태
+            // 닉네임 주인이 탈퇴 유예(30일) 상태
             if (existingUser.isDeleted()) {
 
                 // 닉네임이 겹쳐서 가입이 안 되는 경우에도, 복구하시겠습니까? 로 유도할 수 있음
                 throw new ServiceErrorException(UserExceptionEnum.ERR_USER_WITHDRAWAL_PENDING_CONFLICT);
             }
-
             // 멀쩡히 활동 중인 계정이라면? 일반적인 닉네임 중복 에러
             throw new ServiceErrorException(UserExceptionEnum.ERR_NICKNAME_ALREADY_EXISTS);
         }
@@ -85,12 +84,17 @@ public class SignupService {
         - SMS 전송 및 인증
     2. 독자 회원가입 - 임시 JWT로만 접근 가능, 하단 공통 메소드로 소셜/일반 분리
     3. 작가 회원가입 - 임시 JWT로만 접근 가능, 하단 공통 메소드로 소셜/일반 분리
-    4. 관리자 회원가입 - 이메일, 비밀번호, 핸드폰 인증만 진행
     ============================= */
     @Transactional
     public String commonSignup(CommonSignupRequest request) {
 
-        // 회원가입 상태 조회와 삭제를 동시에 진행
+        // 이메일 및 닉네임 중복 확인
+        checkEmail(request.email());
+        checkNickname(request.nickname());
+
+        String encoderPassword = passwordEncoder.encode(request.password());
+
+        // SMS 인가/인증 - 회원가입 상태 조회와 삭제를 동시에 진행
         String smsToken = "SMS:TOKEN:" + request.tempToken();
         String verifiedPhone = (String) redisUtil.getAndDelete(smsToken);
 
@@ -98,12 +102,6 @@ public class SignupService {
         if (verifiedPhone == null || !verifiedPhone.equals(request.phoneNo())) {
             throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
         }
-
-        // 이메일 및 닉네임 중복 확인
-        checkEmail(request.email());
-        checkNickname(request.nickname());
-
-        String encoderPassword = passwordEncoder.encode(request.password());
 
         // Redis 임시 토큰 Temp에 담을 정보 (유효시간 10분)
         TempSignupRequest tempRequest = new TempSignupRequest(
@@ -149,7 +147,6 @@ public class SignupService {
     @Transactional
     public SignupResponse authorSignup(AuthorRequest request, String email) {
 
-        // 소셜 회원가입 : 먼저 소셜 가입이 있는지 확인과 동시에 삭제
         String socialKey = "TEMP_SOCIAL_SIGNUP:" + email;
         TempSocialSignupRequest tempSocialSignupRequest = (TempSocialSignupRequest) redisUtil.getAndDelete(socialKey);
 
@@ -157,7 +154,6 @@ public class SignupService {
             return processSocialAuthorSignup(request, email, tempSocialSignupRequest, socialKey);
         }
 
-        // 일반 회원가입 : 먼저 소셜 가입이 있는지 확인과 동시에 삭제
         String normalKey = "TEMP_SIGNUP:" + email;
         TempSignupRequest tempRequest = (TempSignupRequest) redisUtil.getAndDelete(normalKey);
 
@@ -165,38 +161,7 @@ public class SignupService {
             return processNormalAuthorSignup(request, email, tempRequest, normalKey);
         }
 
-        // 둘 다 없으면 예외 처리
         throw new ServiceErrorException(UserExceptionEnum.ERR_INVALID_TOKEN);
-    }
-
-    @Transactional
-    public AdminSignupResponse adminSignup(AdminSignupRequest request, String email) {
-
-        // 회원가입 상태 조회와 삭제를 동시에 진행
-        String smsToken = "SMS:TOKEN:" + request.tempToken();
-        String verifiedPhone = (String) redisUtil.getAndDelete(smsToken);
-
-        // 폰 인증 UUID 임시 토큰 검증, 토큰 안의 폰 번호와 입력한 폰 번호가 다르면 에러
-        if (verifiedPhone == null || !verifiedPhone.equals(request.phoneNo())) {
-            throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
-        }
-
-        // 이메일 중복 확인
-        checkEmail(request.email());
-
-        String encoderPassword = passwordEncoder.encode(request.password());
-
-        User admin = User.registerAdmin(
-                request.email(),
-                encoderPassword,
-                request.phoneNo(),
-                UserRole.ADMIN
-        );
-        userRepository.save(admin);
-
-        log.info("관리자 가입 완료 - email: {}", email);
-
-        return AdminSignupResponse.of(admin);
     }
 
     /** ======== 소셜 회원 가입 ========
@@ -207,7 +172,8 @@ public class SignupService {
     @Transactional
     public SocialSignupResponse socialCommonSignup(SocialSignupRequest request, String email, String providerId, ProviderSns providerSns) {
 
-        // 회원가입 상태 조회와 삭제를 동시에 진행
+        checkNickname(request.nickname());
+
         String smsToken = "SMS:TOKEN:" + request.tempToken();
         String verifiedPhone = (String) redisUtil.getAndDelete(smsToken);
 
@@ -215,8 +181,6 @@ public class SignupService {
         if (verifiedPhone == null || !verifiedPhone.equals(request.phoneNo())) {
             throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
         }
-
-        checkNickname(request.nickname());
 
         // 소셜 유저 검증 - 탈퇴 유예 기간 유저인지 체크 및 비밀번호는 SOCIAL LOGIN으로 고정
         Optional<User> optionalUser = userRepository.findByEmail(email);
@@ -378,5 +342,38 @@ public class SignupService {
         authorProfileRepository.save(authorProfile);
 
         return SignupResponse.of(savedUser);
+    }
+
+    /** ====== 관리자 회원 가입 ======
+     이메일, 비밀번호, 핸드폰 인증만 진행
+     ============================= */
+    @Transactional
+    public AdminSignupResponse adminSignup(AdminSignupRequest request, String email) {
+
+        // 이메일 중복 확인
+        checkEmail(request.email());
+
+        // 회원가입 상태 조회와 삭제를 동시에 진행
+        String smsToken = "SMS:TOKEN:" + request.tempToken();
+        String verifiedPhone = (String) redisUtil.getAndDelete(smsToken);
+
+        // 폰 인증 UUID 임시 토큰 검증, 토큰 안의 폰 번호와 입력한 폰 번호가 다르면 에러
+        if (verifiedPhone == null || !verifiedPhone.equals(request.phoneNo())) {
+            throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
+        }
+
+        String encoderPassword = passwordEncoder.encode(request.password());
+
+        User admin = User.registerAdmin(
+                request.email(),
+                encoderPassword,
+                request.phoneNo(),
+                UserRole.ADMIN
+        );
+        userRepository.save(admin);
+
+        log.info("관리자 가입 완료 - email: {}", email);
+
+        return AdminSignupResponse.of(admin);
     }
 }

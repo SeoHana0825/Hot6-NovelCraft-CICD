@@ -47,7 +47,7 @@ public class AuthService {
     private final ReaderProfileRepository readerProfileRepository;
 
     /** ======== 로그인 및 로그아웃 ========
-    1. 로그인
+    1. 로그인 - 일반, 소셜, 관리자 공통
     2. 내 정보 조회
     3. 회원정보 수정 - 공통, 작가, 독자별
     4. 비밀번호 변경
