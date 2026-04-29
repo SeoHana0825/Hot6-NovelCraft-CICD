@@ -1,33 +1,32 @@
 package com.example.hot6novelcraft.domain.episode.service;
 
-import com.example.hot6novelcraft.domain.episode.dto.cache.EpisodeBulkCache;
-import com.example.hot6novelcraft.domain.episode.entity.Episode;
+import com.example.hot6novelcraft.domain.episode.dto.cache.EpisodeContentCache;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class EpisodeCacheService {
 
-    private static final int BULK_SIZE = 20;
-    private static final int HOT_THRESHOLD = 50;
+    private static final int HOT_THRESHOLD = 1; // K6 테스트용 기존50
 
     private static final String NOVEL_VIEW_KEY_PREFIX = "novel_view::";
+
     private static final String HOT_KEY_PREFIX = "novel_hot::";
-    private static final String BULK_KEY_PREFIX = "episode_bulk::";
+    private static final String EPISODE_CONTENT_KEY_PREFIX = "episode_content::";
+
     private static final String REALTIME_RANKING_KEY = "ranking:novel:realtime";
     private static final String WEEKLY_RANKING_KEY = "ranking:novel:weekly";
+    private static final String NOVEL_VIEW_COUNT_KEY_PREFIX = "novel_view_count::";
+
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper objectMapper;
@@ -61,7 +60,8 @@ public class EpisodeCacheService {
     /**
      * 실시간 및 주간 랭킹 ZSet 점수 (조회수에 따른) 증가
      * 어뷰징 체크 통과 시에만 호출
-     * 서하나 */
+     * 서하나
+     */
     public void increaseRankingScore(Long novelId) {
 
         String stringNovelId = String.valueOf(novelId);
@@ -80,87 +80,62 @@ public class EpisodeCacheService {
         return recentViews >= HOT_THRESHOLD;
     }
 
-
-    // 벌크 인덱스 계산 (1~20화 -> 1, 21~40화 -> 2)
-    public int calculateBulkIndex(int episodeNumber) {
-        return (episodeNumber - 1) / BULK_SIZE + 1;
-    }
-
-    // 벌크 시작 회차 번호 (bulk 1 -> 1화, bulk 2 -> 21화)
-    public int getBulkStartNumber(int bulkIndex) {
-        return (bulkIndex - 1) * BULK_SIZE + 1;
-    }
-
-    // 벌크 끝 회차 번호 (bulk 1 -> 20화, bulk 2 -> 40화)
-    public int getBulkEndNumber(int bulkIndex) {
-        return bulkIndex * BULK_SIZE;
-    }
-
-    // 벌크 캐시 조회 (없으면 null)
-    public List<EpisodeBulkCache> getBulkCache(Long novelId, int bulkIndex) {
-        String cacheKey = getBulkCacheKey(novelId, bulkIndex);
-
-        // Redis에서 JSON 문자열로 꺼냄
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
-
+    // 본문 캐시 조회 (단건)
+    public EpisodeContentCache getContentCache(Long episodeId) {
+        String key = EPISODE_CONTENT_KEY_PREFIX + episodeId;
+        Object cached = redisTemplate.opsForValue().get(key);
         if (cached == null) {
-            log.debug("[Cache MISS] {}", cacheKey);
+            log.debug("[Content Cache MISS] {}", key);
             return null;
         }
-
-        // JSON 문자열 → List<EpisodeBulkCache> 변환
         try {
-            List<EpisodeBulkCache> result = objectMapper.readValue(
-                    cached.toString(),
-                    new TypeReference<List<EpisodeBulkCache>>() {}
-            );
-            log.debug("[Cache HIT] {}", cacheKey);
-            return result;
+            log.debug("[Content Cache HIT] {}", key);
+            return objectMapper.readValue(cached.toString(), EpisodeContentCache.class);
         } catch (JsonProcessingException e) {
-            log.error("[Cache 역직렬화 실패] {}", cacheKey, e);
+            log.error("[Content Cache 역직렬화 실패] {}", key, e);
             return null;
         }
     }
 
-    // 벌크 캐시 저장 (TTL 30분)
-    public void saveBulkCache(Long novelId, int bulkIndex, List<Episode> episodes) {
-        String cacheKey = getBulkCacheKey(novelId, bulkIndex);
-
-        List<EpisodeBulkCache> bulkCache = episodes.stream()
-                .map(EpisodeBulkCache::from)
-                .toList();
-
+    // 본문 캐시 저장 (TTL 30분)
+    public void saveContentCache(Long episodeId, EpisodeContentCache content) {
+        String key = EPISODE_CONTENT_KEY_PREFIX + episodeId;
         try {
-            // 객체 → JSON 문자열 변환해서 저장
-            String json = objectMapper.writeValueAsString(bulkCache);
-            redisTemplate.opsForValue().set(cacheKey, json, Duration.ofMinutes(30));
-            log.debug("[Cache SAVE] {} (TTL 30분, 회차 {}개)", cacheKey, bulkCache.size());
+            String json = objectMapper.writeValueAsString(content);
+            redisTemplate.opsForValue().set(key, json, Duration.ofMinutes(30));
         } catch (JsonProcessingException e) {
-            log.error("[Cache 직렬화 실패] {}", cacheKey, e);
+            log.error("[Content Cache 직렬화 실패] {}", key, e);
         }
     }
 
-
-    // 특정 소설의 모든 벌크 캐시 무효화 (회차 수정/삭제 시)
-    public void evictBulkCache(Long novelId) {
-        String pattern = BULK_KEY_PREFIX + novelId + "::*";
-
-        ScanOptions options = ScanOptions.scanOptions()
-                .match(pattern)
-                .count(100)
-                .build();
-
-        try (Cursor<String> cursor = redisTemplate.scan(options)) {
-            while (cursor.hasNext()) {
-                redisTemplate.delete(cursor.next());
-            }
-        }
-
-        log.debug("[Cache EVICT] {}", pattern);
+    // 본문 캐시 무효화
+    public void evictContentCache(Long episodeId) {
+        String key = EPISODE_CONTENT_KEY_PREFIX + episodeId;
+        redisTemplate.delete(key);
     }
 
-    // 벌크캐시관련
-    private String getBulkCacheKey(Long novelId, int bulkIndex) {
-        return BULK_KEY_PREFIX + novelId + "::" + bulkIndex;
+
+    // Redis에 조회수 증가
+    public void increaseViewCount(Long novelId) {
+        String key = NOVEL_VIEW_COUNT_KEY_PREFIX + novelId;
+        redisTemplate.opsForValue().increment(key);
+    }
+
+    // Redis에 저장된 조회수 조회
+    public long getViewCount(Long novelId) {
+        String key = NOVEL_VIEW_COUNT_KEY_PREFIX + novelId;
+        Object count = redisTemplate.opsForValue().get(key);
+        return count != null ? Long.parseLong(count.toString()) : 0L;
+    }
+
+    // Redis 조회수 초기화
+    public void resetViewCount(Long novelId) {
+        String key = NOVEL_VIEW_COUNT_KEY_PREFIX + novelId;
+        redisTemplate.delete(key);
+    }
+
+    // 모든 소설 조회수 키 조회
+    public Set<String> getAllViewCountKeys() {
+        return redisTemplate.keys(NOVEL_VIEW_COUNT_KEY_PREFIX + "*");
     }
 }

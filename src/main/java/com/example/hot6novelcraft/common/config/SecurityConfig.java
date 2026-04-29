@@ -99,6 +99,7 @@ public class SecurityConfig {
                                 , "/css/**"
                                 , "/js/**"
                                 , "/images/**"
+                                , "/api/dummy/**"  // 에피소드 더미용
                                 // WebSocket (STOMP + SockJS)
                                 , "/ws-chat/**"
                         ).permitAll()

@@ -1,8 +1,8 @@
 package com.example.hot6novelcraft.domain.episode.repository;
 
+import com.example.hot6novelcraft.domain.episode.dto.cache.EpisodeContentCache;
 import com.example.hot6novelcraft.domain.episode.dto.response.AuthorEpisodeListResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeListResponse;
-import com.example.hot6novelcraft.domain.episode.dto.response.EpisodeMetaDto;
 import com.example.hot6novelcraft.domain.episode.entity.Episode;
 import com.example.hot6novelcraft.domain.episode.entity.QEpisode;
 import com.example.hot6novelcraft.domain.episode.entity.enums.EpisodeStatus;
@@ -64,36 +64,26 @@ public class CustomEpisodeRepositoryImpl implements CustomEpisodeRepository {
         return new PageImpl<>(content, pageable, total != null ? total : 0);
     }
 
+    // 회차 본문조회 단건
     @Override
-    public List<Episode> findBulkEpisodes(Long novelId, int startNumber, int endNumber) {
-
+    public EpisodeContentCache findContentCacheById(Long episodeId) {
         return queryFactory
-                .selectFrom(episode)
-                .where(
-                        episode.novelId.eq(novelId),
-                        episode.episodeNumber.between(startNumber, endNumber),
-                        episode.status.eq(EpisodeStatus.PUBLISHED),  // 발행된 회차만
-                        episode.isDeleted.isFalse()                   // 삭제 안 된 것만
-                )
-                .orderBy(episode.episodeNumber.asc())
-                .fetch();
-    }
-
-    // 본문 텍스트 제외한 조회
-    @Override
-    public EpisodeMetaDto findMetaById(Long episodeId) {
-        return queryFactory
-                .select(Projections.constructor(EpisodeMetaDto.class,
+                .select(Projections.constructor(EpisodeContentCache.class,
                         episode.id,
                         episode.novelId,
                         episode.episodeNumber,
+                        episode.title,
+                        episode.content,
+                        episode.likeCount,
                         episode.isFree,
-                        episode.pointPrice,
-                        episode.status,
-                        episode.isDeleted
+                        episode.pointPrice
                 ))
                 .from(episode)
-                .where(episode.id.eq(episodeId))
+                .where(
+                        episode.id.eq(episodeId),
+                        episode.isDeleted.isFalse(),
+                        episode.status.eq(EpisodeStatus.PUBLISHED)
+                )
                 .fetchOne();
     }
 

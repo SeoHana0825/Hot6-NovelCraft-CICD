@@ -44,4 +44,7 @@ public interface MentorshipRepository extends JpaRepository<Mentorship, Long>, C
     // 멘티의 멘토링 이력 전체 조회
     List<Mentorship> findAllByMenteeIdOrderByCreatedAtDesc(Long menteeId);
 
+    // 멘토링 ID와 멘티 ID로 조회 (본인 멘토링 검증)
+    Optional<Mentorship> findByIdAndMenteeId(Long id, Long menteeId);
+
 }

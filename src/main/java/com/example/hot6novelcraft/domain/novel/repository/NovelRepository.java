@@ -16,9 +16,10 @@ public interface NovelRepository extends JpaRepository<Novel, Long>, CustomNovel
     // V1 - 소설 목록 조회 (IsDeleted확인)
     Page<Novel> findAllByIsDeletedFalse(Pageable pageable);
 
+    // 조회수 증가
     @Modifying
-    @Query("UPDATE Novel n SET n.viewCount = n.viewCount + 1, n.updatedAt = CURRENT_TIMESTAMP WHERE n.id = :novelId")
-    void incrementViewCount(@Param("novelId") Long novelId);
+    @Query("UPDATE Novel n SET n.viewCount = n.viewCount + :count WHERE n.id = :novelId")
+    void incrementViewCountBy(@Param("novelId") Long novelId, @Param("count") long count);
 
     // 작가의 삭제되지 않은 소설 ID 목록 조회
     @Query("SELECT n.id FROM Novel n WHERE n.authorId = :authorId AND n.isDeleted = false")
@@ -26,4 +27,15 @@ public interface NovelRepository extends JpaRepository<Novel, Long>, CustomNovel
 
     // V2: soft-delete 조건 포함 조회 — findById 대신 사용
     Optional<Novel> findByIdAndIsDeletedFalse(Long id);
+
+    // 찜 +
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Novel n SET n.bookmarkCount = n.bookmarkCount + 1 WHERE n.id = :novelId")
+    void incrementBookmarkCount(@Param("novelId") Long novelId);
+
+    // 찜 -
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Novel n SET n.bookmarkCount = n.bookmarkCount - 1 WHERE n.id = :novelId AND n.bookmarkCount > 0")
+    void decrementBookmarkCount(@Param("novelId") Long novelId);
+
 }

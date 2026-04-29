@@ -4,6 +4,7 @@ import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.NovelExceptionEnum;
 import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
+import com.example.hot6novelcraft.domain.episode.service.EpisodeCacheService;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelCreateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelUpdateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.response.*;
@@ -35,6 +36,8 @@ public class NovelService {
 
     private final NovelRepository novelRepository;
     private final UserRepository userRepository;
+    private final EpisodeCacheService episodeCacheService;
+
     private final RedisTemplate<String, Object> redisTemplate;
 
     private static final String NOVEL_LIST_CACHE_KEY = "novel_list::";
@@ -239,7 +242,11 @@ public class NovelService {
         if (response == null) {
             throw new ServiceErrorException(NovelExceptionEnum.NOVEL_NOT_FOUND);
         }
-        return response;
+
+        // DB 조회수 + Redis 조회수 합산
+        long redisViewCount = episodeCacheService.getViewCount(novelId);
+        return response.withViewCount(response.viewCount() + redisViewCount);
+
     }
 
     // 작가용 소설 목록 조회 (에디터용)

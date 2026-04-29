@@ -124,7 +124,7 @@ public class EpisodeController {
     }
 
     /**
-     * 회차 본문 조회 V2 (Hot Key + 벌크 캐싱)
+     * 회차 본문 조회 V2 (Hot Key + 캐싱)
      * 정은식
      */
     @GetMapping("/v2/episodes/{episodeId}")
