@@ -3,6 +3,8 @@ package com.example.hot6novelcraft.domain.user.service;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
 import com.example.hot6novelcraft.common.security.RedisUtil;
+import com.example.hot6novelcraft.domain.user.entity.User;
+import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import net.nurigo.sdk.message.model.Message;
 import net.nurigo.sdk.NurigoApp;
 import net.nurigo.sdk.message.request.SingleMessageSendingRequest;
@@ -11,6 +13,7 @@ import net.nurigo.sdk.message.service.DefaultMessageService;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.UUID;
@@ -22,6 +25,7 @@ public class SmsService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private final DefaultMessageService messageService;
     private final RedisUtil redisUtil;
+    private final UserRepository userRepository;
     private String fromNumber;
     private final boolean isTestMode;
 
@@ -30,13 +34,14 @@ public class SmsService {
             , @Value("${coolsms.secret-key}") String apiSecret
             , @Value("${coolsms.send-number}") String fromNumber
             , @Value("${coolsms.test-mode}") boolean isTestMode
-            , RedisUtil redisUtil
-    ) {
+            , RedisUtil redisUtil,
+            UserRepository userRepository) {
         // 4.x 버전 - 여기서 CoolSMS 객체 초기화
         this.messageService = NurigoApp.INSTANCE.initialize(apiKey,apiSecret,"https://api.coolsms.co.kr");
         this.fromNumber = fromNumber;
         this.redisUtil = redisUtil;
         this.isTestMode = isTestMode;
+        this.userRepository = userRepository;
     }
 
     private String createRandomCode() {
@@ -114,4 +119,12 @@ public class SmsService {
         return tempToken;
     }
 
+    // SMS + 생일로 성인 인증 완료
+    @Transactional
+    public void completeAdultVerification(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceErrorException(UserExceptionEnum.ERR_NOT_FOUND_USER));
+
+        user.verifyAdult();
+    }
 }

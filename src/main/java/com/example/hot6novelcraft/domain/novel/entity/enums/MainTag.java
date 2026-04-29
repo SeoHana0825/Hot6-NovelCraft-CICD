@@ -19,4 +19,5 @@ public enum MainTag {
     REVENGE,        // 복수
     GROWTH,         // 성장
     DUNGEON,        // 던전
+    ADULT           // 성인
 }

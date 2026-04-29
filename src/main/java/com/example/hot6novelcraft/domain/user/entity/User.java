@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.UUID;
 
 @Getter
@@ -40,6 +41,10 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private UserRole role;
 
+    // 성인 인증 여부
+    @Column(nullable = false)
+    private boolean isAdultVerified = false;
+
     private String refreshToken;
 
     private boolean isDeleted;
@@ -49,6 +54,8 @@ public class User extends BaseEntity {
     private LocalDateTime updatedAt;
 
     private LocalDateTime anonymizedAt;
+
+    private LocalDateTime adultVerifiedAt;
 
     @PreUpdate
     protected void preUpdate() {
@@ -153,5 +160,28 @@ public class User extends BaseEntity {
 
     public void changeRole(UserRole role) {
         this.role = role;
+    }
+
+    // 단순 나이 계산
+    public boolean isAdult() {
+        if(this.birthday == null) {
+            return false;
+        }
+        int age = Period.between(this.birthday, LocalDate.now()).getYears();
+        return age >= 19;
+    }
+
+    // 성인 인증
+    public void verifyAdult() {
+        this.isAdultVerified = true;
+        this.adultVerifiedAt = LocalDateTime.now();
+    }
+
+    // 성인 인증 완료 (1년 유효기간)
+    public boolean isAdultVerificationValid() {
+        if(!isAdultVerified || adultVerifiedAt == null) {
+            return false;
+        }
+        return adultVerifiedAt.plusYears(1).isAfter(LocalDateTime.now());
     }
 }

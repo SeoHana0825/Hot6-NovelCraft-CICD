@@ -1,5 +1,7 @@
 package com.example.hot6novelcraft.domain.search.service;
 
+import com.example.hot6novelcraft.common.exception.ServiceErrorException;
+import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
 import com.example.hot6novelcraft.domain.search.dto.IntegratedAuthorSearchResponse;
 import com.example.hot6novelcraft.domain.search.dto.NovelSearchResponse;
 import com.example.hot6novelcraft.domain.search.dto.TagGroupSearchResponse;
@@ -39,15 +41,15 @@ public class SearchService {
      3. 작가 통합 검색
      =================================== */
     public Page<NovelSearchResponse> searchNovelsV1(String keyword, Pageable pageable) {
-        return customSearchRepository.searchNovelsByTitle(keyword, pageable);
+        return customSearchRepository.searchNovelsByTitle(keyword, pageable, true);
     }
 
     public List<TagGroupSearchResponse> searchByTagsV1(List<String> tags) {
-        return customSearchRepository.searchNovelsByTags(tags);
+        return customSearchRepository.searchNovelsByTags(tags, true);
     }
 
     public IntegratedAuthorSearchResponse searchAuthorsV1(String keyword) {
-        return customSearchRepository.searchByAuthorKeyword(keyword);
+        return customSearchRepository.searchByAuthorKeyword(keyword, true);
     }
 
     /** ============ V2 ============
@@ -58,11 +60,20 @@ public class SearchService {
         - 로그인 시 검색어 저장
      =================================== */
     public Page<NovelSearchResponse> searchNovels(String keyword, Pageable pageable, UserDetailsImpl userDetails) {
+        // 성인 여부 판단
+        boolean isAdult = userDetails != null && userDetails.getUser().isAdultVerificationValid();
+
         saveSearchHistoryIfLoggedIn(keyword, userDetails, NOVEL_SEARCH_RANK_KEY);
-        return customSearchRepository.searchNovelsByTitle(keyword, pageable);
+        return customSearchRepository.searchNovelsByTitle(keyword, pageable, isAdult);
     }
 
     public List<TagGroupSearchResponse> searchByTags(List<String> tags, UserDetailsImpl userDetails) {
+
+        // 성인 여부 판단
+        boolean isAdult = userDetails != null && userDetails.getUser().isAdultVerificationValid();
+        if(tags.contains("ADULT") && !isAdult) {
+            throw new ServiceErrorException(UserExceptionEnum.ERR_ADULT_VERIFICATION_REQUIRED);
+        }
 
         // 개별 태그들 각각 인기 랭킹에 +1
         for(String tag : tags) {
@@ -72,12 +83,16 @@ public class SearchService {
         // 내 검색 기록에는 "로맨스, 판타지" 묶어서 1개로 저장
         String keyword = String.join(",", tags);
         saveSearchHistoryIfLoggedIn(keyword, userDetails, null);
-        return customSearchRepository.searchNovelsByTags(tags);
+
+        return customSearchRepository.searchNovelsByTags(tags, isAdult);
     }
 
     public IntegratedAuthorSearchResponse searchAuthors(String keyword, UserDetailsImpl userDetails) {
+        // 성인 여부 판단
+        boolean isAdult = userDetails != null && userDetails.getUser().isAdultVerificationValid();
+
         saveSearchHistoryIfLoggedIn(keyword, userDetails, null);
-        return customSearchRepository.searchByAuthorKeyword(keyword);
+        return customSearchRepository.searchByAuthorKeyword(keyword, isAdult);
     }
 
     /** =========== 조회 ============

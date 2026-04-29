@@ -61,7 +61,11 @@ public class JwtFilter extends OncePerRequestFilter {
                     , "/api/webhooks/portone"
                     , "/favicon.ico"
                     , "/login"          // 구글이 에러 시 여기로 리다이렉트
-                    , "/login?error");
+                    , "/login?error"
+                    , "/api/novels/ranking"
+                    , "/api/search/v2/novels"
+                    , "/api/search/v2/tags"
+                    , "/api/search/v2/authors");
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -130,22 +134,42 @@ public class JwtFilter extends OncePerRequestFilter {
         if (jwtUtil.validateToken(accessToken)) {
 
             // Redis 블랙리스트 검사
-            if (redisUtil.isBlackList(accessToken)) {
+            try {
+                // Redis 정상 동작
+                if (redisUtil.isBlackList(accessToken)) {
+                    log.warn("블랙리스트에 등록된 토큰입니다.");
+                    response.setCharacterEncoding("UTF-8");
+                    sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "토큰이 유효하지 않습니다.");
+                    return;
+                }
+            } catch (org.springframework.data.redis.RedisConnectionFailureException e) {
+                // Redis 장애 상황 발생 (선택적 차단 로직 동작)
+                log.error("[Redis 장애] 블랙리스트 확인 불가, URL: {}", requestURL);
 
-                log.warn("블랙리스트에 등록된 토큰입니다.");
-                response.setCharacterEncoding("UTF-8");
-                sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "토큰이 유효하지 않습니다.");
+                // 중요 보안 API (결제, 수정, 삭제 등) : Fail-Closed 무조건 차단
+                if(isSafeApi(request)) {
+                    log.warn("[Redis 장애] 가용성을 위해 읽기 전용 API 접근을 허용합니다. URL: {}", requestURL);                    sendErrorResponse(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "서버 불안정으로 해당 기능을 사용할 수 없습니다.");
+                } else {
+                    log.error("[Redis 장애] 데이터 보호를 위해 해당 API 접근을 기본 차단합니다. URL: {}", requestURL);
+                    sendErrorResponse(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "현재 서버 불안정으로 해당 기능을 사용할 수 없습니다.");
+                    return;
+                }
+
+            } catch (Exception e) {
+                log.error("Redis 검증 중 알 수 없는 에러 발생", e);
+                sendErrorResponse(response, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "서버 오류가 발생했습니다.");
                 return;
             }
 
-            // 인증 실패 시 return
-            if (!setAuthentication(response, accessToken, requestURL)) {
-                return;
-            }
+                // 인증 실패 시 return
+                if (!setAuthentication(response, accessToken, requestURL)) {
+                    return;
+                }
 
-            // AccessToken 인증인가 필터 종료
-            filterChain.doFilter(request, response);
-            return;
+                // AccessToken 인증인가 필터 종료
+                filterChain.doFilter(request, response);
+                return;
+
         }
 
         log.info("[Silent Refresh] AccessToken 만료 감지. URL: {}", requestURL);
@@ -178,10 +202,7 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         UserDetailsImpl userDetailsImpl = (UserDetailsImpl) userDetailsService.loadUserByUsername(email);
-        String newAccessToken = jwtUtil.createAccessToken(
-                userDetailsImpl.getUser().getEmail(),
-                userDetailsImpl.getUser().getRole()
-        );
+        String newAccessToken = jwtUtil.createAccessToken(userDetailsImpl.getUser());
 
         response.setHeader("Authorization", newAccessToken);
         response.setHeader("Access-Control-Expose-Headers", "Authorization");
@@ -258,5 +279,24 @@ public class JwtFilter extends OncePerRequestFilter {
         } catch (IOException e) {
             log.error("에러 응답 전송 실패: {}", e.getMessage());
         }
+    }
+
+    // 차단할 중요 API 리스트 판별 메서드
+    private boolean isSafeApi(HttpServletRequest request) {
+        String url = request.getRequestURI();
+        String method = request.getMethod();
+        AntPathMatcher pathMatcher = new AntPathMatcher();
+
+        // 상태를 변경하는 요청 (POST, PUT, PATCH, DELETE)는 차단
+        if(!method.equalsIgnoreCase("GET")) {
+            return false;
+        }
+
+        return pathMatcher.match("/api/novels/**", url) ||
+                pathMatcher.match("/api/search/**", url) ||
+                pathMatcher.match("/api/episodes/**", url) ||
+                pathMatcher.match("/api/reviews/**", url) ||
+                pathMatcher.match("/api/comments/**", url) ||
+                pathMatcher.match("/api/categories/**", url);
     }
 }

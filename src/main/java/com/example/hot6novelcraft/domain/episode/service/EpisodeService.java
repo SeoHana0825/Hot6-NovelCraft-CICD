@@ -4,6 +4,7 @@ import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.EpisodeExceptionEnum;
 import com.example.hot6novelcraft.common.exception.domain.NovelExceptionEnum;
+import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
 import com.example.hot6novelcraft.domain.episode.dto.cache.EpisodeContentCache;
 import com.example.hot6novelcraft.domain.episode.dto.request.EpisodeCreateRequest;
 import com.example.hot6novelcraft.domain.episode.dto.request.EpisodeUpdateRequest;
@@ -12,6 +13,7 @@ import com.example.hot6novelcraft.domain.episode.entity.Episode;
 import com.example.hot6novelcraft.domain.episode.entity.enums.EpisodeStatus;
 import com.example.hot6novelcraft.domain.episode.repository.EpisodeRepository;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
+import com.example.hot6novelcraft.domain.novel.entity.enums.MainTag;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import com.example.hot6novelcraft.domain.point.entity.enums.PointHistoryType;
@@ -19,6 +21,7 @@ import com.example.hot6novelcraft.domain.point.repository.PointHistoryRepository
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EpisodeService {
@@ -202,6 +206,10 @@ public class EpisodeService {
         // 유료 회차 접근 제어 (PointHistory 이력 체크) - K6테스트할때만 주석처리
         validateEpisodeAccess(episode.getId(), episode.isFree(), userId);
 
+        // 성인 컨텐츠 권한 확인 -서하나
+        validateReaderAdultAccess(episode.getNovelId(), userDetails);
+
+
         // 소설 조회수 +1 (어뷰징 방지)
         increaseNovelViewCount(episode.getNovelId(), userId);
 
@@ -216,6 +224,7 @@ public class EpisodeService {
 
         // 단건 캐시 확인 (인기작은 이미 캐싱돼 있음)
         EpisodeContentCache cached = episodeCacheService.getContentCache(episodeId);
+
         if (cached != null) {
             increaseNovelViewCount(cached.novelId(), userId);
             episodeCacheService.increaseHotKeyCount(cached.novelId());
@@ -233,6 +242,9 @@ public class EpisodeService {
 
         // 핫키 카운터 증가
         long recentViews = episodeCacheService.increaseHotKeyCount(content.novelId());
+
+        // 성인 컨텐츠 열람 권한 확인 - 서하나
+        validateReaderAdultAccess(content.novelId(), userDetails);
 
         // 인기작이면 캐싱 (비인기작은 메모리 절약)
         if (episodeCacheService.isHotNovel(recentViews)) {
@@ -316,12 +328,36 @@ public class EpisodeService {
 
     // 소설 조회수 +1 (어뷰징 방지)
     private void increaseNovelViewCount(Long novelId, Long userId) {
+        // 상태 값 검증 - 삭제, 보류, 휴재 상태 포함된 경우 종료 - 서하나
+        Novel novel = novelRepository.findById(novelId)
+                .orElseThrow(() -> new ServiceErrorException(NovelExceptionEnum.NOVEL_NOT_FOUND));
+
+        if (novel.isDeleted() ||
+                novel.getStatus() == NovelStatus.PENDING ||
+                novel.getStatus() == NovelStatus.HIATUS
+        ) {
+            log.debug("[조회수/랭킹 반영 제외] novelId: {} 은(는) 랭킹 및 조회수 집계 대상이 아닙니다.", novelId);
+            return;
+        }
+
         if (episodeCacheService.isFirstView(userId, novelId)) {
             // Redis에 조회수 증가
             episodeCacheService.increaseViewCount(novelId);
         }
 
         episodeCacheService.increaseRankingScore(novelId);
+        // 성인물 체크 로직 - 서하나
+        boolean isAdult = novel.getTags() != null &&
+                (novel.getTags().contains(MainTag.ADULT.name()));
+
+        // 퍼블릭 메인 랭킹 반영 여부 결정
+        if (!isAdult) {
+            // 일반 작품만 전체 랭킹 점수 증가
+            episodeCacheService.increaseRankingScore(novelId);
+        } else {
+            // 성인 작품은 메인 랭킹 적재 차단 (추후 성인물 전용 랭킹이 생긴다면 추가)
+            log.debug("[메인 랭킹 집계 제외] novelId: {} 은(는) 성인물입니다.", novelId);
+        }
     }
 
     // 유료 회차 접근 제어 (공통)
@@ -336,6 +372,22 @@ public class EpisodeService {
 
         if (!hasPurchased) {
             throw new ServiceErrorException(EpisodeExceptionEnum.EPISODE_POINT_REQUIRED);
+        }
+    }
+
+
+
+    // [독자용] 성인 열람 권한 확인
+    private void validateReaderAdultAccess(Long novelId, UserDetailsImpl userDetails) {
+        Novel novel = novelRepository.findById(novelId)
+                .orElseThrow(() -> new ServiceErrorException(NovelExceptionEnum.NOVEL_NOT_FOUND));
+
+        boolean isAdultContent = novel.getTags() != null && novel.getTags().contains(MainTag.ADULT.name());
+
+        if(isAdultContent) {
+            if(!userDetails.getUser().isAdultVerificationValid()) {
+                throw new ServiceErrorException(UserExceptionEnum.ERR_ADULT_VERIFICATION_REQUIRED);
+            }
         }
     }
 }

@@ -15,7 +15,10 @@ import java.time.LocalDateTime;
 @Table(name = "novels",
         indexes = {
                 @Index(name = "idx_novel_genre", columnList = "genre"),
-                @Index(name = "idx_novel_status", columnList = "status")
+                @Index(name = "idx_novel_status", columnList = "status"),
+
+                // 신작 소설 조회용 복합 인덱스
+                @Index(name = "idx_novel_new_list", columnList = "is_deleted, status, genre, created_at")
         })
 public class Novel extends BaseEntity {
 
