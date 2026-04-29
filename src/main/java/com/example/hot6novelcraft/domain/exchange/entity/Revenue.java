@@ -1,6 +1,7 @@
-package com.example.hot6novelcraft.domain.Exchange.entity;
+package com.example.hot6novelcraft.domain.exchange.entity;
 
 import com.example.hot6novelcraft.common.entity.BaseEntity;
+import com.example.hot6novelcraft.domain.exchange.entity.enums.RevenueType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -17,18 +18,19 @@ public class Revenue extends BaseEntity {
     private Long id;
 
     @Column(nullable = false)
-    private Long authorId; // 작가 아이디 (memberId 대신 ERD 명칭 반영)
+    private Long authorId;
 
-    private Long episodeId; // 회차 아이디 (NULL 가능)
+    private Long episodeId;
 
     @Column(nullable = false)
-    private Integer amount; // 금액
+    private Integer amount;
 
-    private Integer balance; // 거래 후 잔액
+    @Column(nullable = false)
+    private Integer balance;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private RevenueType type; // EPISODE_SALE, SUBSCRIPTION, WITHDRAWAL
+    private RevenueType type;
 
     private Revenue(Long authorId, Long episodeId, Integer amount, Integer balance, RevenueType type) {
         this.authorId = authorId;
@@ -38,8 +40,14 @@ public class Revenue extends BaseEntity {
         this.type = type;
     }
 
-    // 정적 팩토리 메서드
     public static Revenue create(Long authorId, Long episodeId, Integer amount, Integer balance, RevenueType type) {
         return new Revenue(authorId, episodeId, amount, balance, type);
+    }
+
+    /**
+     * 환전 차감용 Revenue 생성
+     */
+    public static Revenue ofWithdrawal(Long authorId, Integer amount, Integer balanceAfter) {
+        return new Revenue(authorId, null, amount, balanceAfter, RevenueType.WITHDRAWAL);
     }
 }
