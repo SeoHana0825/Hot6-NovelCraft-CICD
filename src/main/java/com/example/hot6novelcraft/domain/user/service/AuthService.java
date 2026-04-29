@@ -77,7 +77,7 @@ public class AuthService {
         }
 
         // 정상 일반 유저 토큰 발급
-        String accessToken = jwtUtil.createAccessToken(user.getEmail(), user.getRole());
+        String accessToken = jwtUtil.createAccessToken(user);
         String refreshToken = jwtUtil.createRefreshToken(user.getEmail());
 
         long refreshExpiration = jwtUtil.getRefreshExpiration();

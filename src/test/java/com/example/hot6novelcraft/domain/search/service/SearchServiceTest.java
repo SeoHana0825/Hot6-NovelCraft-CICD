@@ -54,16 +54,26 @@ public class SearchServiceTest {
 
     private Pageable pageable;
     private UserDetailsImpl loggedInUser;
+    private UserDetailsImpl loggedInAdultUser;
     private UserDetailsImpl anonymousUser;
 
     @BeforeEach
     void setUp() {
         pageable = PageRequest.of(0, 10);
 
-        User mockUser = mock(User.class);
-        given(mockUser.getId()).willReturn(1L);
+        // 1. 성인 유저
+        User adultUser = mock(User.class);
+        given(adultUser.getId()).willReturn(1L);
+        given(adultUser.isAdultVerificationValid()).willReturn(true); // 성인 인증 완료 상태
+        loggedInAdultUser = mock(UserDetailsImpl.class);
+        given(loggedInAdultUser.getUser()).willReturn(adultUser);
+
+        // 2. 미성년 유저
+        User minorUser = mock(User.class);
+        given(minorUser.getId()).willReturn(2L);
+        given(minorUser.isAdultVerificationValid()).willReturn(false); // 미성년 혹은 인증 만료
         loggedInUser = mock(UserDetailsImpl.class);
-        given(loggedInUser.getUser()).willReturn(mockUser);
+        given(loggedInUser.getUser()).willReturn(minorUser);
 
         anonymousUser = null;
     }
@@ -80,7 +90,7 @@ public class SearchServiceTest {
                     new NovelSearchResponse(null, "바다 위의 던전", "바다작가", "FANTASY")
             );
             Page<NovelSearchResponse> mockPage = new PageImpl<>(novels, pageable, 2);
-            given(customSearchRepository.searchNovelsByTitle("바다", pageable)).willReturn(mockPage);
+            given(customSearchRepository.searchNovelsByTitle("바다", pageable, false)).willReturn(mockPage);
 
             Page<NovelSearchResponse> result = searchService.searchNovelsV1("바다", pageable);
 
@@ -101,7 +111,7 @@ public class SearchServiceTest {
                             new NovelSimpleResponse("바다 위의 던전", "바다작가")
                     ))
             );
-            given(customSearchRepository.searchNovelsByTags(tags)).willReturn(mockResult);
+            given(customSearchRepository.searchNovelsByTags(tags, false)).willReturn(mockResult);
 
             List<TagGroupSearchResponse> result = searchService.searchByTagsV1(tags);
 
@@ -118,7 +128,7 @@ public class SearchServiceTest {
                     List.of(new AuthorSearchResponse(1L, "백산", "판타지 작가", List.of())),
                     List.of(new NovelSimpleResponse("백산의 이세계 모험", "백산"))
             );
-            given(customSearchRepository.searchByAuthorKeyword("백산")).willReturn(mockResult);
+            given(customSearchRepository.searchByAuthorKeyword("백산", false)).willReturn(mockResult);
 
             IntegratedAuthorSearchResponse result = searchService.searchAuthorsV1("백산");
 
@@ -143,13 +153,13 @@ public class SearchServiceTest {
         @DisplayName("V2 소설 검색 - 로그인 시 Redis 저장과 Redis TTL 00시 설정")
         void searchNovelsV2_loggedIn_saveRedis() {
             Page<NovelSearchResponse> mockPage = new PageImpl<>(List.of(), pageable, 0);
-            given(customSearchRepository.searchNovelsByTitle("바다", pageable)).willReturn(mockPage);
+            given(customSearchRepository.searchNovelsByTitle("바다", pageable, true)).willReturn(mockPage);
 
             LocalDateTime now = LocalDateTime.now();
             LocalDateTime midnight = LocalDateTime.of(LocalDate.now(), LocalTime.MAX);
             Duration expectedTTL = Duration.between(now, midnight);
 
-            searchService.searchNovels("바다", pageable, loggedInUser);
+            searchService.searchNovels("바다", pageable, loggedInAdultUser);
 
             verify(zSetOperations).add(eq("search:history:1"), eq("바다"), anyDouble());
             verify(zSetOperations).removeRange(eq("search:history:1"), eq(0L), eq(-11L));
@@ -166,7 +176,7 @@ public class SearchServiceTest {
         @DisplayName("V2 소설 검색 - 비로그인 시 개인 히스토리 저장 안됨")
         void searchNovelsV2_anonymous_noRedis() {
             Page<NovelSearchResponse> mockPage = new PageImpl<>(List.of(), pageable, 0);
-            given(customSearchRepository.searchNovelsByTitle("바다", pageable)).willReturn(mockPage);
+            given(customSearchRepository.searchNovelsByTitle("바다", pageable, false)).willReturn(mockPage);
             given(redisTemplate.opsForZSet()).willReturn(zSetOperations);
 
             searchService.searchNovels("바다", pageable, anonymousUser);
@@ -180,12 +190,11 @@ public class SearchServiceTest {
         @DisplayName("V2 태그 검색 - 로그인 시 태그 조합이 Redis에 저장됨")
         void searchByTagsV2_loggedIn_saveRedis() {
             List<String> tags = List.of("MUNCHKIN", "DUNGEON");
-            given(customSearchRepository.searchNovelsByTags(tags)).willReturn(List.of());
+            given(customSearchRepository.searchNovelsByTags(eq(tags), eq(true))).willReturn(List.of());
 
-            searchService.searchByTags(tags, loggedInUser);
+            searchService.searchByTags(tags, loggedInAdultUser);
 
-            verify(zSetOperations).add(eq("search:history:1"), eq("MUNCHKIN,DUNGEON"), anyDouble());
-        }
+            verify(zSetOperations).add(eq("search:history:1"), eq("MUNCHKIN,DUNGEON"), anyDouble());        }
 
         @Test
         @DisplayName("V2 작가 검색 - 로그인 시 Redis 저장됨")
@@ -193,9 +202,9 @@ public class SearchServiceTest {
             IntegratedAuthorSearchResponse mockResult = new IntegratedAuthorSearchResponse(
                     List.of(), List.of()
             );
-            given(customSearchRepository.searchByAuthorKeyword("백산")).willReturn(mockResult);
+            given(customSearchRepository.searchByAuthorKeyword(eq("백산"), eq(true))).willReturn(mockResult);
 
-            searchService.searchAuthors("백산", loggedInUser);
+            searchService.searchAuthors("백산", loggedInAdultUser);
 
             verify(zSetOperations).add(eq("search:history:1"), eq("백산"), anyDouble());
         }
@@ -204,11 +213,129 @@ public class SearchServiceTest {
         @DisplayName("V2 검색 - 빈 키워드는 Redis 저장 안됨")
         void searchNovelsV2_emptyKeyword_noRedis() {
             Page<NovelSearchResponse> mockPage = new PageImpl<>(List.of(), pageable, 0);
-            given(customSearchRepository.searchNovelsByTitle("", pageable)).willReturn(mockPage);
+            given(customSearchRepository.searchNovelsByTitle("", pageable, false)).willReturn(mockPage);
 
             searchService.searchNovels("", pageable, loggedInUser);
 
             verify(redisTemplate, never()).opsForZSet();
+        }
+
+        @Test
+        @DisplayName("V2 태그 검색 - 성인 유저일 경우 isAdult=true로 레포지토리 호출")
+        void searchByTags_AdultUser_Success() {
+            // given
+            List<String> tags = List.of("FANTASY");
+            // 레포지토리 호출 시 true가 넘어가는지 확인하기 위한 설정
+            given(customSearchRepository.searchNovelsByTags(eq(tags), eq(true))).willReturn(List.of());
+
+            // when
+            searchService.searchByTags(tags, loggedInAdultUser);
+
+            // then
+            // 레포지토리에 'true' 값이 정확히 전달되었는지 검증
+            verify(customSearchRepository).searchNovelsByTags(eq(tags), eq(true));
+        }
+
+        @Test
+        @DisplayName("V2 태그 검색 - 미성년 유저일 경우 isAdult=false로 레포지토리 호출")
+        void searchByTags_MinorUser_Success() {
+            // given
+            List<String> tags = List.of("FANTASY");
+            given(customSearchRepository.searchNovelsByTags(eq(tags), eq(false))).willReturn(List.of());
+
+            // when
+            searchService.searchByTags(tags, loggedInUser);
+
+            // then
+            // 레포지토리에 'false' 값이 정확히 전달되었는지 검증
+            verify(customSearchRepository).searchNovelsByTags(eq(tags), eq(false));
+        }
+
+        @Test
+        @DisplayName("V2 태그 검색 - 비로그인 유저일 경우 isAdult=false로 레포지토리 호출")
+        void searchByTags_AnonymousUser_Success() {
+            // given
+            List<String> tags = List.of("FANTASY");
+            given(customSearchRepository.searchNovelsByTags(eq(tags), eq(false))).willReturn(List.of());
+
+            // when
+            searchService.searchByTags(tags, anonymousUser);
+
+            // then
+            verify(customSearchRepository).searchNovelsByTags(eq(tags), eq(false));
+        }
+
+        @Test
+        @DisplayName("V2 작가 통합 검색 - 성인 여부에 따른 레포지토리 호출 확인")
+        void searchAuthorsV2_Adult_Success() {
+            // given
+            String keyword = "백산";
+            // searchByAuthorKeyword가 이제 isAdult를 받는다고 가정 (수정된 로직 반영)
+            given(customSearchRepository.searchByAuthorKeyword(eq(keyword), anyBoolean()))
+                    .willReturn(new IntegratedAuthorSearchResponse(List.of(), List.of()));
+
+            // when
+            searchService.searchAuthors(keyword, loggedInAdultUser);
+
+            // then
+            // 성인 유저이므로 true가 전달되어야 함
+            verify(customSearchRepository).searchByAuthorKeyword(keyword, true);
+        }
+
+        @Nested
+        @DisplayName("성인 필터링 및 장애 실패 테스트")
+        class FailureTest {
+
+            @Test
+            @DisplayName("인증 만료 유저 검색 - 1년 유효기간이 지난 경우 isAdult=false로 전달됨")
+            void search_ExpiredAdultUser_TreatedAsMinor() {
+                // given: 2년 전에 인증한 유저 (만료됨)
+                User expiredUser = mock(User.class);
+                given(expiredUser.isAdultVerificationValid()).willReturn(false);
+                UserDetailsImpl expiredUserDetails = mock(UserDetailsImpl.class);
+                given(expiredUserDetails.getUser()).willReturn(expiredUser);
+
+                List<String> tags = List.of("ADULT");
+
+                // when
+                searchService.searchByTags(tags, expiredUserDetails);
+
+                // then: 유효기간이 지났으므로 레포지토리에는 false가 전달되어야 함
+                verify(customSearchRepository).searchNovelsByTags(eq(tags), eq(false));
+            }
+
+            @Test
+            @DisplayName("Redis 장애 발생 시 - 검색어 저장에 실패해도 검색 결과는 반환되어야 함")
+            void search_WhenRedisDown_StillReturnsResults() {
+                // given: Redis 호출 시 예외 발생 시뮬레이션
+                given(redisTemplate.opsForZSet()).willThrow(new RuntimeException("Redis connection failed"));
+
+                String keyword = "일반소설";
+                Page<NovelSearchResponse> mockPage = new PageImpl<>(List.of(), pageable, 0);
+                given(customSearchRepository.searchNovelsByTitle(anyString(), any(), anyBoolean()))
+                        .willReturn(mockPage);
+
+                // when & then: 예외가 밖으로 터지지 않고 정상적으로 응답을 줘야 함[cite: 1]
+                assertThat(searchService.searchNovels(keyword, pageable, loggedInAdultUser))
+                        .isNotNull();
+
+                // 로그에 "Redis 장애" 경고가 찍혔는지 확인 가능 (생략)
+            }
+
+            @Test
+            @DisplayName("잘못된 태그 검색 - 존재하지 않는 태그로 검색 시 빈 리스트 반환")
+            void search_InvalidTags_ReturnsEmptyList() {
+                // given
+                List<String> tags = List.of("존재하지않는태그");
+                given(customSearchRepository.searchNovelsByTags(eq(tags), anyBoolean()))
+                        .willReturn(List.of(new TagGroupSearchResponse("존재하지않는태그", List.of())));
+
+                // when
+                List<TagGroupSearchResponse> result = searchService.searchByTags(tags, loggedInAdultUser);
+
+                // then
+                assertThat(result.get(0).novels()).isEmpty();
+            }
         }
     }
 }

@@ -1,13 +1,14 @@
 package com.example.hot6novelcraft.domain.search.repository;
 
 import com.example.hot6novelcraft.domain.novel.entity.QNovel;
+import com.example.hot6novelcraft.domain.novel.entity.enums.MainTag;
 import com.example.hot6novelcraft.domain.search.dto.*;
 import com.example.hot6novelcraft.domain.user.entity.QAuthorProfile;
 import com.example.hot6novelcraft.domain.user.entity.QUser;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static com.example.hot6novelcraft.domain.novel.entity.QNovel.novel;
 
 @Repository
 @RequiredArgsConstructor
@@ -30,7 +33,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
         - response : 표지, 제목, 작가 닉네임, 장르
      =================================== */
     @Override
-    public Page<NovelSearchResponse> searchNovelsByTitle(String keyword, Pageable pageable) {
+    public Page<NovelSearchResponse> searchNovelsByTitle(String keyword, Pageable pageable, boolean isAdult) {
         QNovel novel = QNovel.novel;
         QUser user = QUser.user;
 
@@ -76,7 +79,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
             - { tag: "MUNCHKIN", novels: [{소설1}, {소설3}] }
      =================================== */
     @Override
-    public List<TagGroupSearchResponse> searchNovelsByTags(List<String> tags) {
+    public List<TagGroupSearchResponse> searchNovelsByTags(List<String> tags, boolean isAdult) {
         QNovel novel = QNovel.novel;
         QUser user = QUser.user;
 
@@ -93,11 +96,14 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
                     .where(
                             novel.tags.containsIgnoreCase(tag)
                             , novel.isDeleted.eq(false)
+                            , isAdultFilter(isAdult)
                     )
                     .fetch();
 
             return new TagGroupSearchResponse(tag, novels);
-        }).toList();
+        })
+                .filter(response -> !response.novels().isEmpty())
+                .toList();
     }
 
     /** ===============================
@@ -106,7 +112,7 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
      - 제목에 키워드가 포함된 소설 (제목+작가만 간단하게) 표시
      =================================== */
     @Override
-    public IntegratedAuthorSearchResponse searchByAuthorKeyword(String keyword) {
+    public IntegratedAuthorSearchResponse searchByAuthorKeyword(String keyword, boolean isAdult) {
         QUser user = QUser.user;
         QAuthorProfile authorProfile = QAuthorProfile.authorProfile;
         QNovel novel = QNovel.novel;
@@ -119,7 +125,9 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
                         , authorProfile.bio)
                 .from(user)
                 .join(authorProfile).on(user.id.eq(authorProfile.userId))
-                .where(user.nickname.containsIgnoreCase(keyword))
+                .where(user.nickname.containsIgnoreCase(keyword)
+                , user.isDeleted.eq(false)
+                )
                 .fetch();
 
         // 작가 ID 목록 추출
@@ -191,9 +199,17 @@ public class CustomSearchRepositoryImpl implements CustomSearchRepository {
                     .where(
                             novel.title.containsIgnoreCase(keyword)
                             , novel.isDeleted.eq(false)
+                            , isAdultFilter(isAdult)
                     )
                     .fetch();
 
             return new IntegratedAuthorSearchResponse(matchingAuthors, matchingNovels);
+    }
+
+    private BooleanExpression isAdultFilter(boolean isAdult) {
+        if(isAdult) {
+            return null;
+        }
+        return novel.tags.notLike("%" + MainTag.ADULT.name() + "%");
     }
 }

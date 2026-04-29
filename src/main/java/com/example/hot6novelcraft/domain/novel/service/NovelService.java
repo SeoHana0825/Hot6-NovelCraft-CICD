@@ -188,7 +188,7 @@ public class NovelService {
     }
 
     /**
-     * 신작용 소설 목록 조회 V2(QueryDSL+Redis캐싱)
+     * 신작용 소설 목록 조회 V2(QueryDSL+Redis캐싱+인덱싱)
      * 한 달 신작 리스트 (limit 50 작품)
      * 서하나
      **/

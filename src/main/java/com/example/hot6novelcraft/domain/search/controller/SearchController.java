@@ -50,8 +50,11 @@ public class SearchController {
 
     @GetMapping("/v1/tags")
     public ResponseEntity<BaseResponse<List<TagGroupSearchResponse>>> searchByTagsV1(
-            @RequestParam List<String> tags
+            @RequestParam List<String> tags,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
+        boolean isAdult = userDetails != null && userDetails.getUser().isAdultVerificationValid();
+
         List<TagGroupSearchResponse> result = searchService.searchByTagsV1(tags);
         return ResponseEntity.ok(BaseResponse.success("200", "소설 태그 검색 성공(V1)", result));
     }
@@ -74,7 +77,6 @@ public class SearchController {
         if(keyword == null || keyword.trim().isEmpty()) {
             throw new ServiceErrorException(SearchExceptionEnum.ERR_SEARCH_KEYWORD_EMPTY);
         }
-
         Page<NovelSearchResponse> result = searchService.searchNovels(keyword.trim(), pageable, userDetails);
         return ResponseEntity.ok(BaseResponse.success("200", "소설 제목 검색 성공", PageResponse.register(result)));
     }
@@ -83,6 +85,8 @@ public class SearchController {
     public ResponseEntity<BaseResponse<List<TagGroupSearchResponse>>> searchTags(
             @RequestParam List<String> tags,
             @AuthenticationPrincipal UserDetailsImpl userDetails) {
+
+        boolean isAdult = userDetails != null && userDetails.getUser().isAdultVerificationValid();
 
         List<TagGroupSearchResponse> result = searchService.searchByTags(tags, userDetails);
         return ResponseEntity.ok(BaseResponse.success("200", "소설 태그 검색 성공", result));
@@ -95,7 +99,6 @@ public class SearchController {
         if(keyword == null || keyword.trim().isEmpty()) {
             throw new ServiceErrorException(SearchExceptionEnum.ERR_SEARCH_KEYWORD_EMPTY);
         }
-
         IntegratedAuthorSearchResponse result = searchService.searchAuthors(keyword.trim(), userDetails);
         return ResponseEntity.ok(BaseResponse.success("200", "작가 검색 성공", result));
     }

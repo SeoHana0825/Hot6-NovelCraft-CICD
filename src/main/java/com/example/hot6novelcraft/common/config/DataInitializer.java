@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@Profile({"local", "dev", "test"})
+//@Profile({"local", "dev", "test"})
 public class DataInitializer implements ApplicationRunner {
 
     private final UserRepository userRepository;
@@ -85,9 +85,8 @@ public class DataInitializer implements ApplicationRunner {
         saveNovelAndRanking(user1.getId(), "이세계 던전 공략", "꾸준한 인기 소설", "FANTASY", "DUNGEON,GROWTH", 2000, 40000);
         saveNovelAndRanking(user3.getId(), "심해의 군주", "바다물 판타지", "FANTASY", "DUNGEON,MUNCHKIN", 5000, 30000);
         saveNovelAndRanking(user2.getId(), "비밀스러운 계약", "잔잔한 로맨스", "ROMANCE", "ROMANCE,HEALING", 1500, 8000);
-
-        log.info("[DataInitializer] 더미데이터 및 Redis 랭킹 세팅 완료 ✅");
-
+        saveNovelAndRanking(user1.getId(), "삭제될 운명의 소설", "삭제 테스트", "FANTASY", "TEST", 0, 0);
+        saveNovelAndRanking(user3.getId(), "성인 인증 테스트 소설", "성인 인증 테스트", "HORROR", "ADULT", 7000, 43000);
 
         // ========================
         // 3. 신작 조회 테스트용 날짜 강제 조작 (JPA Auditing 무시하고 직접 SQL 실행)
@@ -130,7 +129,7 @@ public class DataInitializer implements ApplicationRunner {
     /**
      * 소설 DB 저장 및 Redis ZSET 랭킹 반영 + 에피소드(1화) 자동 생성 헬퍼 메서드
      */
-    private void saveNovelAndRanking(Long authorId, String title, String description, String genre, String tags,
+    private Long saveNovelAndRanking(Long authorId, String title, String description, String genre, String tags,
                                      double realtimeScore, double weeklyScore) {
 
         // 1. DB에 소설 저장
@@ -155,5 +154,7 @@ public class DataInitializer implements ApplicationRunner {
         // 3. Redis ZSET에 랭킹 스코어(조회수) 등록
         redisTemplate.opsForZSet().incrementScore(REALTIME_RANKING_KEY, String.valueOf(saved.getId()), realtimeScore);
         redisTemplate.opsForZSet().incrementScore(WEEKLY_RANKING_KEY, String.valueOf(saved.getId()), weeklyScore);
+
+        return saved.getId(); // 강제 업데이트를 위해 ID 반환
     }
 }
