@@ -226,6 +226,9 @@ public class EpisodeService {
         EpisodeContentCache cached = episodeCacheService.getContentCache(episodeId);
 
         if (cached != null) {
+            validateEpisodeAccess(cached.episodeId(), cached.isFree(), userId);
+            validateReaderAdultAccess(cached.novelId(), userDetails);
+
             increaseNovelViewCount(cached.novelId(), userId);
             episodeCacheService.increaseHotKeyCount(cached.novelId());
             return toDetailResponse(cached);
