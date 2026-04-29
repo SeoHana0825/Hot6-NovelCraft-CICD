@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,16 @@ public class WithdrawalService {
 
     private static final String WITHDRAWAL_LOCK_PREFIX = "lock:withdrawal:";
     private static final long LOCK_TIMEOUT_SECONDS = 5;
+
+    // [CodeRabbit] get → delete 비원자성 문제 해결: Lua Script로 원자적 락 해제
+    private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>(
+            "if redis.call('get', KEYS[1]) == ARGV[1] then " +
+                    "  return redis.call('del', KEYS[1]) " +
+                    "else " +
+                    "  return 0 " +
+                    "end",
+            Long.class
+    );
 
     private final WithdrawalRepository withdrawalRepository;
     private final RevenueRepository revenueRepository;
@@ -71,11 +82,8 @@ public class WithdrawalService {
         try {
             return processWithdrawal(authorId, request);
         } finally {
-            // 내가 잡은 락인 경우에만 삭제
-            Object currentValue = redisTemplate.opsForValue().get(lockKey);
-            if (lockValue.equals(currentValue)) {
-                redisTemplate.delete(lockKey);
-            }
+            // [CodeRabbit] Lua Script로 원자적 락 해제 — 내가 잡은 락인 경우에만 삭제
+            redisTemplate.execute(RELEASE_LOCK_SCRIPT, List.of(lockKey), lockValue);
         }
     }
 

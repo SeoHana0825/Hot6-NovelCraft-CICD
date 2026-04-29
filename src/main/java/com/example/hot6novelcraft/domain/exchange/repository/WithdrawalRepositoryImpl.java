@@ -37,7 +37,8 @@ public class WithdrawalRepositoryImpl implements WithdrawalRepositoryCustom {
                         requestedAtGoe(startDate),
                         requestedAtLoe(endDate)
                 )
-                .orderBy(withdrawal.requestedAt.desc())
+                // [CodeRabbit] tie-breaker 추가 — 동일 시각 레코드 페이지 중복/누락 방지
+                .orderBy(withdrawal.requestedAt.desc(), withdrawal.id.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
@@ -71,7 +72,8 @@ public class WithdrawalRepositoryImpl implements WithdrawalRepositoryCustom {
                         requestedAtGoe(startDate),
                         requestedAtLoe(endDate)
                 )
-                .orderBy(withdrawal.requestedAt.desc())
+                // [CodeRabbit] tie-breaker 추가 — 동일 시각 레코드 페이지 중복/누락 방지
+                .orderBy(withdrawal.requestedAt.desc(), withdrawal.id.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();

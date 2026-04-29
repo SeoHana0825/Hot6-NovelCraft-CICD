@@ -36,6 +36,11 @@ public class AdminWithdrawalController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             @PageableDefault(size = 20) Pageable pageable
     ) {
+        // [CodeRabbit] startDate > endDate 역전 검증
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("시작일이 종료일보다 클 수 없습니다");
+        }
+
         PageResponse<WithdrawalResponse> response =
                 adminWithdrawalService.getAllWithdrawals(status, startDate, endDate, pageable);
         return ResponseEntity.ok(BaseResponse.success("OK", "환전 신청 목록을 조회했습니다", response));
