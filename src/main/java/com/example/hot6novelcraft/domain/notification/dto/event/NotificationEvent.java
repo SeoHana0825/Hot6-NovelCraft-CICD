@@ -100,4 +100,10 @@ public record NotificationEvent(
                 String.format("%d원 환불이 완료되었습니다.", amount),
                 paymentId, "PAYMENT");
     }
+    public static NotificationEvent eventCreated(Long userId, String eventTitle, Long eventId) {
+        return new NotificationEvent(newId(), userId, NotificationType.EVENT_CREATED,
+                "새로운 이벤트 시작",
+                String.format("'%s' 이벤트가 시작되었습니다. 지금 바로 참여해보세요!", eventTitle),
+                eventId, "EVENT");
+    }
 }

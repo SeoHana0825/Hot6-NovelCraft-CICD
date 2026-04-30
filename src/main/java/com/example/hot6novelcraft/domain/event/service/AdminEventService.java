@@ -11,7 +11,12 @@ import com.example.hot6novelcraft.domain.event.entity.EventParticipant;
 import com.example.hot6novelcraft.domain.event.entity.enums.EventStatus;
 import com.example.hot6novelcraft.domain.event.repository.EventParticipantRepository;
 import com.example.hot6novelcraft.domain.event.repository.EventRepository;
+import com.example.hot6novelcraft.domain.notification.dto.event.NotificationEvent;
+import com.example.hot6novelcraft.domain.notification.producer.NotificationProducer;
+import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
+import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -30,6 +35,9 @@ public class AdminEventService {
     private final EventRepository eventRepository;
     private final EventParticipantRepository eventParticipantRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
+
 
     @Transactional
     public EventDetailResponse createEvent(Long adminId, EventCreateRequest request) {
@@ -49,8 +57,16 @@ public class AdminEventService {
 
         Event saved = eventRepository.save(event);
 
+        evictEventListCache();
+
         // 사용자 목록 캐시 evict
         evictEventListCache();
+
+        // READER 전체에게 이벤트 생성 알림 발송 (트랜잭션 커밋 후 Kafka 발행)
+        userRepository.findAllByRole(UserRole.READER)
+                .forEach(user -> eventPublisher.publishEvent(
+                        NotificationEvent.eventCreated(user.getId(), saved.getTitle(), saved.getId())
+                ));
 
         return EventDetailResponse.from(saved);
     }
