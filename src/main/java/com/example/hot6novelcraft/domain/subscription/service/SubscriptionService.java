@@ -3,6 +3,8 @@ package com.example.hot6novelcraft.domain.subscription.service;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.SubscriptionExceptionEnum;
 import com.example.hot6novelcraft.common.security.RedisUtil;
+import com.example.hot6novelcraft.domain.notification.dto.event.NotificationEvent;
+import com.example.hot6novelcraft.domain.notification.producer.NotificationProducer;
 import com.example.hot6novelcraft.domain.subscription.dto.request.SubscriptionCancelRequest;
 import com.example.hot6novelcraft.domain.subscription.dto.request.SubscriptionCompleteRequest;
 import com.example.hot6novelcraft.domain.subscription.dto.request.SubscriptionPrepareRequest;
@@ -34,6 +36,7 @@ public class SubscriptionService {
     private final RedisUtil redisUtil;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final NotificationProducer notificationProducer;
 
     @Value("${portone.api-secret}")
     private String portoneApiSecret;
@@ -112,6 +115,10 @@ public class SubscriptionService {
 
             log.info("[구독 완료] userId={}, subscriptionId={}, billingKey={}",
                     userId, completedSubscription.getId(), request.billingKey());
+
+            notificationProducer.publish(
+                    NotificationEvent.subscriptionActivated(userId, completedSubscription.getId())
+            );
 
             return SubscriptionResponse.from(completedSubscription);
 
@@ -272,6 +279,10 @@ public class SubscriptionService {
             subscriptionTransactionService.cancelSubscription(subscriptionId);
 
             log.info("[구독 취소] userId={}, subscriptionId={}", userId, subscriptionId);
+
+            notificationProducer.publish(
+                    NotificationEvent.subscriptionCancelled(userId, subscriptionId)
+            );
 
         } finally {
             redisUtil.releaseLock(lockKey);

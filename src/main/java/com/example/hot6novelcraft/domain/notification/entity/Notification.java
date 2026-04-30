@@ -17,6 +17,9 @@ public class Notification extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true, length = 36)
+    private String eventId;
+
     @Column(nullable = false)
     private Long userId;
 
@@ -29,8 +32,28 @@ public class Notification extends BaseEntity {
 
     private String content;
 
-    private String linkUrl;
+    private Long referenceId;
+
+    private String referenceType;
 
     @Column(nullable = false)
     private boolean isRead;
+
+    public static Notification create(String eventId, Long userId, NotificationType type, String title,
+                                      String message, Long referenceId, String referenceType) {
+        Notification notification = new Notification();
+        notification.eventId = eventId;
+        notification.userId = userId;
+        notification.type = type;
+        notification.title = title;
+        notification.content = message;
+        notification.referenceId = referenceId;
+        notification.referenceType = referenceType;
+        notification.isRead = false;
+        return notification;
+    }
+
+    public void markAsRead() {
+        this.isRead = true;
+    }
 }

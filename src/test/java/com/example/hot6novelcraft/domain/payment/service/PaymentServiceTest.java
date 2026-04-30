@@ -4,6 +4,9 @@ import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.PaymentExceptionEnum;
 import com.example.hot6novelcraft.common.security.RedisUtil;
+import com.example.hot6novelcraft.domain.notification.dto.event.NotificationEvent;
+import com.example.hot6novelcraft.domain.notification.entity.enums.NotificationType;
+import com.example.hot6novelcraft.domain.notification.producer.NotificationProducer;
 import com.example.hot6novelcraft.domain.payment.dto.request.PaymentConfirmRequest;
 import com.example.hot6novelcraft.domain.payment.dto.response.PaymentHistoryResponse;
 import com.example.hot6novelcraft.domain.payment.dto.response.PaymentPrepareResponse;
@@ -62,6 +65,9 @@ class PaymentServiceTest {
 
     @Mock
     private RedisUtil redisUtil;
+
+    @Mock
+    private NotificationProducer notificationProducer;
 
     private static final Long USER_ID = 1L;
     private static final Long PAYMENT_ID = 100L;
@@ -183,6 +189,7 @@ class PaymentServiceTest {
             Payment completedPayment = createMockPayment(PAYMENT_ID, USER_ID, AMOUNT, PAYMENT_KEY, PaymentStatus.COMPLETED);
             given(paymentTransactionService.completePayment(eq(PAYMENT_ID), eq(USER_ID), eq(AMOUNT), any()))
                     .willReturn(completedPayment);
+            given(pointService.getBalance(USER_ID)).willReturn(20000L);
 
             // when
             PaymentResponse result = paymentService.confirmPayment(USER_ID, request);
@@ -195,6 +202,8 @@ class PaymentServiceTest {
             verify(redisUtil, times(1)).acquireLock(eq("payment:confirm:lock:" + PAYMENT_KEY));
             verify(redisUtil, times(1)).releaseLock(eq("payment:confirm:lock:" + PAYMENT_KEY));
             verify(paymentTransactionService, times(1)).completePayment(eq(PAYMENT_ID), eq(USER_ID), eq(AMOUNT), any());
+            verify(notificationProducer, times(1)).publish(argThat(e ->
+                    e.userId().equals(USER_ID) && e.type() == NotificationType.POINT_CHARGE));
         }
 
         @Test
@@ -238,6 +247,8 @@ class PaymentServiceTest {
                     .hasMessage(PaymentExceptionEnum.ERR_AMOUNT_MISMATCH.getMessage());
 
             verify(paymentTransactionService, times(1)).failPayment(PAYMENT_ID);
+            verify(notificationProducer, times(1)).publish(argThat(e ->
+                    e.userId().equals(USER_ID) && e.type() == NotificationType.PAYMENT_FAILED));
             verify(redisUtil, times(1)).releaseLock(eq("payment:confirm:lock:" + PAYMENT_KEY));
         }
 
@@ -317,6 +328,8 @@ class PaymentServiceTest {
 
             verify(pointService, times(1)).deduct(USER_ID, AMOUNT);
             verify(paymentTransactionService, times(1)).finalizeCancel(PAYMENT_ID);
+            verify(notificationProducer, times(1)).publish(argThat(e ->
+                    e.userId().equals(USER_ID) && e.type() == NotificationType.PAYMENT_REFUNDED));
             verify(redisUtil, times(1)).acquireLock(eq("payment:cancel:lock:" + PAYMENT_ID));
             verify(redisUtil, times(1)).releaseLock(eq("payment:cancel:lock:" + PAYMENT_ID));
             verify(pointService, never()).compensateDeduct(any(), any());
