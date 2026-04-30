@@ -103,7 +103,8 @@ public class SecurityConfig {
                                 // WebSocket (STOMP + SockJS)
                                 , "/ws-chat/**"
                         ).permitAll()
-                        .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")
+                                .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
+                                .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")
                 .anyRequest().authenticated()
                 )
                 .build();

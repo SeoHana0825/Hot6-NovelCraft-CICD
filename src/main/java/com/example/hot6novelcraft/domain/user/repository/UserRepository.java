@@ -2,6 +2,8 @@ package com.example.hot6novelcraft.domain.user.repository;
 
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -27,6 +29,8 @@ public interface UserRepository extends JpaRepository <User, Long> {
 
     // 탈퇴 스케쥴러
     List<User> findByIsDeletedTrueAndDeletedAtBeforeAndAnonymizedAtIsNull(LocalDateTime date);
+
+    Page<User> findAllByRole(UserRole role, Pageable pageable);
 
     @Modifying(clearAutomatically = true)
     @Query("""
