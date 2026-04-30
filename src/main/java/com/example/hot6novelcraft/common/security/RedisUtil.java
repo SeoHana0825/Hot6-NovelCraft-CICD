@@ -78,15 +78,18 @@ public class RedisUtil {
     }
 
     public Long incrementAndExpire(String key, long durationMinutes) {
-        Long count = redisTemplate.opsForValue().increment(key);
 
-        // 최초 요청일 경우에만 24시간 TTL 설정
-        if (count != null && count == 1) {
-            redisTemplate.expire(key, Duration.ofMinutes(durationMinutes));
-        }
+        String script =
+                "local count = redis.call('INCR', KEYS[1]) \n" +
+                        "if tonumber(count) == 1 then \n" +
+                        "   redis.call('EXPIRE', ARGV[1]) \n" +
+                        "end \n" +
+                        "return count";
 
-        log.debug("[Redis] count={}", count);
-        return count;
+        DefaultRedisScript<Long> redisScript = new DefaultRedisScript<>(script, Long.class);
+
+        // durationMinutes * 60을 통해 초 단위로 변환해 넘겨줌
+        return redisTemplate.execute(redisScript, Collections.singletonList(key), durationMinutes * 60);
     }
 
     /**
