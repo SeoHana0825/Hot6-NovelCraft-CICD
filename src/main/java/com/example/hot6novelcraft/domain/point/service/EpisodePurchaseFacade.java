@@ -5,6 +5,9 @@ import com.example.hot6novelcraft.common.exception.domain.PaymentExceptionEnum;
 import com.example.hot6novelcraft.common.security.RedisUtil;
 import com.example.hot6novelcraft.domain.episode.dto.response.EpisodePurchaseResponse;
 import com.example.hot6novelcraft.domain.episode.dto.response.NovelBulkPurchaseResponse;
+import com.example.hot6novelcraft.domain.notification.dto.event.NotificationEvent;
+import com.example.hot6novelcraft.domain.notification.producer.NotificationProducer;
+import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +23,8 @@ public class EpisodePurchaseFacade {
 
     private final EpisodePurchaseTransactionService transactionService;
     private final RedisUtil redisUtil;
+    private final NotificationProducer notificationProducer;
+    private final NovelRepository novelRepository;
 
     /**
      * 회차 단건 구매 (락 관리)
@@ -35,10 +40,10 @@ public class EpisodePurchaseFacade {
         }
 
         try {
-            // 트랜잭션 서비스 호출 (커밋까지 완료)
-            return transactionService.executePurchase(userId, episodeId);
+            EpisodePurchaseResponse response = transactionService.executePurchase(userId, episodeId);
+            notificationProducer.publish(NotificationEvent.episodePurchase(userId, response.episodeTitle(), response.pointPrice(), episodeId));
+            return response;
         } finally {
-            // 트랜잭션 커밋 후 락 해제
             redisUtil.releaseLock(lockKey);
         }
     }
@@ -57,10 +62,11 @@ public class EpisodePurchaseFacade {
         }
 
         try {
-            // 트랜잭션 서비스 호출 (커밋까지 완료)
-            return transactionService.executeAllPurchase(userId, novelId);
+            NovelBulkPurchaseResponse response = transactionService.executeAllPurchase(userId, novelId);
+            String novelTitle = novelRepository.findById(novelId).map(n -> n.getTitle()).orElse("소설");
+            notificationProducer.publish(NotificationEvent.novelBulkPurchase(userId, novelTitle, response.totalEpisodes(), response.finalPrice(), novelId));
+            return response;
         } finally {
-            // 트랜잭션 커밋 후 락 해제
             redisUtil.releaseLock(lockKey);
         }
     }

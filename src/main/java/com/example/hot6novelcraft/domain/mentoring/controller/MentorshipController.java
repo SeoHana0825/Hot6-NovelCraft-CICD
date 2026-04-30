@@ -2,11 +2,13 @@ package com.example.hot6novelcraft.domain.mentoring.controller;
 
 import com.example.hot6novelcraft.common.dto.BaseResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.request.MentorshipCreateRequest;
+import com.example.hot6novelcraft.domain.mentoring.dto.request.MentorshipReviewRequest;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipCreateResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipDetailResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipHistoryResponse;
 import com.example.hot6novelcraft.domain.mentoring.dto.response.MentorshipListResponse;
 import com.example.hot6novelcraft.domain.mentoring.entity.enums.MentorshipStatus;
+import com.example.hot6novelcraft.domain.mentoring.service.MentorshipReviewService;
 import com.example.hot6novelcraft.domain.mentoring.service.MentorshipService;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.entity.enums.CareerLevel;
@@ -30,6 +32,7 @@ import java.util.List;
 public class MentorshipController {
 
     private final MentorshipService mentorshipService;
+    private final MentorshipReviewService mentorshipReviewService;
 
     /**
      * 멘토링 신청
@@ -98,5 +101,21 @@ public class MentorshipController {
         Long menteeId = userDetails.getUser().getId();
         List<MentorshipHistoryResponse> response = mentorshipService.getMyHistoryV2(menteeId, status);
         return ResponseEntity.ok(BaseResponse.success("200", "멘토링 이력 조회 성공", response));
+    }
+
+    /**
+     * 멘토 만족도 평가
+     * 정은식
+     */
+    @PostMapping("/{mentorshipId}/reviews")
+    public ResponseEntity<BaseResponse<Void>> createReview(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @PathVariable Long mentorshipId,
+            @RequestBody @Valid MentorshipReviewRequest request) {
+
+        mentorshipReviewService.createReview(userDetails.getUser().getId(), mentorshipId, request);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(BaseResponse.success("201", "만족도 평가가 완료되었습니다.", null));
     }
 }

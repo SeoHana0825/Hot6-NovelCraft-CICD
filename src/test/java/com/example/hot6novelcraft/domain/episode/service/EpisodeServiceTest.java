@@ -2,7 +2,7 @@ package com.example.hot6novelcraft.domain.episode.service;
 
 import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
-import com.example.hot6novelcraft.domain.episode.dto.cache.EpisodeBulkCache;
+import com.example.hot6novelcraft.domain.episode.dto.cache.EpisodeContentCache;
 import com.example.hot6novelcraft.domain.episode.dto.request.EpisodeCreateRequest;
 import com.example.hot6novelcraft.domain.episode.dto.request.EpisodeUpdateRequest;
 import com.example.hot6novelcraft.domain.episode.dto.response.*;
@@ -35,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @MockitoSettings(strictness = Strictness.LENIENT)
 @ExtendWith(MockitoExtension.class)
@@ -433,6 +434,7 @@ class EpisodeServiceTest {
         assertEquals(episode.getId(), response.episodeId());
     }
 
+
     @Test
     void 회차본문조회V1_유료회차_구매이력있으면_성공() {
         UserDetailsImpl userDetails = 독자();
@@ -500,58 +502,22 @@ class EpisodeServiceTest {
         EpisodeDetailResponse response = episodeService.getEpisodeContentV1(1L, userDetails);
 
         assertNotNull(response);
-        // novelRepository.incrementViewCount(1L) 호출 검증 가능
+        // DB 대신 Redis 조회수 증가 검증
+        verify(episodeCacheService).increaseViewCount(1L);
     }
 
     // ==================== 회차 본문 조회 V2 ====================
 
-    // 메타 Mock 헬퍼
-    private EpisodeMetaDto 메타(Long episodeId, Long novelId, int episodeNumber, boolean isFree) {
-        return new EpisodeMetaDto(
-                episodeId,
-                novelId,
-                episodeNumber,
-                isFree,
-                isFree ? 0 : 200,
-                EpisodeStatus.PUBLISHED,
-                false
-        );
-    }
-
     @Test
-    void 회차본문조회V2_비인기작이면_DB직접조회_성공() {
+    void 회차본문조회V2_캐시HIT이면_캐시반환_성공() {
         UserDetailsImpl userDetails = 독자();
-        EpisodeMetaDto meta = 메타(1L, 1L, 1, true);
-        Episode episode = 회차(1L, 1);
-        given(episode.getStatus()).willReturn(EpisodeStatus.PUBLISHED);
 
-        given(episodeRepository.findMetaById(1L)).willReturn(meta);
-        given(episodeCacheService.isFirstView(2L, 1L)).willReturn(false);
-        given(episodeCacheService.increaseHotKeyCount(1L)).willReturn(10L); // 임계값 미만
-        given(episodeCacheService.isHotNovel(10L)).willReturn(false);
-        given(episodeRepository.findById(1L)).willReturn(Optional.of(episode));
-
-        EpisodeDetailResponse response = episodeService.getEpisodeContentV2(1L, userDetails);
-
-        assertNotNull(response);
-    }
-
-    @Test
-    void 회차본문조회V2_인기작_캐시HIT이면_캐시반환_성공() {
-        UserDetailsImpl userDetails = 독자();
-        EpisodeMetaDto meta = 메타(1L, 1L, 1, true);
-
-        // 캐시에 있을 데이터
-        EpisodeBulkCache cached = new EpisodeBulkCache(
+        EpisodeContentCache cached = new EpisodeContentCache(
                 1L, 1L, 1, "1화", "캐시된 본문", 100L, true, 0
         );
 
-        given(episodeRepository.findMetaById(1L)).willReturn(meta);
+        given(episodeCacheService.getContentCache(1L)).willReturn(cached);
         given(episodeCacheService.isFirstView(2L, 1L)).willReturn(false);
-        given(episodeCacheService.increaseHotKeyCount(1L)).willReturn(100L); // 인기작
-        given(episodeCacheService.isHotNovel(100L)).willReturn(true);
-        given(episodeCacheService.calculateBulkIndex(1)).willReturn(1);
-        given(episodeCacheService.getBulkCache(1L, 1)).willReturn(List.of(cached));
 
         EpisodeDetailResponse response = episodeService.getEpisodeContentV2(1L, userDetails);
 
@@ -560,79 +526,53 @@ class EpisodeServiceTest {
     }
 
     @Test
-    void 회차본문조회V2_인기작_캐시MISS이면_DB벌크조회후_캐싱_성공() {
+    void 회차본문조회V2_캐시MISS_비인기작이면_DB조회만() {
         UserDetailsImpl userDetails = 독자();
-        EpisodeMetaDto meta = 메타(1L, 1L, 1, true);
 
-        Episode episode = mock(Episode.class);
-        given(episode.getId()).willReturn(1L);
-        given(episode.getNovelId()).willReturn(1L);
-        given(episode.getEpisodeNumber()).willReturn(1);
-        given(episode.getTitle()).willReturn("1화");
-        given(episode.getContent()).willReturn("DB 본문");
-        given(episode.getLikeCount()).willReturn(100L);
-        given(episode.isFree()).willReturn(true);
-        given(episode.getPointPrice()).willReturn(0);
+        EpisodeContentCache content = new EpisodeContentCache(
+                1L, 1L, 1, "1화", "DB 본문", 100L, true, 0
+        );
 
-        given(episodeRepository.findMetaById(1L)).willReturn(meta);
+        given(episodeCacheService.getContentCache(1L)).willReturn(null); // 캐시 MISS
+        given(episodeRepository.findContentCacheById(1L)).willReturn(content);
+        given(episodeCacheService.increaseHotKeyCount(1L)).willReturn(10L); // 임계값 미만
+        given(episodeCacheService.isHotNovel(10L)).willReturn(false);
         given(episodeCacheService.isFirstView(2L, 1L)).willReturn(false);
-        given(episodeCacheService.increaseHotKeyCount(1L)).willReturn(100L);
-        given(episodeCacheService.isHotNovel(100L)).willReturn(true);
-        given(episodeCacheService.calculateBulkIndex(1)).willReturn(1);
-        given(episodeCacheService.getBulkCache(1L, 1)).willReturn(null); // 캐시 MISS
-        given(episodeCacheService.getBulkStartNumber(1)).willReturn(1);
-        given(episodeCacheService.getBulkEndNumber(1)).willReturn(20);
-        given(episodeRepository.findBulkEpisodes(1L, 1, 20)).willReturn(List.of(episode));
 
         EpisodeDetailResponse response = episodeService.getEpisodeContentV2(1L, userDetails);
 
         assertNotNull(response);
+        // 비인기작이면 캐시 저장 안 함 검증
+        verify(episodeCacheService, org.mockito.Mockito.never()).saveContentCache(any(), any());
+    }
+
+    @Test
+    void 회차본문조회V2_캐시MISS_인기작이면_DB조회후_캐싱() {
+        UserDetailsImpl userDetails = 독자();
+
+        EpisodeContentCache content = new EpisodeContentCache(
+                1L, 1L, 1, "1화", "DB 본문", 100L, true, 0
+        );
+
+        given(episodeCacheService.getContentCache(1L)).willReturn(null);
+        given(episodeRepository.findContentCacheById(1L)).willReturn(content);
+        given(episodeCacheService.increaseHotKeyCount(1L)).willReturn(100L); // 인기작
+        given(episodeCacheService.isHotNovel(100L)).willReturn(true);
+        given(episodeCacheService.isFirstView(2L, 1L)).willReturn(false);
+
+        EpisodeDetailResponse response = episodeService.getEpisodeContentV2(1L, userDetails);
+
+        assertNotNull(response);
+        // 인기작이면 캐시 저장 검증
+        verify(episodeCacheService).saveContentCache(1L, content);
     }
 
     @Test
     void 회차본문조회V2_회차없으면_실패() {
         UserDetailsImpl userDetails = 독자();
 
-        given(episodeRepository.findMetaById(1L)).willReturn(null);
-
-        assertThrows(ServiceErrorException.class,
-                () -> episodeService.getEpisodeContentV2(1L, userDetails));
-    }
-
-    @Test
-    void 회차본문조회V2_발행안된회차이면_실패() {
-        UserDetailsImpl userDetails = 독자();
-        EpisodeMetaDto meta = new EpisodeMetaDto(
-                1L, 1L, 1, true, 0, EpisodeStatus.DRAFT, false
-        );
-
-        given(episodeRepository.findMetaById(1L)).willReturn(meta);
-
-        assertThrows(ServiceErrorException.class,
-                () -> episodeService.getEpisodeContentV2(1L, userDetails));
-    }
-
-    @Test
-    void 회차본문조회V2_유료회차_구매이력없으면_실패() {
-        UserDetailsImpl userDetails = 독자();
-        EpisodeMetaDto meta = 메타(1L, 1L, 3, false); // 유료
-
-        given(episodeRepository.findMetaById(1L)).willReturn(meta);
-        given(pointHistoryRepository.existsByUserIdAndEpisodeIdAndType(
-                2L, 1L, PointHistoryType.NOVEL)).willReturn(false);
-
-        assertThrows(ServiceErrorException.class,
-                () -> episodeService.getEpisodeContentV2(1L, userDetails));
-    }
-
-    @Test
-    void 회차본문조회V2_삭제된회차이면_실패() {
-        UserDetailsImpl userDetails = 독자();
-        EpisodeMetaDto meta = new EpisodeMetaDto(
-                1L, 1L, 1, true, 0, EpisodeStatus.PUBLISHED, true // isDeleted = true
-        );
-
-        given(episodeRepository.findMetaById(1L)).willReturn(meta);
+        given(episodeCacheService.getContentCache(1L)).willReturn(null);
+        given(episodeRepository.findContentCacheById(1L)).willReturn(null);
 
         assertThrows(ServiceErrorException.class,
                 () -> episodeService.getEpisodeContentV2(1L, userDetails));

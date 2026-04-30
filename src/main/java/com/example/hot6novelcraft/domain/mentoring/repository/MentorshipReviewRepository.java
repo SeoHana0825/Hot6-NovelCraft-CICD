@@ -18,4 +18,8 @@ public interface MentorshipReviewRepository extends JpaRepository<MentorshipRevi
             "WHERE m.mentorId = :mentorId " +
             "AND m.status IN ('ACCEPTED', 'COMPLETED')")
     long countTotalMenteesByMentorId(@Param("mentorId") Long mentorId);
+
+    // 멘토링 ID로 리뷰 존재 여부 확인 (중복 평가 방지)
+    boolean existsByMentorshipId(Long mentorshipId);
+
 }

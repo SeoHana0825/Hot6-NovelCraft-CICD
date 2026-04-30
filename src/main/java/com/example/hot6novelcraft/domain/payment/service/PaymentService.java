@@ -11,6 +11,8 @@ import com.example.hot6novelcraft.domain.payment.dto.response.PaymentResponse;
 import com.example.hot6novelcraft.domain.payment.entity.Payment;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentMethod;
 import com.example.hot6novelcraft.domain.payment.repository.PaymentRepository;
+import com.example.hot6novelcraft.domain.notification.dto.event.NotificationEvent;
+import com.example.hot6novelcraft.domain.notification.producer.NotificationProducer;
 import com.example.hot6novelcraft.domain.point.service.PointService;
 import io.portone.sdk.server.payment.PaidPayment;
 import io.portone.sdk.server.payment.PaymentClient;
@@ -37,6 +39,7 @@ public class PaymentService {
     private final PaymentClient paymentClient;
     private final PointService pointService;
     private final RedisUtil redisUtil;
+    private final NotificationProducer notificationProducer;
 
     /**
      * 내 결제 내역 목록 조회 (페이징, 최신순)
@@ -89,6 +92,7 @@ public class PaymentService {
             // 3. 결제 완료(PAID) 상태 확인
             if (!(portOnePayment instanceof PaidPayment paidPayment)) {
                 paymentTransactionService.failPayment(pendingPayment.getId());
+                notificationProducer.publish(NotificationEvent.paymentFailed(userId, "포인트 충전", pendingPayment.getId()));
                 log.warn("[결제] 결제 미완료 상태 userId={} portoneType={}",
                         userId, portOnePayment.getClass().getSimpleName());
                 throw new ServiceErrorException(PaymentExceptionEnum.ERR_INVALID_PENDING);
@@ -98,6 +102,7 @@ public class PaymentService {
             long actualAmount = paidPayment.getAmount().getTotal();
             if (actualAmount != request.amount()) {
                 paymentTransactionService.failPayment(pendingPayment.getId());
+                notificationProducer.publish(NotificationEvent.paymentFailed(userId, "포인트 충전", pendingPayment.getId()));
                 log.warn("[결제] 금액 위변조 감지 userId={} 요청금액={} 실제금액={}",
                         userId, request.amount(), actualAmount);
                 throw new ServiceErrorException(PaymentExceptionEnum.ERR_AMOUNT_MISMATCH);
@@ -111,6 +116,11 @@ public class PaymentService {
             );
             log.info("[결제] 결제 프로세스 완료 userId={} dbPaymentId={} amount={}",
                     userId, completedPayment.getId(), request.amount());
+
+            notificationProducer.publish(NotificationEvent.pointCharge(
+                    userId, request.amount(), pointService.getBalance(userId)
+            ));
+
             return PaymentResponse.from(completedPayment);
 
         } catch (ServiceErrorException e) {
@@ -171,6 +181,7 @@ public class PaymentService {
 
             // 4. REFUNDED 전환 (포인트는 이미 차감됨, 짧은 트랜잭션)
             Payment cancelledPayment = paymentTransactionService.finalizeCancel(payment.getId());
+            notificationProducer.publish(NotificationEvent.paymentRefunded(userId, payment.getAmount(), paymentId));
             log.info("[환불] 환불 프로세스 완료 userId={} dbPaymentId={}", userId, paymentId);
             return PaymentResponse.from(cancelledPayment);
 

@@ -5,6 +5,8 @@ import com.example.hot6novelcraft.common.exception.domain.MentoringExceptionEnum
 import com.example.hot6novelcraft.common.exception.domain.MentorExceptionEnum;
 import com.example.hot6novelcraft.domain.file.service.FileUploadService;
 import com.example.hot6novelcraft.domain.mentor.entity.Mentor;
+import com.example.hot6novelcraft.domain.notification.dto.event.NotificationEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.example.hot6novelcraft.domain.mentor.entity.MentorFeedback;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorFeedbackRepository;
 import com.example.hot6novelcraft.domain.mentor.repository.MentorRepository;
@@ -40,6 +42,7 @@ public class MentoringService {
     private final MentorFeedbackRepository mentorFeedbackRepository;
 
     private final FileUploadService fileUploadService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // =====================================================================
     // 공통 로직 (V1 / V2 동일)
@@ -65,6 +68,9 @@ public class MentoringService {
 
         mentor.decreaseSlot();
         mentorship.approve();
+
+        String mentorNickname = userRepository.findById(userId).map(User::getNickname).orElse("멘토");
+        eventPublisher.publishEvent(NotificationEvent.mentorshipAccepted(menteeId, mentorNickname, mentoringId));
     }
 
     @Transactional
