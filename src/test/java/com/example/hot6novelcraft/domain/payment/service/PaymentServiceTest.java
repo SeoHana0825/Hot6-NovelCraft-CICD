@@ -4,6 +4,7 @@ import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.PaymentExceptionEnum;
 import com.example.hot6novelcraft.common.security.RedisUtil;
+import com.example.hot6novelcraft.domain.notification.producer.NotificationProducer;
 import com.example.hot6novelcraft.domain.payment.dto.request.PaymentConfirmRequest;
 import com.example.hot6novelcraft.domain.payment.dto.response.PaymentHistoryResponse;
 import com.example.hot6novelcraft.domain.payment.dto.response.PaymentPrepareResponse;
@@ -62,6 +63,9 @@ class PaymentServiceTest {
 
     @Mock
     private RedisUtil redisUtil;
+
+    @Mock
+    private NotificationProducer notificationProducer;
 
     private static final Long USER_ID = 1L;
     private static final Long PAYMENT_ID = 100L;
@@ -183,6 +187,7 @@ class PaymentServiceTest {
             Payment completedPayment = createMockPayment(PAYMENT_ID, USER_ID, AMOUNT, PAYMENT_KEY, PaymentStatus.COMPLETED);
             given(paymentTransactionService.completePayment(eq(PAYMENT_ID), eq(USER_ID), eq(AMOUNT), any()))
                     .willReturn(completedPayment);
+            given(pointService.getBalance(USER_ID)).willReturn(20000L);
 
             // when
             PaymentResponse result = paymentService.confirmPayment(USER_ID, request);

@@ -29,8 +29,27 @@ public class Notification extends BaseEntity {
 
     private String content;
 
-    private String linkUrl;
+    private Long referenceId;
+
+    private String referenceType;
 
     @Column(nullable = false)
     private boolean isRead;
+
+    public static Notification create(Long userId, NotificationType type, String title,
+                                      String message, Long referenceId, String referenceType) {
+        Notification notification = new Notification();
+        notification.userId = userId;
+        notification.type = type;
+        notification.title = title;
+        notification.content = message;
+        notification.referenceId = referenceId;
+        notification.referenceType = referenceType;
+        notification.isRead = false;
+        return notification;
+    }
+
+    public void markAsRead() {
+        this.isRead = true;
+    }
 }

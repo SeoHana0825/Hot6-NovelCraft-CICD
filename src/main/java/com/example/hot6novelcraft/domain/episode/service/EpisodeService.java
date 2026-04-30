@@ -12,6 +12,8 @@ import com.example.hot6novelcraft.domain.episode.dto.response.*;
 import com.example.hot6novelcraft.domain.episode.entity.Episode;
 import com.example.hot6novelcraft.domain.episode.entity.enums.EpisodeStatus;
 import com.example.hot6novelcraft.domain.episode.repository.EpisodeRepository;
+import com.example.hot6novelcraft.domain.notification.dto.event.NotificationEvent;
+import com.example.hot6novelcraft.domain.notification.producer.NotificationProducer;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.entity.enums.MainTag;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
@@ -20,6 +22,8 @@ import com.example.hot6novelcraft.domain.point.entity.enums.PointHistoryType;
 import com.example.hot6novelcraft.domain.point.repository.PointHistoryRepository;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
+import com.example.hot6novelcraft.domain.user.repository.AuthorFollowRepository;
+import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -41,6 +45,9 @@ public class EpisodeService {
     private final NovelRepository novelRepository;
     private final PointHistoryRepository pointHistoryRepository;
     private final EpisodeCacheService episodeCacheService;
+    private final UserRepository userRepository;
+    private final AuthorFollowRepository authorFollowRepository;
+    private final NotificationProducer notificationProducer;
 
     // 회차 생성
     @Transactional
@@ -171,6 +178,11 @@ public class EpisodeService {
 
         // 캐시 무효화
         episodeCacheService.evictContentCache(episode.getId());
+
+        String authorNickname = userRepository.findById(novel.getAuthorId()).map(u -> u.getNickname()).orElse("작가");
+        authorFollowRepository.findFollowerIdsByFollowingId(novel.getAuthorId())
+                .forEach(followerId -> notificationProducer.publish(
+                        NotificationEvent.episodePublished(followerId, authorNickname, novel.getTitle(), episode.getId())));
 
         return EpisodePublishResponse.from(episode.getId());
     }

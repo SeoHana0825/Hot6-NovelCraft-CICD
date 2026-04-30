@@ -3,6 +3,7 @@ package com.example.hot6novelcraft.domain.subscription.service;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.SubscriptionExceptionEnum;
 import com.example.hot6novelcraft.common.security.RedisUtil;
+import com.example.hot6novelcraft.domain.notification.producer.NotificationProducer;
 import com.example.hot6novelcraft.domain.payment.entity.Payment;
 import com.example.hot6novelcraft.domain.subscription.dto.request.SubscriptionCancelRequest;
 import com.example.hot6novelcraft.domain.subscription.dto.request.SubscriptionCompleteRequest;
@@ -17,7 +18,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,7 +26,6 @@ import org.mockito.quality.Strictness;
 import org.springframework.http.*;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -59,6 +58,9 @@ class SubscriptionServiceTest {
 
     @Mock
     private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    @Mock
+    private NotificationProducer notificationProducer;
 
     private static final Long USER_ID = 1L;
     private static final Long SUBSCRIPTION_ID = 100L;
