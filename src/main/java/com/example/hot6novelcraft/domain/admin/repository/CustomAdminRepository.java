@@ -11,7 +11,7 @@ public interface CustomAdminRepository {
     Long countUsersByRole(UserRole role);
 
     // 소설 통계
-    Long countTotalNovels();
+    Long countTotalNovels(String status);
     Long countNewNovelsToday();
     Long countNovelsByFilter(NovelStatus status, Boolean isDeleted);
 

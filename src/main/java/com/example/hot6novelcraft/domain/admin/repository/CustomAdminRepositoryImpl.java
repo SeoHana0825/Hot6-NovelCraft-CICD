@@ -6,6 +6,7 @@ import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.user.entity.QUser;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -94,11 +95,11 @@ public class CustomAdminRepositoryImpl implements CustomAdminRepository {
      6. 완결된 소설 수
      7. 삭제된 소설 수
      **/
-    public Long countTotalNovels() {
+    public Long countTotalNovels(String novelStatus) {
         Long result = queryFactory
                 .select(novel.count())
                 .from(novel)
-                .where(novel.isDeleted.eq(false))
+                .where(checkNovelStatus(novelStatus))
                 .fetchOne();
         return result != null ? result : 0L;
     }
@@ -161,5 +162,14 @@ public class CustomAdminRepositoryImpl implements CustomAdminRepository {
                 .where(mentor.createdAt.goe(startOfDay))
                 .fetchOne();
         return result != null ? result : 0L;
+    }
+
+    private BooleanExpression checkNovelStatus(String novelStatus) {
+        if("ALL".equalsIgnoreCase(novelStatus)) {
+            // 삭제, 보류 상관없이 전부 다 가져옴
+            return null;
+        }
+        // ALL이 아니면 정상 소설만
+        return novel.isDeleted.eq(false);
     }
 }

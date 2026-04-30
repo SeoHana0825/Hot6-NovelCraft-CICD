@@ -26,9 +26,13 @@ public class AdminDashboardService {
      */
     public AdminDashboardResponse getDashboardStatus(
             UserRole role
-            , NovelStatus status
+            , String status
             , Boolean isDeleted
     ) {
+        NovelStatus filterStatus = null;
+        if (status != null && !"ALL".equalsIgnoreCase(status)) {
+            filterStatus = NovelStatus.valueOf(status.toUpperCase());
+        }
         AdminDashboardUserStatusResponse userStatus = AdminDashboardUserStatusResponse.of(
                 adminRepository.countTotalUsers()
                 , adminRepository.countNewUsersToday()
@@ -36,9 +40,9 @@ public class AdminDashboardService {
         );
 
         AdminDashboardNovelStatusResponse novelStatus = AdminDashboardNovelStatusResponse.of(
-                adminRepository.countTotalNovels()
+                adminRepository.countTotalNovels(status)
                 , adminRepository.countNewNovelsToday()
-                , adminRepository.countNovelsByFilter(status, isDeleted)
+                , adminRepository.countNovelsByFilter(filterStatus, isDeleted)
         );
 
         AdminDashboardMentorsStatusResponse mentorStatus = AdminDashboardMentorsStatusResponse.of(
