@@ -77,4 +77,21 @@ public class PointService {
                 .map(Point::getBalance)
                 .orElse(0L);
     }
+
+    /**
+     * 이벤트 보상 포인트 지급
+     * - 선착순 참여 성공 시 즉시 호출
+     */
+    @Transactional
+    public void chargeEventReward(Long userId, Long amount, Long eventId) {
+        Point point = pointRepository.findByUserId(userId)
+                .orElseGet(() -> pointRepository.save(Point.create(userId)));
+
+        point.charge(amount);
+
+        pointHistoryRepository.save(
+                PointHistory.create(userId, null, null, amount, PointHistoryType.EVENT,
+                        "이벤트 참여 보상 지급 (eventId: " + eventId + ")")
+        );
+    }
 }
