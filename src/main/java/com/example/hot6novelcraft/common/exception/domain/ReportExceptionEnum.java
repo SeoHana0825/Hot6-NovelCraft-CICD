@@ -14,7 +14,9 @@ public enum ReportExceptionEnum implements ErrorCode {
     REPORT_COMMENT_ID_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "유저 신고 시 댓글 ID는 포함할 수 없습니다."),
     REPORT_TARGET_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "신고 대상 유저를 찾을 수 없습니다."),
     REPORT_TARGET_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "신고 대상 댓글을 찾을 수 없습니다."),
-    REPORT_COMMENT_USER_MISMATCH(HttpStatus.BAD_REQUEST, "신고 대상 유저와 댓글 작성자가 일치하지 않습니다.");
+    REPORT_COMMENT_USER_MISMATCH(HttpStatus.BAD_REQUEST, "신고 대상 유저와 댓글 작성자가 일치하지 않습니다."),
+    REPORT_ALREADY_COMPLETED(HttpStatus.BAD_REQUEST, "이미 처리 완료된 신고입니다.");
+
 
     private final HttpStatus httpStatus;
     private final String message;
