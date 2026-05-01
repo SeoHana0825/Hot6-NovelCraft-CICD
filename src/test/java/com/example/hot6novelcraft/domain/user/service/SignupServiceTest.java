@@ -6,6 +6,7 @@ import com.example.hot6novelcraft.common.security.JwtUtil;
 import com.example.hot6novelcraft.common.security.RedisUtil;
 import com.example.hot6novelcraft.domain.novel.entity.enums.MainGenre;
 import com.example.hot6novelcraft.domain.user.dto.request.*;
+import com.example.hot6novelcraft.domain.user.dto.response.AdminSignupResponse;
 import com.example.hot6novelcraft.domain.user.dto.response.SocialSignupResponse;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.enums.CareerLevel;
@@ -277,23 +278,32 @@ class SignupServiceTest {
         @DisplayName("[성공] 소셜 추가 정보 입력 → Redis 임시 저장 및 tempToken 반환")
         void socialCommonSignup_success() {
             // given
-            mockSmsVerified(TEST_PHONE);
-            given(redisUtil.get(anyString())).willReturn(TEST_PHONE);
-            given(userRepository.findByNickname(TEST_NICKNAME)).willReturn(Optional.empty());
-            given(userRepository.findByEmail(TEST_EMAIL)).willReturn(Optional.empty());
-            given(jwtUtil.createTempToken(TEST_EMAIL)).willReturn(FAKE_TEMP_TOKEN);
+            String phoneToken = "test-social-token";
+            String testPhone = "01012345678";
+            String testEmail = "test@example.com";
+
+            // 파라미터 순서 주의: nickname, birthDay, phoneNo, tempToken
+            SocialSignupRequest request = new SocialSignupRequest(
+                    "테스터", LocalDate.of(1995, 1, 1), testPhone, phoneToken
+            );
+
+            given(redisUtil.getAndDelete("SMS:TOKEN:" + phoneToken)).willReturn(testPhone);
+            given(userRepository.findByNickname(request.nickname())).willReturn(Optional.empty());
+            // 신규 가입이므로 이메일로 조회했을 때 아무도 없어야 함
+            given(userRepository.findByEmail(testEmail)).willReturn(Optional.empty());
+
+            // [수정 4] Null 에러 방지를 위한 JwtUtil Mocking 추가!!!
+            given(jwtUtil.createTempToken(testEmail)).willReturn("mock-temp-token");
 
             // when
-            SocialSignupResponse response = signupService.socialCommonSignup(validRequest, TEST_EMAIL, PROVIDER_ID, ProviderSns.GOOGLE);
+            SocialSignupResponse response = signupService.socialCommonSignup(request, testEmail, "google-sub-123", ProviderSns.GOOGLE);
 
             // then
-            assertThat(response.tempToken()).isEqualTo(FAKE_TEMP_TOKEN);
-            verify(redisUtil).get(contains("SMS:TOKEN:"));
-            verify(redisUtil).set(
-                    eq("TEMP_SOCIAL_SIGNUP:" + TEST_EMAIL),
-                    any(TempSocialSignupRequest.class),
-                    anyLong()
-            );
+            assertThat(response).isNotNull();
+            assertThat(response.tempToken()).isEqualTo("mock-temp-token"); // jwtUtil이 반환한 토큰과 일치하는지 확인
+
+            // Redis에 10분 TTL로 잘 세팅되었는지 확인
+            verify(redisUtil).set(eq("TEMP_SOCIAL_SIGNUP:" + testEmail), any(TempSocialSignupRequest.class), eq(10L));
         }
 
         @Test
@@ -337,15 +347,80 @@ class SignupServiceTest {
         @Test
         @DisplayName("[실패] 닉네임 중복 → ERR_NICKNAME_ALREADY_EXISTS 예외")
         void socialCommonSignup_fail_nicknameExists() {
-            given(redisUtil.get(anyString())).willReturn(TEST_PHONE);
+            // given
+            String phoneToken = "test-social-token";
+            String testPhone = "01012345678";
+            String testEmail = "test@example.com";
 
-            given(userRepository.findByNickname(TEST_NICKNAME)).willReturn(Optional.of(createUser(false)));
+            // [수정 1] 파라미터 순서 정확히 맞춤: nickname, birthDay, phoneNo, tempToken
+            SocialSignupRequest request = new SocialSignupRequest(
+                    "중복닉네임", LocalDate.of(1995, 1, 1), testPhone, phoneToken
+            );
 
-            assertThatThrownBy(() -> signupService.socialCommonSignup(validRequest, TEST_EMAIL, PROVIDER_ID, ProviderSns.GOOGLE))
+            // [수정 2] 휴대폰 인증 무사 통과
+            given(redisUtil.getAndDelete("SMS:TOKEN:" + phoneToken)).willReturn(testPhone);
+
+            // [수정 3] 닉네임 중복 검사 로직 맞춤 (findByNickname 반환 설정)
+            User mockDuplicateUser = User.register("other@test.com", "pw", "중복닉네임", "01099998888", LocalDate.now(), UserRole.READER);
+            given(userRepository.findByNickname(request.nickname())).willReturn(Optional.of(mockDuplicateUser));
+
+            // when & then
+            // Service 시그니처에 맞게 providerId, providerSns 추가
+            assertThatThrownBy(() -> signupService.socialCommonSignup(request, testEmail, "google-sub-123", ProviderSns.GOOGLE))
                     .isInstanceOf(ServiceErrorException.class)
-                    .hasMessage(UserExceptionEnum.ERR_NICKNAME_ALREADY_EXISTS.getMessage());
-
-            verify(redisUtil, never()).delete(anyString());
+                    .hasMessageContaining(UserExceptionEnum.ERR_NICKNAME_ALREADY_EXISTS.getMessage());
         }
     }
+    // ====================================================================
+    // 관리자 회원가입
+    // ====================================================================
+
+    @Nested
+    @DisplayName("관리자 회원가입 (adminSignup)")
+    class AdminSignupTest {
+
+        @Test
+        @DisplayName("[성공] 이메일, 핸드폰 인증 후 관리자 회원가입 완료")
+        void adminSignup_success() {
+            // given
+            String tempToken = "admin-temp-token";
+            AdminSignupRequest request = new AdminSignupRequest(
+                    TEST_EMAIL, TEST_PASSWORD, TEST_PHONE, tempToken
+            );
+
+            // 이메일 중복 없음
+            given(userRepository.findByEmail(TEST_EMAIL)).willReturn(Optional.empty());
+            // SMS 토큰 검증 통과
+            given(redisUtil.getAndDelete("SMS:TOKEN:" + tempToken)).willReturn(TEST_PHONE);
+            // 비밀번호 인코딩
+            given(passwordEncoder.encode(TEST_PASSWORD)).willReturn("encodedAdminPw");
+
+            // when
+            AdminSignupResponse response = signupService.adminSignup(request, TEST_EMAIL);
+
+            // then
+            verify(userRepository).save(any(User.class)); // User 저장 로직 호출 확인
+            assertThat(response.email()).isEqualTo(TEST_EMAIL);
+        }
+
+        @Test
+        @DisplayName("[실패] 폰 번호 인증 불일치 시 ERR_PHONE_NOT_VERIFIED 예외")
+        void adminSignup_fail_phoneNotVerified() {
+            // given
+            String tempToken = "admin-temp-token";
+            AdminSignupRequest request = new AdminSignupRequest(
+                    TEST_EMAIL, TEST_PASSWORD, TEST_PHONE, tempToken
+            );
+
+            given(userRepository.findByEmail(TEST_EMAIL)).willReturn(Optional.empty());
+            // Redis에서 가져온 폰 번호가 입력한 폰 번호와 다름
+            given(redisUtil.getAndDelete("SMS:TOKEN:" + tempToken)).willReturn("01099998888");
+
+            // when & then
+            assertThatThrownBy(() -> signupService.adminSignup(request, TEST_EMAIL))
+                    .isInstanceOf(ServiceErrorException.class)
+                    .hasMessage(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED.getMessage());
+        }
+    }
+
 }

@@ -108,14 +108,15 @@ class AdminDashboardServiceIntegrationTest {
             // 2️⃣ 저장 후 상태 변경 → @PreUpdate 실행 (ONGOING으로 업데이트)
             ongoing1.changeStatus(NovelStatus.ONGOING);
             ongoing2.changeStatus(NovelStatus.ONGOING);
-            // pending은 그대로 PENDING
+            pending.changeStatus(NovelStatus.PENDING);
 
             novelRepository.save(ongoing1);
             novelRepository.save(ongoing2);
+            novelRepository.save(pending);
 
             // when
             AdminDashboardResponse result =
-                    adminDashboardService.getDashboardStatus(null, NovelStatus.ONGOING, null);
+                    adminDashboardService.getDashboardStatus(null, NovelStatus.ONGOING.name(), null);
 
             // then
             assertThat(result.novelStatus().novelsByFilter()).isEqualTo(2L);

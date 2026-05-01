@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
@@ -43,7 +44,7 @@ class AdminDashboardServiceTest {
             given(adminRepository.countTotalUsers()).willReturn(100L);
             given(adminRepository.countNewUsersToday()).willReturn(5L);
             given(adminRepository.countUsersByRole(null)).willReturn(90L);  // 전체 일반 회원
-            given(adminRepository.countTotalNovels()).willReturn(200L);
+            given(adminRepository.countTotalNovels(any())).willReturn(200L);
             given(adminRepository.countNewNovelsToday()).willReturn(3L);
             given(adminRepository.countNovelsByFilter(null, null)).willReturn(200L); // 전체 소설
             given(adminRepository.countTotalMentors()).willReturn(30L);
@@ -72,7 +73,7 @@ class AdminDashboardServiceTest {
 
             // Repository 메서드 호출 여부 검증
             verify(adminRepository, times(1)).countTotalUsers();
-            verify(adminRepository, times(1)).countTotalNovels();
+            verify(adminRepository, times(1)).countTotalNovels(any());
             verify(adminRepository, times(1)).countTotalMentors();
         }
 
@@ -83,7 +84,7 @@ class AdminDashboardServiceTest {
             given(adminRepository.countTotalUsers()).willReturn(100L);
             given(adminRepository.countNewUsersToday()).willReturn(5L);
             given(adminRepository.countUsersByRole(UserRole.READER)).willReturn(60L); // 독자만
-            given(adminRepository.countTotalNovels()).willReturn(200L);
+            given(adminRepository.countTotalNovels(any())).willReturn(200L);
             given(adminRepository.countNewNovelsToday()).willReturn(3L);
             given(adminRepository.countNovelsByFilter(null, null)).willReturn(200L);
             given(adminRepository.countTotalMentors()).willReturn(30L);
@@ -105,7 +106,7 @@ class AdminDashboardServiceTest {
             given(adminRepository.countTotalUsers()).willReturn(100L);
             given(adminRepository.countNewUsersToday()).willReturn(5L);
             given(adminRepository.countUsersByRole(null)).willReturn(90L);
-            given(adminRepository.countTotalNovels()).willReturn(200L);
+            given(adminRepository.countTotalNovels(any())).willReturn(200L);
             given(adminRepository.countNewNovelsToday()).willReturn(3L);
             given(adminRepository.countNovelsByFilter(NovelStatus.ONGOING, null)).willReturn(100L); // 연재 중만
             given(adminRepository.countTotalMentors()).willReturn(30L);
@@ -113,7 +114,7 @@ class AdminDashboardServiceTest {
 
             // when
             AdminDashboardResponse result =
-                    adminDashboardService.getDashboardStatus(null, NovelStatus.ONGOING, null);
+                    adminDashboardService.getDashboardStatus(null, NovelStatus.ONGOING.name(), null);
 
             // then
             assertThat(result.novelStatus().novelsByFilter()).isEqualTo(100L); // 연재 중 소설 수
@@ -127,7 +128,7 @@ class AdminDashboardServiceTest {
             given(adminRepository.countTotalUsers()).willReturn(100L);
             given(adminRepository.countNewUsersToday()).willReturn(5L);
             given(adminRepository.countUsersByRole(null)).willReturn(90L);
-            given(adminRepository.countTotalNovels()).willReturn(200L);
+            given(adminRepository.countTotalNovels(any())).willReturn(200L);
             given(adminRepository.countNewNovelsToday()).willReturn(3L);
             given(adminRepository.countNovelsByFilter(null, true)).willReturn(10L); // 삭제된 소설만
             given(adminRepository.countTotalMentors()).willReturn(30L);
@@ -149,7 +150,7 @@ class AdminDashboardServiceTest {
             given(adminRepository.countTotalUsers()).willReturn(0L);
             given(adminRepository.countNewUsersToday()).willReturn(0L);
             given(adminRepository.countUsersByRole(null)).willReturn(0L);
-            given(adminRepository.countTotalNovels()).willReturn(0L);
+            given(adminRepository.countTotalNovels(any())).willReturn(0L);
             given(adminRepository.countNewNovelsToday()).willReturn(0L);
             given(adminRepository.countNovelsByFilter(null, null)).willReturn(0L);
             given(adminRepository.countTotalMentors()).willReturn(0L);

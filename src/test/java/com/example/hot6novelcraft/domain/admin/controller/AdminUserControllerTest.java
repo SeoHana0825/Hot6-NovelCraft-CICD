@@ -175,7 +175,7 @@ class AdminUserControllerTest {
 
             mockMvc.perform(patch("/api/admin/users/{userId}/approve", 1L))
                     .andDo(print())
-                    .andExpect(status().is4xxClientError());
+                    .andExpect(status().isBadRequest());
         }
 
         @Test
