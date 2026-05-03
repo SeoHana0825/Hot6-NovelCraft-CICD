@@ -15,7 +15,11 @@ import java.util.UUID;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "users")
+@Table(name = "users"
+        , indexes = {
+        @Index(name = "idx_user_role_deleted", columnList = "is_deleted, role") // 역할별 회원 조회
+        ,  @Index(name = "idx_user_created_at", columnList = "created_at") // 신규 회원 조회
+})
 public class User extends BaseEntity {
 
     @Id

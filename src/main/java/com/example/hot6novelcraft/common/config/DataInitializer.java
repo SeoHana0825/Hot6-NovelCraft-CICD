@@ -48,14 +48,19 @@ public class DataInitializer implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
 
-        // 0. 슈퍼 어드민 계정 생성
+        // 슈퍼 어드민 계정 생성
         createSuperAdmin();
 
         // 기존 데이터가 있으면 스킵
+        // bulkInsertData() 사용 시, 3 -> 1000 으로 변경
         if (userRepository.count() > 3) {
             log.info("[DataInitializer] 기존 데이터 존재 → 더미데이터 삽입 스킵");
             return;
         }
+
+        // 성능 테스트 (유저 10만, 소설 5만) 진행 시 private bulkInsertData 주석 풀고
+        // 슈퍼 어드민을 제외한 기존 임시 데이터들은 주석
+//        bulkInsertData();
 
         log.info("[DataInitializer] 더미데이터 및 Redis 랭킹 세팅 시작");
 
@@ -97,7 +102,7 @@ public class DataInitializer implements ApplicationRunner {
         authorProfileRepository.save(AuthorProfile.register(mentorCandidate3.getId(), "멘토 시켜주세요", CareerLevel.INTERMEDIATE, "HORROR", null, null, null, false));
 
         // 빌더 대신 안전한 Mentor.create() 메서드 사용!
-        // Case 1: 승인 테스트 (숙련자, 파일 O)
+        //Case 1: 승인 테스트 (숙련자, 파일 O)
         mentorRepository.save(Mentor.create(
                 mentorCandidate1.getId(), CareerLevel.PROFICIENT, null, null, null, null,
                 "공모전_대상_증명서.pdf", 5, true, null, MentorStatus.PENDING
@@ -156,8 +161,7 @@ public class DataInitializer implements ApplicationRunner {
         // ========================
         log.info("[DataInitializer] 테스트용 데이터 상태/일자 강제 조작 시작...");
 
-        // 유저(독자) 데이터 조작
-        // id를 하드코딩하면 위험하므로 email로 조작합니다.
+        // 유저(독자) 데이터 조작 - id를 하드코딩하면 위험하므로 email로 조작
         jdbcTemplate.execute("UPDATE users SET created_at = DATE_SUB(NOW(), INTERVAL 10 DAY) WHERE email = 'reader_past@test.com'");
         jdbcTemplate.execute("UPDATE users SET is_deleted = true WHERE email = 'reader_del@test.com'");
 
@@ -173,20 +177,21 @@ public class DataInitializer implements ApplicationRunner {
         log.info("[DataInitializer] 더미데이터 및 Redis 랭킹 세팅 완료");
     }
 
-    private void createSuperAdmin() {
-        if(!userRepository.existsByEmail("super@admin.com")) {
-            User superAdmin = User.builder()
-                    .email("super@admin.com")
-                    .password(passwordEncoder.encode("super1234567!"))
-                    .nickname("최고 관리자")
-                    .phoneNo("01010002000")
-                    .birthday(java.time.LocalDate.of(2000, 1, 1))
-                    .role(UserRole.SUPER_ADMIN)
-                    .build();
+        private void createSuperAdmin () {
+            if (!userRepository.existsByEmail("super@admin.com")) {
+                User superAdmin = User.builder()
+                        .email("super@admin.com")
+                        .password(passwordEncoder.encode("super1234567!"))
+                        .nickname("최고 관리자")
+                        .phoneNo("01010002000")
+                        .birthday(java.time.LocalDate.of(2000, 1, 1))
+                        .role(UserRole.SUPER_ADMIN)
+                        .build();
 
-            userRepository.save(superAdmin);
-            log.info("==== [system] 슈퍼 어드민 테스트 계정 생성 완료 ====");
-        }
+                userRepository.save(superAdmin);
+                log.info("==== [system] 슈퍼 어드민 테스트 계정 생성 완료 ====");
+            }
+
 
         // 2. 일반 관리자 (ADMIN) - 추가!
         if(!userRepository.existsByEmail("normal@admin.com")) {
@@ -200,7 +205,7 @@ public class DataInitializer implements ApplicationRunner {
                     .build();
             userRepository.save(normalAdmin);
         }
-    }
+        }
 
     private Long saveNovelAndRanking(Long authorId, String title, String description, String genre, String tags,
                                      double realtimeScore, double weeklyScore) {
@@ -223,4 +228,77 @@ public class DataInitializer implements ApplicationRunner {
 
         return saved.getId();
     }
-}
+
+//        private void bulkInsertData () {
+//            log.info("[DataInitializer] 벌크 데이터 삽입 시작 (10만 건)");
+//
+//            // 1. 공통 비밀번호 (한 번만 인코딩해서 재사용)
+//            String encodedPassword = passwordEncoder.encode("test1234!");
+//
+//            // 2. 유저 10만 명 삽입
+//            String userSql = "INSERT INTO users (email, password, nickname, phone_no, role, is_deleted, created_at, is_adult_verified, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+//            int totalUsers = 100000;
+//            int batchSize = 1000; // 1,000건씩 묶어서 처리
+//
+//            for (int i = 0; i < totalUsers; i += batchSize) {
+//                int currentBatchSize = Math.min(batchSize, totalUsers - i);
+//                final int startIdx = i;
+//
+//                jdbcTemplate.batchUpdate(userSql, new org.springframework.jdbc.core.BatchPreparedStatementSetter() {
+//                    @Override
+//                    public void setValues(java.sql.PreparedStatement ps, int j) throws java.sql.SQLException {
+//                        int idx = startIdx + j;
+//                        ps.setString(1, "bulk_user" + idx + "@test.com");
+//                        ps.setString(2, encodedPassword);
+//                        ps.setString(3, "더미유저" + idx);
+//                        ps.setString(4, "010-0000-" + String.format("%04d", idx % 10000));
+//                        ps.setString(5, (idx % 10 == 0) ? "AUTHOR" : "READER"); // 10%는 작가로 설정
+//                        ps.setBoolean(6, false);
+//                        // 통계 테스트를 위해 생성 날짜를 최근 30일로 분산
+//                        ps.setTimestamp(7, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 30)));
+//                        ps.setBoolean(8, false);
+//                        ps.setTimestamp(9, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 30)));
+//                    }
+//
+//                    @Override
+//                    public int getBatchSize() {
+//                        return currentBatchSize;
+//                    }
+//                });
+//            }
+//            log.info("[DataInitializer] 유저 10만 건 삽입 완료");
+//
+//            // 3. 소설 5만 건 삽입 (작가가 작성한 것으로 가정)
+//            String novelSql = "INSERT INTO novels (author_id, title, description, genre, tags, status, is_deleted, created_at, bookmark_count, updated_at, view_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+//            int totalNovels = 50000;
+//
+//            for (int i = 0; i < totalNovels; i += batchSize) {
+//                int currentBatchSize = Math.min(batchSize, totalNovels - i);
+//                final int startIdx = i;
+//
+//                jdbcTemplate.batchUpdate(novelSql, new org.springframework.jdbc.core.BatchPreparedStatementSetter() {
+//                    @Override
+//                    public void setValues(java.sql.PreparedStatement ps, int j) throws java.sql.SQLException {
+//                        int idx = startIdx + j;
+//                        ps.setLong(1, (long) (1 + (idx % 100))); // 앞부분에 생성된 유저 ID와 연결
+//                        ps.setString(2, "대용량 소설 테스트 " + idx);
+//                        ps.setString(3, "설명입니다 " + idx);
+//                        ps.setString(4, (idx % 2 == 0) ? "FANTASY" : "ROMANCE");
+//                        ps.setString(5, "TAG1,TAG2");
+//                        ps.setString(6, "ONGOING");
+//                        ps.setBoolean(7, false);
+//                        ps.setTimestamp(8, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 60)));
+//                        ps.setInt(9, 0);
+//                        ps.setTimestamp(10, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 60)));
+//                        ps.setLong(11, 0L);
+//                    }
+//
+//                    @Override
+//                    public int getBatchSize() {
+//                        return currentBatchSize;
+//                    }
+//                });
+//            }
+//            log.info("[DataInitializer] 소설 5만 건 삽입 완료");
+//        }
+    }

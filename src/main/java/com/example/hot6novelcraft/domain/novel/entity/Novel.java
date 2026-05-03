@@ -17,7 +17,10 @@ import java.time.LocalDateTime;
                 @Index(name = "idx_novel_genre", columnList = "genre"),
                 @Index(name = "idx_novel_status", columnList = "status"),
 
-                // 신작 소설 조회용 복합 인덱스
+                // 대시보드 통계 및 상태 조회용
+                @Index(name = "idx_novel_status_deleted", columnList = "is_deleted, status"),
+
+                // 신작 소설 조회용
                 @Index(name = "idx_novel_new_list", columnList = "is_deleted, status, genre, created_at")
         })
 public class Novel extends BaseEntity {

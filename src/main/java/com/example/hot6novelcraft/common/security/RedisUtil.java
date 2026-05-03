@@ -4,8 +4,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.data.redis.connection.ReturnType;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.serializer.GenericToStringSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -121,5 +125,58 @@ public class RedisUtil {
         } else {
             log.warn("[RedisLock] 락 해제 스킵 (현재 스레드가 소유하지 않음) key={}", key);
         }
+    }
+
+    /** 대시보드 통계용 - TTL 초 단위
+     * 1. setWithSeconds 으로 초단위 업데이트 설정
+     * 2. 캐시 값 문자열로 파싱
+     * 3. Redis INCR + 1 (동시성 제어)
+     *    키가 없으면 1로 초기화하고 TTL 설정
+     **/
+    public void setWithSeconds(String key, Object value, long seconds) {
+
+        redisTemplate.execute((RedisCallback<Void>) connection -> {
+
+            StringRedisSerializer serializer = new StringRedisSerializer();
+            byte[] rawKey = serializer.serialize(key);
+            byte[] rawValue = serializer.serialize(value.toString());
+
+            // Redis setEx 명령어로 TTL이랑 저장
+            connection.setEx(rawKey, seconds, rawValue);
+            return null;
+        });
+    }
+
+    public String getAsString(String key) {
+
+        Object value = redisTemplate.opsForValue().get(key);
+
+        return value != null ? value.toString() : null;
+
+    }
+    public long incrementWithSeconds(String key, long durationSeconds) {
+        StringRedisSerializer serializer = new StringRedisSerializer();
+
+        Long result = redisTemplate.execute((RedisCallback<Long>) connection -> {
+            byte[] rawKey = serializer.serialize(key);
+
+            String script =
+                    "local count = redis.call('INCR', KEYS[1]) \n" +
+                    "if tonumber(count) == 1 then \n" +
+                    "   redis.call('EXPIRE', KEYS[1], ARGV[1]) \n" +
+                    "end \n" +
+                    "return count";
+
+            byte[] rawArg = serializer.serialize(String.valueOf(durationSeconds));
+
+            return connection.eval(
+                    script.getBytes()
+                    , ReturnType.INTEGER
+                    ,1
+                    , rawKey
+                    , rawArg
+            );
+        });
+        return result != null ? result : 0L;
     }
 }

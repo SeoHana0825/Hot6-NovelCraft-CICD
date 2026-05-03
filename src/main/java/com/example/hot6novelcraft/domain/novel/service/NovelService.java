@@ -4,6 +4,7 @@ import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.NovelExceptionEnum;
 import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
+import com.example.hot6novelcraft.domain.admin.service.AdminCacheService;
 import com.example.hot6novelcraft.domain.episode.service.EpisodeCacheService;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelCreateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelUpdateRequest;
@@ -42,6 +43,7 @@ public class NovelService {
 
     private static final String NOVEL_LIST_CACHE_KEY = "novel_list::";
     private static final Duration NOVEL_LIST_CACHE_TTL = Duration.ofMinutes(30);
+    private final AdminCacheService adminCacheService;
 
     // 소설 등록
     @Transactional
@@ -64,6 +66,7 @@ public class NovelService {
 
         // DB 저장
         Novel savedNovel = novelRepository.save(novel);
+        adminCacheService.incrementNewNovelsToday();
 
         // 캐시 무효화
         evictNovelListCache();

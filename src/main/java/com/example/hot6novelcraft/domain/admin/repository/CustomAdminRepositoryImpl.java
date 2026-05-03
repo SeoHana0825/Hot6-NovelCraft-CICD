@@ -1,12 +1,17 @@
 package com.example.hot6novelcraft.domain.admin.repository;
 
+import com.example.hot6novelcraft.domain.admin.dto.response.AdminDashboardMentorsStatusResponse;
+import com.example.hot6novelcraft.domain.admin.dto.response.AdminDashboardNovelStatusResponse;
+import com.example.hot6novelcraft.domain.admin.dto.response.AdminDashboardUserStatusResponse;
 import com.example.hot6novelcraft.domain.mentor.entity.QMentor;
 import com.example.hot6novelcraft.domain.novel.entity.QNovel;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.user.entity.QUser;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -24,15 +29,9 @@ public class CustomAdminRepositoryImpl implements CustomAdminRepository {
     private final QNovel novel = QNovel.novel;
     private final QMentor mentor = QMentor.mentor;
 
-    /** ==== 회원 통계 ====
-     1. 전체 회원 수 (탈퇴 회원 제외, GET /api/admin/dashboard)
-     2. createdAt 기준 오늘 신규 가입 회원 수 (00시부터 현재까지)
-     3. 현재 활성 회원 수 (독자+작가, 탈퇴 회원 제외) -> 접속자 회원 수 (어떤 기준으로 집계할지... 토큰 살아있는건지 등)
-     ==== ↓ 필터링 조회 ↓ ====
-     4. 독자 회원 수 (GET /api/admin/dashboard?role=READER)
-     5. 작가 회원 수 (GET /api/admin/dashboard?role=AUTHOR)
-     **/
+    /** ======= v1 기본 쿼리 8개 ======= **/
 
+    // 회원
     public Long countTotalUsers() {
         Long result = queryFactory
                 .select(user.count())
@@ -85,16 +84,7 @@ public class CustomAdminRepositoryImpl implements CustomAdminRepository {
         return result != null ? result : 0L;
     }
 
-    /** ==== 소설 통계 ====
-     1. 전체 소설 수 (휴재, 보류, 삭제 포함)
-     2. createdAt 기준 오늘 등록된 소설 수
-     ==== ↓ 필터링 조회 ↓ ====
-     3. 연재 중인 소설 수
-     4. 보류 중인 소설 수
-     5. 휴재 중인 소설 수
-     6. 완결된 소설 수
-     7. 삭제된 소설 수
-     **/
+    // 소설
     public Long countTotalNovels(String novelStatus) {
         Long result = queryFactory
                 .select(novel.count())
@@ -116,7 +106,7 @@ public class CustomAdminRepositoryImpl implements CustomAdminRepository {
         return result != null ? result : 0L;
     }
 
-    public Long countNovelsByFilter(NovelStatus novelStatus, Boolean isSoftDel) {
+    public Long countNovelsByFilter(NovelStatus novelStatusEnum, Boolean isSoftDel) {
         BooleanBuilder builder = new BooleanBuilder();
 
         // 삭제 소설 조회 요청인 경우
@@ -128,8 +118,8 @@ public class CustomAdminRepositoryImpl implements CustomAdminRepository {
             builder.and(novel.isDeleted.eq(false));
 
             // novelStatus 있으면 해당 상태만 필터
-            if(novelStatus != null) {
-                builder.and(novel.status.eq(novelStatus));
+            if(novelStatusEnum != null) {
+                builder.and(novel.status.eq(novelStatusEnum));
             }
         }
 
@@ -141,10 +131,7 @@ public class CustomAdminRepositoryImpl implements CustomAdminRepository {
         return result != null ? result : 0L;
     }
 
-    /** ==== 멘토 통계 (알려주는 사람 - 선생님) ====
-     1. 전체 멘토 수 (승인/승인 안된 전체로)
-     2. createdAt 기준 오늘 신청한 신규 멘토 수
-     **/
+    // 멘토
     public Long countTotalMentors() {
         Long result = queryFactory
                 .select(mentor.count())
@@ -164,12 +151,103 @@ public class CustomAdminRepositoryImpl implements CustomAdminRepository {
         return result != null ? result : 0L;
     }
 
+    /** ======= v2 쿼리 병합 ======= **/
+    @Override
+    public AdminDashboardUserStatusResponse getIntegratedUserStatus(UserRole role) {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+
+        return queryFactory
+                .select(Projections.constructor(AdminDashboardUserStatusResponse.class
+                , user.count() // 전체 회원
+                , new CaseBuilder()
+                                .when(user.createdAt.goe(startOfDay))
+                                .then(1L)
+                                .otherwise(0L)
+                                .sum().coalesce(0L)
+                , new CaseBuilder().when(role != null // 오늘 신규
+                                        ? user.role.eq(role)
+                                        : user.role.in(UserRole.AUTHOR, UserRole.READER))
+                                .then(1L).otherwise(0L)
+                                .sum().coalesce(0L) // 필터
+                ))
+                .from(user)
+                .where(user.isDeleted.eq(false) // 제외
+                        , user.role.notIn(
+                                UserRole.SUPER_ADMIN
+                                , UserRole.ADMIN
+                                , UserRole.PENDING_ADMIN
+                                , UserRole.REJECTED_ADMIN)
+                )
+                .fetchOne();
+    }
+
+    @Override
+    public AdminDashboardNovelStatusResponse getIntegratedNovelStatus(String totalStatusFilter, NovelStatus filterStatus, Boolean isSoftDel) {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+
+        return queryFactory
+                .select(Projections.constructor(AdminDashboardNovelStatusResponse.class
+                // 전체 소설 : ALL 이면 통과, 아니면 삭제 안된 것만
+                , new CaseBuilder().when("ALL".equalsIgnoreCase(totalStatusFilter)
+                                        ? novel.id.isNotNull()
+                                        : novel.isDeleted.eq(false))
+                                        .then(1L).otherwise(0L)
+                                        .sum().coalesce(0L)
+                // 오늘 신규 등록
+                , new CaseBuilder().when(novel.isDeleted.eq(false)
+                                    .and(novel.createdAt.goe(startOfDay)))
+                                    .then(1L).otherwise(0L)
+                                    .sum().coalesce(0L)
+                // 필터 적용 소설
+                , new CaseBuilder().when(filterNovelByCondition(filterStatus, isSoftDel))
+                                    .then(1L).otherwise(0L)
+                                    .sum().coalesce(0L)
+                ))
+                .from(novel)
+                .fetchOne();
+    }
+
+    // 멘토
+    @Override
+    public AdminDashboardMentorsStatusResponse getIntegratedMentorsStatus() {
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+
+        return queryFactory
+                .select(Projections.constructor(AdminDashboardMentorsStatusResponse.class
+                , mentor.count() // 멘토, 멘티 전체 (status 안나눠져 있음)
+                // 오늘 신규 멘토/멘티
+                , new CaseBuilder()
+                                .when(mentor.createdAt.goe(startOfDay))
+                                .then(1L).otherwise(0L)
+                                .sum().coalesce(0L)
+                ))
+                .from(mentor)
+                .fetchOne();
+    }
+
+    /** ======= 공통 메소드 ======= **/
+
+    // V1
     private BooleanExpression checkNovelStatus(String novelStatus) {
         if("ALL".equalsIgnoreCase(novelStatus)) {
             // 삭제, 보류 상관없이 전부 다 가져옴
             return null;
         }
         // ALL이 아니면 정상 소설만
+        return novel.isDeleted.eq(false);
+    }
+
+    // V2
+    private BooleanExpression filterNovelByCondition(NovelStatus filterStatus, Boolean isSoftDel) {
+        // 요청이 isDeleted=true 면 삭제된 소설만
+        if(Boolean.TRUE.equals(isSoftDel)) {
+            return novel.isDeleted.eq(true);
+        }
+        // 특정 상태 필터
+        if(filterStatus != null) {
+            return novel.isDeleted.eq(false)
+                    .and(novel.status.eq(filterStatus));
+        }
         return novel.isDeleted.eq(false);
     }
 }

@@ -4,6 +4,7 @@ import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.UserExceptionEnum;
 import com.example.hot6novelcraft.common.security.JwtUtil;
 import com.example.hot6novelcraft.common.security.RedisUtil;
+import com.example.hot6novelcraft.domain.admin.service.AdminCacheService;
 import com.example.hot6novelcraft.domain.user.dto.request.*;
 import com.example.hot6novelcraft.domain.user.dto.response.AdminSignupResponse;
 import com.example.hot6novelcraft.domain.user.dto.response.SignupResponse;
@@ -38,6 +39,7 @@ public class SignupService {
     private final PasswordEncoder passwordEncoder;
     private final SocialAuthRepository socialAuthRepository;
     private final RedisUtil redisUtil;
+    private final AdminCacheService adminCacheService;
 
     /** ======== 중복 확인 ========
     1. 이메일 중복 확인
@@ -232,6 +234,7 @@ public class SignupService {
         );
 
         readerProfileRepository.save(readerProfile);
+        adminCacheService.incrementNewUsersToday();
 
         return SignupResponse.of(user);
     }
@@ -265,6 +268,7 @@ public class SignupService {
         }
 
         readerProfileRepository.save(readerProfile);
+        adminCacheService.incrementNewUsersToday();
 
         return SignupResponse.of(savedUser);
     }
@@ -307,6 +311,7 @@ public class SignupService {
         }
 
         authorProfileRepository.save(authorProfile);
+        adminCacheService.incrementNewUsersToday();
 
         return SignupResponse.of(user);
     }
@@ -344,6 +349,7 @@ public class SignupService {
             user.verifyAdult(); // 19살 이상일 시 "인증 완료"
         }
         authorProfileRepository.save(authorProfile);
+        adminCacheService.incrementNewUsersToday();
 
         return SignupResponse.of(savedUser);
     }
