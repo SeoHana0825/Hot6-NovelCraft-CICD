@@ -268,7 +268,7 @@ class PaymentTransactionServiceTest {
         }
 
         @Test
-        @DisplayName("방어 코드 - 이미 COMPLETED 상태일 때 재처리 스킵")
+        @DisplayName("방어 코드 - 이미 COMPLETED 상태일 때 재처리 스킵 (멱등성)")
         void completePayment_alreadyCompleted_skips() {
             // given
             Payment mockPayment = createMockPayment(PAYMENT_ID, USER_ID, PAYMENT_KEY, AMOUNT, PaymentStatus.COMPLETED);
@@ -279,6 +279,41 @@ class PaymentTransactionServiceTest {
 
             // then
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+            verify(mockPayment, never()).complete(any());
+            verify(pointService, never()).charge(anyLong(), anyLong());
+            verify(purchaseRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("성공 - FAILED → COMPLETED 전환 + 포인트 충전 (confirm 타임아웃 후 재검증 케이스)")
+        void completePayment_failedPayment_completesSuccessfully() {
+            // given
+            Payment mockPayment = createMockPayment(PAYMENT_ID, USER_ID, PAYMENT_KEY, AMOUNT, PaymentStatus.FAILED);
+            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(mockPayment));
+            given(purchaseRepository.save(any(Purchase.class))).willReturn(mock(Purchase.class));
+
+            // when
+            Payment result = transactionService.completePayment(PAYMENT_ID, USER_ID, AMOUNT, PaymentMethod.CARD);
+
+            // then
+            assertThat(result).isNotNull();
+            verify(mockPayment, times(1)).complete(PaymentMethod.CARD);
+            verify(pointService, times(1)).charge(USER_ID, AMOUNT);
+            verify(purchaseRepository, times(1)).save(any(Purchase.class));
+        }
+
+        @Test
+        @DisplayName("방어 코드 - REFUNDED 상태는 처리 불가, 스킵")
+        void completePayment_refundedPayment_skips() {
+            // given
+            Payment mockPayment = createMockPayment(PAYMENT_ID, USER_ID, PAYMENT_KEY, AMOUNT, PaymentStatus.REFUNDED);
+            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(mockPayment));
+
+            // when
+            Payment result = transactionService.completePayment(PAYMENT_ID, USER_ID, AMOUNT, PaymentMethod.CARD);
+
+            // then
+            assertThat(result.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
             verify(mockPayment, never()).complete(any());
             verify(pointService, never()).charge(anyLong(), anyLong());
             verify(purchaseRepository, never()).save(any());

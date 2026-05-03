@@ -90,9 +90,15 @@ public class PaymentTransactionService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ServiceErrorException(PaymentExceptionEnum.ERR_PAYMENT_NOT_FOUND));
 
-        // Redis Lock으로 이 케이스는 발생하지 않지만 방어 코드
-        if (payment.getStatus() != PaymentStatus.PENDING) {
-            log.info("[결제] 이미 처리됨 dbPaymentId={} status={}", paymentId, payment.getStatus());
+        // 이미 COMPLETED면 멱등성 보장 (중복 호출 방어)
+        if (payment.getStatus() == PaymentStatus.COMPLETED) {
+            log.info("[결제] 이미 COMPLETED 상태 dbPaymentId={}", paymentId);
+            return payment;
+        }
+
+        // PENDING 또는 FAILED(confirm 타임아웃으로 잘못 처리된 케이스) 허용, 그 외 skip
+        if (payment.getStatus() != PaymentStatus.PENDING && payment.getStatus() != PaymentStatus.FAILED) {
+            log.warn("[결제] completePayment 스킵 - 처리 불가 상태 dbPaymentId={} status={}", paymentId, payment.getStatus());
             return payment;
         }
 
