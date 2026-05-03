@@ -1,5 +1,6 @@
 package com.example.hot6novelcraft.domain.payment.service;
 
+import com.example.hot6novelcraft.common.security.RedisUtil;
 import com.example.hot6novelcraft.domain.payment.entity.Payment;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentMethod;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentStatus;
@@ -9,6 +10,7 @@ import io.portone.sdk.server.payment.FailedPayment;
 import io.portone.sdk.server.payment.PaidPayment;
 import io.portone.sdk.server.payment.PartialCancelledPayment;
 import io.portone.sdk.server.payment.PaymentClient;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,10 +46,19 @@ class PaymentReconciliationServiceTest {
     @Mock
     private PaymentClient paymentClient;
 
+    @Mock
+    private RedisUtil redisUtil;
+
     private static final Long PAYMENT_ID = 100L;
     private static final Long USER_ID = 1L;
     private static final Long AMOUNT = 10000L;
     private static final String PAYMENT_KEY = "payment-test-key-12345";
+
+    @BeforeEach
+    void setUp() {
+        // 기본적으로 락 획득 성공 — 락 자체를 테스트하는 케이스에서만 false로 오버라이드
+        given(redisUtil.acquireLock(anyString())).willReturn(true);
+    }
 
     private Payment createMockPayment(Long id, PaymentStatus status) {
         Payment payment = mock(Payment.class);
@@ -160,8 +171,8 @@ class PaymentReconciliationServiceTest {
         }
 
         @Test
-        @DisplayName("성공 - PENDING + PartialCancelledPayment → failPayment 호출")
-        void reconcile_stalePending_portOnePartialCancelled_failsPayment() throws Exception {
+        @DisplayName("성공 - PENDING + PartialCancelledPayment → 미지원 정책으로 상태 변경 없이 스킵")
+        void reconcile_stalePending_portOnePartialCancelled_skips() throws Exception {
             // given
             Payment payment = createMockPayment(PAYMENT_ID, PaymentStatus.PENDING);
             PartialCancelledPayment partialCancelledPayment = mock(PartialCancelledPayment.class);
@@ -176,8 +187,9 @@ class PaymentReconciliationServiceTest {
             // when
             reconciliationService.reconcile();
 
-            // then
-            verify(paymentTransactionService, times(1)).failPayment(PAYMENT_ID);
+            // then — 부분 취소 미지원: PENDING을 FAILED로 전환하지 않고 스킵
+            verify(paymentTransactionService, never()).failPayment(anyLong());
+            verify(paymentTransactionService, never()).completePayment(anyLong(), anyLong(), anyLong(), any());
         }
 
         @Test
@@ -324,6 +336,84 @@ class PaymentReconciliationServiceTest {
                     .completePayment(eq(PAYMENT_ID), anyLong(), anyLong(), any());
             verify(paymentTransactionService, times(1))
                     .completePayment(eq(200L), anyLong(), anyLong(), any());
+        }
+    }
+
+    // =========================================================
+    // reconcileOne() - Redis 분산 락 동작 검증
+    // =========================================================
+    @Nested
+    @DisplayName("reconcileOne() - Redis 분산 락 상호 배제")
+    class ReconcileLockTest {
+
+        @Test
+        @DisplayName("락 획득 실패 시 포트원 API 미호출 및 completePayment/failPayment 스킵")
+        void reconcileOne_lockNotAcquired_skipsAllProcessing() {
+            // given — /confirm 또는 웹훅이 이미 동일 결제를 처리 중인 상황
+            Payment payment = createMockPayment(PAYMENT_ID, PaymentStatus.PENDING);
+            given(redisUtil.acquireLock(anyString())).willReturn(false);
+
+            given(paymentRepository.findByStatusAndCreatedAtBefore(eq(PaymentStatus.PENDING), any()))
+                    .willReturn(List.of(payment));
+            given(paymentRepository.findByStatusAndCreatedAtBetween(eq(PaymentStatus.FAILED), any(), any()))
+                    .willReturn(Collections.emptyList());
+
+            // when
+            reconciliationService.reconcile();
+
+            // then — 락 없이 포트원 조회·트랜잭션 처리가 일어나면 이중 포인트 충전 위험
+            verify(paymentClient, never()).getPayment(anyString());
+            verify(paymentTransactionService, never()).completePayment(anyLong(), anyLong(), anyLong(), any());
+            verify(paymentTransactionService, never()).failPayment(anyLong());
+        }
+
+        @Test
+        @DisplayName("포트원 API 예외 발생 시에도 락이 finally 블록에서 반드시 해제됨")
+        void reconcileOne_portOneThrows_lockReleasedInFinally() {
+            // given — 락 획득 후 포트원 API가 예외를 던지는 상황
+            Payment payment = createMockPayment(PAYMENT_ID, PaymentStatus.PENDING);
+            String expectedLockKey = "payment:confirm:lock:" + PAYMENT_KEY;
+
+            CompletableFuture<io.portone.sdk.server.payment.Payment> failedFuture = new CompletableFuture<>();
+            failedFuture.completeExceptionally(new RuntimeException("네트워크 오류"));
+
+            given(paymentRepository.findByStatusAndCreatedAtBefore(eq(PaymentStatus.PENDING), any()))
+                    .willReturn(List.of(payment));
+            given(paymentRepository.findByStatusAndCreatedAtBetween(eq(PaymentStatus.FAILED), any(), any()))
+                    .willReturn(Collections.emptyList());
+            given(paymentClient.getPayment(PAYMENT_KEY)).willReturn(failedFuture);
+
+            // when
+            reconciliationService.reconcile();
+
+            // then — 예외로 인해 트랜잭션은 건너뛰되, 락은 반드시 해제되어야 함
+            verify(redisUtil, times(1)).acquireLock(expectedLockKey);
+            verify(redisUtil, times(1)).releaseLock(expectedLockKey);
+            verify(paymentTransactionService, never()).completePayment(anyLong(), anyLong(), anyLong(), any());
+            verify(paymentTransactionService, never()).failPayment(anyLong());
+        }
+
+        @Test
+        @DisplayName("정상 처리 완료 후에도 락이 finally 블록에서 해제됨")
+        void reconcileOne_normalFlow_lockReleasedAfterProcessing() throws Exception {
+            // given
+            Payment payment = createMockPayment(PAYMENT_ID, PaymentStatus.PENDING);
+            String expectedLockKey = "payment:confirm:lock:" + PAYMENT_KEY;
+            FailedPayment failedPayment = mock(FailedPayment.class);
+
+            given(paymentRepository.findByStatusAndCreatedAtBefore(eq(PaymentStatus.PENDING), any()))
+                    .willReturn(List.of(payment));
+            given(paymentRepository.findByStatusAndCreatedAtBetween(eq(PaymentStatus.FAILED), any(), any()))
+                    .willReturn(Collections.emptyList());
+            given(paymentClient.getPayment(PAYMENT_KEY))
+                    .willReturn(CompletableFuture.completedFuture(failedPayment));
+
+            // when
+            reconciliationService.reconcile();
+
+            // then — 정상 흐름에서도 락 획득 1회, 해제 1회
+            verify(redisUtil, times(1)).acquireLock(expectedLockKey);
+            verify(redisUtil, times(1)).releaseLock(expectedLockKey);
         }
     }
 }

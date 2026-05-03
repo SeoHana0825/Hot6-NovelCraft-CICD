@@ -453,8 +453,8 @@ class WebhookServiceTest {
         }
 
         @Test
-        @DisplayName("성공 - COMPLETED Payment + PartialCancelledPayment → finalizeRefundFromWebhook 호출")
-        void handleWebhook_completedPayment_partialCancelledWebhook_finalizesRefund() throws Exception {
+        @DisplayName("성공 - COMPLETED Payment + PartialCancelledPayment → 미지원 정책으로 markEventComplete 호출 (전액 환불 금지)")
+        void handleWebhook_completedPayment_partialCancelledWebhook_marksEventComplete() throws Exception {
             // given
             WebhookRequest request = createWebhookRequest("Transaction.Cancelled", PAYMENT_KEY, TRANSACTION_ID, CANCELLATION_ID);
             WebhookEvent event = createMockWebhookEvent(WEBHOOK_EVENT_ID);
@@ -471,8 +471,10 @@ class WebhookServiceTest {
             // when
             webhookService.handleWebhook(request);
 
-            // then
-            verify(webhookTransactionService, times(1)).finalizeRefundFromWebhook(WEBHOOK_EVENT_ID, PAYMENT_ID);
+            // then — 부분 취소 미지원: payment.getAmount() 전액 회수 금지, 이벤트만 완료 처리
+            verify(webhookTransactionService, times(1)).markEventComplete(WEBHOOK_EVENT_ID);
+            verify(webhookTransactionService, never()).finalizeRefundFromWebhook(anyLong(), anyLong());
+            verify(webhookTransactionService, never()).failPendingPayment(anyLong(), anyLong());
         }
 
         @Test
@@ -664,8 +666,8 @@ class WebhookServiceTest {
         }
 
         @Test
-        @DisplayName("성공 - PENDING Payment를 PartialCancelledPayment로 처리")
-        void handleWebhook_partialCancelledPayment_failsPending() throws Exception {
+        @DisplayName("성공 - PENDING Payment + PartialCancelledPayment → 미지원 정책으로 markEventComplete 호출")
+        void handleWebhook_partialCancelledPayment_pendingPayment_marksEventComplete() throws Exception {
             // given
             WebhookRequest request = createWebhookRequest("Transaction.Cancelled", PAYMENT_KEY, TRANSACTION_ID, CANCELLATION_ID);
             WebhookEvent event = createMockWebhookEvent(WEBHOOK_EVENT_ID);
@@ -682,8 +684,9 @@ class WebhookServiceTest {
             // when
             webhookService.handleWebhook(request);
 
-            // then
-            verify(webhookTransactionService, times(1)).failPendingPayment(WEBHOOK_EVENT_ID, PAYMENT_ID);
+            // then — 부분 취소 미지원: PENDING을 FAILED로 전환하지 않고 이벤트만 완료 처리
+            verify(webhookTransactionService, times(1)).markEventComplete(WEBHOOK_EVENT_ID);
+            verify(webhookTransactionService, never()).failPendingPayment(anyLong(), anyLong());
         }
     }
 

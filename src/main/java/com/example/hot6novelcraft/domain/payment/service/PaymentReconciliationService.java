@@ -4,6 +4,7 @@ import com.example.hot6novelcraft.domain.payment.entity.Payment;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentMethod;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentStatus;
 import com.example.hot6novelcraft.domain.payment.repository.PaymentRepository;
+import com.example.hot6novelcraft.common.security.RedisUtil;
 import io.portone.sdk.server.payment.CancelledPayment;
 import io.portone.sdk.server.payment.FailedPayment;
 import io.portone.sdk.server.payment.PaidPayment;
@@ -38,6 +39,7 @@ public class PaymentReconciliationService {
     private final PaymentRepository paymentRepository;
     private final PaymentTransactionService paymentTransactionService;
     private final PaymentClient paymentClient;
+    private final RedisUtil redisUtil;
 
     @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
     public void reconcile() {
@@ -64,6 +66,13 @@ public class PaymentReconciliationService {
     }
 
     private void reconcileOne(Payment payment, String reason) {
+        // /confirm, 웹훅과 동일한 락 키로 상호 배제 — 동시 처리 시 이중 포인트 충전 방지
+        String lockKey = "payment:confirm:lock:" + payment.getPaymentKey();
+        if (!redisUtil.acquireLock(lockKey)) {
+            log.info("[재검증] 스킵 — 처리 중인 결제 paymentKey={}", payment.getPaymentKey());
+            return;
+        }
+
         try {
             io.portone.sdk.server.payment.Payment portOnePayment =
                     paymentClient.getPayment(payment.getPaymentKey()).get(10, TimeUnit.SECONDS);
@@ -77,10 +86,13 @@ public class PaymentReconciliationService {
                         reason, payment.getPaymentKey(), payment.getUserId());
 
             } else if (portOnePayment instanceof FailedPayment
-                    || portOnePayment instanceof CancelledPayment
-                    || portOnePayment instanceof PartialCancelledPayment) {
+                    || portOnePayment instanceof CancelledPayment) {
                 paymentTransactionService.failPayment(payment.getId());
                 log.info("[재검증] 결제 실패 보정 reason={} paymentKey={}", reason, payment.getPaymentKey());
+
+            } else if (portOnePayment instanceof PartialCancelledPayment) {
+                // 부분 취소는 서비스 정책상 미지원 — 상태 변경 없이 스킵
+                log.warn("[재검증] 부분 취소 상태 (미지원) 스킵 paymentKey={}", payment.getPaymentKey());
 
             } else {
                 log.info("[재검증] 스킵 — 포트원 상태 미확정 paymentKey={} portOneType={}",
@@ -89,6 +101,8 @@ public class PaymentReconciliationService {
 
         } catch (Exception e) {
             log.error("[재검증] 포트원 조회 실패 paymentKey={}", payment.getPaymentKey(), e);
+        } finally {
+            redisUtil.releaseLock(lockKey);
         }
     }
 }

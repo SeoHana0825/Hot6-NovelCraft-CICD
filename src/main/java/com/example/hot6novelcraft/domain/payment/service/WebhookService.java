@@ -126,7 +126,7 @@ public class WebhookService {
             webhookTransactionService.failPendingPayment(webhookEvent.getId(), payment.getId());
             log.info("웹훅 결제 실패 처리 완료 paymentId={}", paymentId);
 
-        } else if (portOnePayment instanceof CancelledPayment || portOnePayment instanceof PartialCancelledPayment) {
+        } else if (portOnePayment instanceof CancelledPayment) {
             // REFUNDED / FAILED → 이미 최종 상태
             if (payment.getStatus() == PaymentStatus.REFUNDED || payment.getStatus() == PaymentStatus.FAILED) {
                 log.info("웹훅 보정 불필요 - 이미 최종 상태 paymentId={} status={}", paymentId, payment.getStatus());
@@ -142,6 +142,11 @@ public class WebhookService {
             // PENDING → 결제창 열린 후 완료 전 취소된 케이스
             webhookTransactionService.failPendingPayment(webhookEvent.getId(), payment.getId());
             log.info("웹훅 결제 취소 처리 완료 (PENDING→FAILED) paymentId={}", paymentId);
+
+        } else if (portOnePayment instanceof PartialCancelledPayment) {
+            // 부분 취소는 서비스 정책상 미지원 — 결제 상태 변경 없이 이벤트만 완료 처리
+            log.warn("웹훅 부분 취소 수신 (미지원) paymentId={} status={}", paymentId, payment.getStatus());
+            webhookTransactionService.markEventComplete(webhookEvent.getId());
 
         } else {
             log.warn("웹훅 알 수 없는 상태 paymentId={} portOneType={}", paymentId, portOnePayment.getClass().getSimpleName());

@@ -154,9 +154,16 @@ public class WebhookTransactionService {
         Payment payment = paymentRepository.findById(paymentDbId)
                 .orElseThrow(() -> new ServiceErrorException(PaymentExceptionEnum.ERR_PAYMENT_NOT_FOUND));
 
-        // 이미 처리된 경우 스킵
-        if (payment.getStatus() != PaymentStatus.PENDING) {
-            log.info("웹훅 구독 결제 보정 스킵 - 이미 처리됨 paymentDbId={} status={}", paymentDbId, payment.getStatus());
+        // 이미 COMPLETED면 멱등성 보장
+        if (payment.getStatus() == PaymentStatus.COMPLETED) {
+            log.info("웹훅 구독 결제 보정 스킵 - 이미 COMPLETED paymentDbId={}", paymentDbId);
+            webhookEventRepository.findById(webhookEventId).ifPresent(WebhookEvent::complete);
+            return;
+        }
+
+        // PENDING 또는 FAILED(confirm 타임아웃으로 잘못 처리된 케이스) 허용, 그 외 skip
+        if (payment.getStatus() != PaymentStatus.PENDING && payment.getStatus() != PaymentStatus.FAILED) {
+            log.warn("웹훅 구독 결제 보정 스킵 - 처리 불가 상태 paymentDbId={} status={}", paymentDbId, payment.getStatus());
             webhookEventRepository.findById(webhookEventId).ifPresent(WebhookEvent::complete);
             return;
         }
@@ -212,9 +219,17 @@ public class WebhookTransactionService {
             pointService.deduct(payment.getUserId(), payment.getAmount());
             log.info("웹훅 환불 보정: 포인트 차감 완료 userId={} amount={}P", payment.getUserId(), payment.getAmount());
         } catch (ServiceErrorException e) {
-            // compensateDeduct 미실행 케이스 — 포인트가 이미 차감된 상태이므로 스킵
-            log.warn("웹훅 환불 보정: 포인트 잔액 부족으로 차감 스킵 (이미 차감된 상태) userId={} amount={}P",
-                    payment.getUserId(), payment.getAmount());
+            if (e.getErrorCode() == PaymentExceptionEnum.ERR_INSUFFICIENT_POINT) {
+                // compensateDeduct 미실행 케이스 — 포인트가 이미 차감된 상태이므로 스킵
+                log.warn("웹훅 환불 보정: 포인트 잔액 부족으로 차감 스킵 (이미 차감된 상태) userId={} amount={}P",
+                        payment.getUserId(), payment.getAmount());
+            } else {
+                // ERR_POINT_NOT_FOUND 등 예상치 못한 오류 — 데이터 정합성 문제, 환불 중단
+                log.error("웹훅 환불 보정 실패: 포인트 차감 오류 userId={} amount={}P error={}",
+                        payment.getUserId(), payment.getAmount(), e.getMessage());
+                webhookEventRepository.findById(webhookEventId).ifPresent(event -> event.fail(e.getMessage()));
+                return;
+            }
         }
 
         payment.cancel();
