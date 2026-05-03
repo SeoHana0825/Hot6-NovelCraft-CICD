@@ -223,7 +223,7 @@ public class EpisodeService {
 
 
         // 소설 조회수 +1 (어뷰징 방지)
-        increaseNovelViewCount(episode.getNovelId(), userId);
+        increaseNovelViewCount(episode.getNovelId(), episode.getId(), userId);
 
         return EpisodeDetailResponse.from(episode);
     }
@@ -241,7 +241,7 @@ public class EpisodeService {
             validateEpisodeAccess(cached.episodeId(), cached.isFree(), userId);
             validateReaderAdultAccess(cached.novelId(), userDetails);
 
-            increaseNovelViewCount(cached.novelId(), userId);
+            increaseNovelViewCount(cached.novelId(), cached.episodeId(), userId);
             episodeCacheService.increaseHotKeyCount(cached.novelId());
             return toDetailResponse(cached);
         }
@@ -267,7 +267,7 @@ public class EpisodeService {
         }
 
         // 조회수 처리
-        increaseNovelViewCount(content.novelId(), userId);
+        increaseNovelViewCount(content.novelId(), episodeId, userId);
 
         return toDetailResponse(content);
     }
@@ -342,7 +342,7 @@ public class EpisodeService {
     }
 
     // 소설 조회수 +1 (어뷰징 방지)
-    private void increaseNovelViewCount(Long novelId, Long userId) {
+    private void increaseNovelViewCount(Long novelId, Long episodeId, Long userId) {
         // 상태 값 검증 - 삭제, 보류, 휴재 상태 포함된 경우 종료 - 서하나
         Novel novel = novelRepository.findById(novelId)
                 .orElseThrow(() -> new ServiceErrorException(NovelExceptionEnum.NOVEL_NOT_FOUND));
@@ -355,9 +355,15 @@ public class EpisodeService {
             return;
         }
 
+        // 수정
         if (episodeCacheService.isFirstView(userId, novelId)) {
-            // Redis에 조회수 증가
+            // 소설 조회수 증가
             episodeCacheService.increaseViewCount(novelId);
+        }
+
+        // 회차 조회수 증가 (회차 단위 어뷰징 체크)
+        if (episodeCacheService.isFirstEpisodeView(userId, episodeId)) {
+            episodeCacheService.increaseEpisodeDailyViewCount(episodeId);
         }
 
         episodeCacheService.increaseRankingScore(novelId);

@@ -16,6 +16,8 @@ import com.example.hot6novelcraft.domain.point.repository.PointHistoryRepository
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
+import com.example.hot6novelcraft.domain.user.repository.AuthorFollowRepository;
+import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -55,6 +57,12 @@ class EpisodeServiceTest {
 
     @Mock
     EpisodeCacheService episodeCacheService;
+
+    @Mock
+    UserRepository userRepository;
+
+    @Mock
+    AuthorFollowRepository authorFollowRepository;
 
     // 작가 Mock
     private UserDetailsImpl 작가() {
@@ -304,6 +312,8 @@ class EpisodeServiceTest {
         UserDetailsImpl userDetails = 작가();
         Episode episode = 회차(1L, 1);
         Novel novel = 소설(1L);
+        User author = mock(User.class);
+        given(author.getNickname()).willReturn("작가닉네임");
 
         given(episode.getStatus()).willReturn(EpisodeStatus.DRAFT);
         given(episode.getContent()).willReturn("본문 내용");
@@ -311,6 +321,8 @@ class EpisodeServiceTest {
         given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
         given(episodeRepository.existsByNovelIdAndEpisodeNumberLessThanAndStatusNotAndIsDeletedFalse(
                 1L, 1, EpisodeStatus.PUBLISHED)).willReturn(false);
+        given(userRepository.findById(any())).willReturn(Optional.of(author));
+        given(authorFollowRepository.findFollowerIdsByFollowingId(any())).willReturn(List.of());
 
         EpisodePublishResponse response = episodeService.publishEpisode(1L, userDetails);
 
@@ -418,14 +430,17 @@ class EpisodeServiceTest {
     void 회차본문조회V1_무료회차_성공() {
         UserDetailsImpl userDetails = 독자();
         Episode episode = 회차(1L, 1);
+        Novel novel = 소설(1L);
         given(episode.getStatus()).willReturn(EpisodeStatus.PUBLISHED);
         given(episode.isFree()).willReturn(true);
         given(episode.getTitle()).willReturn("1화 제목");
         given(episode.getContent()).willReturn("1화 본문");
         given(episode.getLikeCount()).willReturn(100L);
         given(episode.getPointPrice()).willReturn(0);
+        given(novel.getTags()).willReturn(null);
 
         given(episodeRepository.findById(1L)).willReturn(Optional.of(episode));
+        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
         given(episodeCacheService.isFirstView(2L, 1L)).willReturn(false);
 
         EpisodeDetailResponse response = episodeService.getEpisodeContentV1(1L, userDetails);
@@ -439,10 +454,13 @@ class EpisodeServiceTest {
     void 회차본문조회V1_유료회차_구매이력있으면_성공() {
         UserDetailsImpl userDetails = 독자();
         Episode episode = 회차(1L, 3);
+        Novel novel = 소설(1L);
         given(episode.getStatus()).willReturn(EpisodeStatus.PUBLISHED);
         given(episode.isFree()).willReturn(false);
+        given(novel.getTags()).willReturn(null);
 
         given(episodeRepository.findById(1L)).willReturn(Optional.of(episode));
+        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
         given(pointHistoryRepository.existsByUserIdAndEpisodeIdAndType(
                 2L, 1L, PointHistoryType.NOVEL)).willReturn(true);
         given(episodeCacheService.isFirstView(2L, 1L)).willReturn(false);
@@ -493,17 +511,22 @@ class EpisodeServiceTest {
     void 회차본문조회V1_첫조회시_조회수증가() {
         UserDetailsImpl userDetails = 독자();
         Episode episode = 회차(1L, 1);
+        Novel novel = 소설(1L);
         given(episode.getStatus()).willReturn(EpisodeStatus.PUBLISHED);
         given(episode.isFree()).willReturn(true);
+        given(novel.getTags()).willReturn(null);
+        given(novel.getStatus()).willReturn(com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus.ONGOING);
 
         given(episodeRepository.findById(1L)).willReturn(Optional.of(episode));
+        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
         given(episodeCacheService.isFirstView(2L, 1L)).willReturn(true);
+        given(episodeCacheService.isFirstEpisodeView(2L, 1L)).willReturn(true);
 
         EpisodeDetailResponse response = episodeService.getEpisodeContentV1(1L, userDetails);
 
         assertNotNull(response);
-        // DB 대신 Redis 조회수 증가 검증
         verify(episodeCacheService).increaseViewCount(1L);
+        verify(episodeCacheService).increaseEpisodeDailyViewCount(1L);
     }
 
     // ==================== 회차 본문 조회 V2 ====================
@@ -511,12 +534,15 @@ class EpisodeServiceTest {
     @Test
     void 회차본문조회V2_캐시HIT이면_캐시반환_성공() {
         UserDetailsImpl userDetails = 독자();
+        Novel novel = 소설(1L);
+        given(novel.getTags()).willReturn(null);
 
         EpisodeContentCache cached = new EpisodeContentCache(
                 1L, 1L, 1, "1화", "캐시된 본문", 100L, true, 0
         );
 
         given(episodeCacheService.getContentCache(1L)).willReturn(cached);
+        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
         given(episodeCacheService.isFirstView(2L, 1L)).willReturn(false);
 
         EpisodeDetailResponse response = episodeService.getEpisodeContentV2(1L, userDetails);
@@ -528,27 +554,9 @@ class EpisodeServiceTest {
     @Test
     void 회차본문조회V2_캐시MISS_비인기작이면_DB조회만() {
         UserDetailsImpl userDetails = 독자();
-
-        EpisodeContentCache content = new EpisodeContentCache(
-                1L, 1L, 1, "1화", "DB 본문", 100L, true, 0
-        );
-
-        given(episodeCacheService.getContentCache(1L)).willReturn(null); // 캐시 MISS
-        given(episodeRepository.findContentCacheById(1L)).willReturn(content);
-        given(episodeCacheService.increaseHotKeyCount(1L)).willReturn(10L); // 임계값 미만
-        given(episodeCacheService.isHotNovel(10L)).willReturn(false);
-        given(episodeCacheService.isFirstView(2L, 1L)).willReturn(false);
-
-        EpisodeDetailResponse response = episodeService.getEpisodeContentV2(1L, userDetails);
-
-        assertNotNull(response);
-        // 비인기작이면 캐시 저장 안 함 검증
-        verify(episodeCacheService, org.mockito.Mockito.never()).saveContentCache(any(), any());
-    }
-
-    @Test
-    void 회차본문조회V2_캐시MISS_인기작이면_DB조회후_캐싱() {
-        UserDetailsImpl userDetails = 독자();
+        Novel novel = 소설(1L);
+        given(novel.getTags()).willReturn(null);
+        given(novel.getStatus()).willReturn(com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus.ONGOING);
 
         EpisodeContentCache content = new EpisodeContentCache(
                 1L, 1L, 1, "1화", "DB 본문", 100L, true, 0
@@ -556,14 +564,38 @@ class EpisodeServiceTest {
 
         given(episodeCacheService.getContentCache(1L)).willReturn(null);
         given(episodeRepository.findContentCacheById(1L)).willReturn(content);
-        given(episodeCacheService.increaseHotKeyCount(1L)).willReturn(100L); // 인기작
-        given(episodeCacheService.isHotNovel(100L)).willReturn(true);
+        given(episodeCacheService.increaseHotKeyCount(1L)).willReturn(10L);
+        given(episodeCacheService.isHotNovel(10L)).willReturn(false);
+        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
         given(episodeCacheService.isFirstView(2L, 1L)).willReturn(false);
 
         EpisodeDetailResponse response = episodeService.getEpisodeContentV2(1L, userDetails);
 
         assertNotNull(response);
-        // 인기작이면 캐시 저장 검증
+        verify(episodeCacheService, org.mockito.Mockito.never()).saveContentCache(any(), any());
+    }
+
+    @Test
+    void 회차본문조회V2_캐시MISS_인기작이면_DB조회후_캐싱() {
+        UserDetailsImpl userDetails = 독자();
+        Novel novel = 소설(1L);
+        given(novel.getTags()).willReturn(null);
+        given(novel.getStatus()).willReturn(com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus.ONGOING);
+
+        EpisodeContentCache content = new EpisodeContentCache(
+                1L, 1L, 1, "1화", "DB 본문", 100L, true, 0
+        );
+
+        given(episodeCacheService.getContentCache(1L)).willReturn(null);
+        given(episodeRepository.findContentCacheById(1L)).willReturn(content);
+        given(episodeCacheService.increaseHotKeyCount(1L)).willReturn(100L);
+        given(episodeCacheService.isHotNovel(100L)).willReturn(true);
+        given(novelRepository.findById(1L)).willReturn(Optional.of(novel));
+        given(episodeCacheService.isFirstView(2L, 1L)).willReturn(false);
+
+        EpisodeDetailResponse response = episodeService.getEpisodeContentV2(1L, userDetails);
+
+        assertNotNull(response);
         verify(episodeCacheService).saveContentCache(1L, content);
     }
 

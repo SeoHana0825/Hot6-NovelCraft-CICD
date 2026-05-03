@@ -9,6 +9,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Set;
 
 @Slf4j
@@ -39,6 +41,14 @@ public class EpisodeCacheService {
         Boolean isFirst = redisTemplate.opsForValue()
                 .setIfAbsent(viewKey, "1", Duration.ofHours(1));
 
+        return Boolean.TRUE.equals(isFirst);
+    }
+
+    // 회차 어뷰징 체크
+    public boolean isFirstEpisodeView(Long userId, Long episodeId) {
+        String key = "episode_view::" + userId + "::" + episodeId;
+        Boolean isFirst = redisTemplate.opsForValue()
+                .setIfAbsent(key, "1", Duration.ofHours(1));
         return Boolean.TRUE.equals(isFirst);
     }
 
@@ -115,10 +125,34 @@ public class EpisodeCacheService {
     }
 
 
-    // Redis에 조회수 증가
+    // Redis에 소설 조회수 증가
     public void increaseViewCount(Long novelId) {
         String key = NOVEL_VIEW_COUNT_KEY_PREFIX + novelId;
         redisTemplate.opsForValue().increment(key);
+    }
+
+    // Redis 일일 조회수
+    public void increaseEpisodeDailyViewCount(Long episodeId) {
+        String key = "episode_daily_view_count::" + episodeId + "::"
+                + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        Long count = redisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1) {
+            redisTemplate.expire(key, Duration.ofDays(2));
+        }
+    }
+
+    // 회차 오늘 조회수 조회 (통계용)
+    public long getEpisodeDailyViewCount(Long episodeId) {
+        String key = "episode_daily_view_count::" + episodeId + "::"
+                + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        Object count = redisTemplate.opsForValue().get(key);
+        if (count == null) return 0L;
+        try {
+            return Long.parseLong(count.toString());
+        } catch (NumberFormatException e) {
+            log.warn("[회차 일일 조회수 파싱 실패] key: {}, value: {}", key, count);
+            return 0L;
+        }
     }
 
     // Redis에 저장된 조회수 조회

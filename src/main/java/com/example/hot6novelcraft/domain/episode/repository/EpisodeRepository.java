@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Map;
 
-public interface EpisodeRepository extends JpaRepository<Episode, Long>, CustomEpisodeRepository {
+public interface EpisodeRepository extends JpaRepository<Episode, Long>, CustomEpisodeRepository, CustomEpisodeStatRepository {
 
     // 회차 중복 확인
     boolean existsByNovelIdAndEpisodeNumberAndIsDeletedFalse(Long novelId, int episodeNumber);
