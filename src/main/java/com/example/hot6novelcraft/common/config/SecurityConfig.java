@@ -102,6 +102,7 @@ public class SecurityConfig {
                                 , "/api/dummy/**"  // 에피소드 더미용
                                 // WebSocket (STOMP + SockJS)
                                 , "/ws-chat/**"
+                                , "/actuator/prometheus"
                         ).permitAll()
                                 .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
                                 .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")

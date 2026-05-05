@@ -19,6 +19,7 @@ import com.example.hot6novelcraft.domain.user.repository.AuthorProfileRepository
 import com.example.hot6novelcraft.domain.user.repository.ReaderProfileRepository;
 import com.example.hot6novelcraft.domain.user.repository.SocialAuthRepository;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,6 +41,7 @@ public class SignupService {
     private final SocialAuthRepository socialAuthRepository;
     private final RedisUtil redisUtil;
     private final AdminCacheService adminCacheService;
+    private final ObjectMapper objectMapper;
 
     /** ======== 중복 확인 ========
     1. 이메일 중복 확인
@@ -121,7 +123,8 @@ public class SignupService {
 
         // 소셜 회원가입 : 먼저 소셜 가입이 있는지 확인과 동시에 삭제
         String socialKey = "TEMP_SOCIAL_SIGNUP:" + email;
-        TempSocialSignupRequest tempSocialSignupRequest = (TempSocialSignupRequest) redisUtil.getAndDelete(socialKey);
+        Object socialData = redisUtil.getAndDelete(socialKey);
+        TempSocialSignupRequest tempSocialSignupRequest = objectMapper.convertValue(socialData, TempSocialSignupRequest.class);
 
         // 동시 요청이 들어왔을 때, 첫 번째 요청만 데이터를 받고 두 번째 요청은 null 로 반환
         if (tempSocialSignupRequest != null) {
@@ -130,7 +133,8 @@ public class SignupService {
 
         // 일반 회원가입 : 먼저 소셜 가입이 있는지 확인과 동시에 삭제
         String normalKey = "TEMP_SIGNUP:" + email;
-        TempSignupRequest tempRequest = (TempSignupRequest) redisUtil.getAndDelete(normalKey);
+        Object normalData = redisUtil.getAndDelete(normalKey);
+        TempSignupRequest tempRequest = objectMapper.convertValue(normalData, TempSignupRequest.class);
 
         if (tempRequest != null) {
             return processNormalReaderSignup(request, email, tempRequest, normalKey);
@@ -144,14 +148,16 @@ public class SignupService {
     public SignupResponse authorSignup(AuthorRequest request, String email) {
 
         String socialKey = "TEMP_SOCIAL_SIGNUP:" + email;
-        TempSocialSignupRequest tempSocialSignupRequest = (TempSocialSignupRequest) redisUtil.getAndDelete(socialKey);
+        Object socialData = redisUtil.getAndDelete(socialKey);
+        TempSocialSignupRequest tempSocialSignupRequest = objectMapper.convertValue(socialData, TempSocialSignupRequest.class);
 
         if(tempSocialSignupRequest != null) {
             return processSocialAuthorSignup(request, email, tempSocialSignupRequest, socialKey);
         }
 
         String normalKey = "TEMP_SIGNUP:" + email;
-        TempSignupRequest tempRequest = (TempSignupRequest) redisUtil.getAndDelete(normalKey);
+        Object normalData = redisUtil.getAndDelete(normalKey);
+        TempSignupRequest tempRequest = objectMapper.convertValue(normalData, TempSignupRequest.class);
 
         if(tempRequest != null) {
             return processNormalAuthorSignup(request, email, tempRequest, normalKey);

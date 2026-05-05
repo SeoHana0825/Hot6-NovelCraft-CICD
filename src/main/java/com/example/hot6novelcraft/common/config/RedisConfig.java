@@ -3,22 +3,66 @@ package com.example.hot6novelcraft.common.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.cache.CacheManager;
+import io.lettuce.core.ReadFrom;
+import io.lettuce.core.internal.HostAndPort;
+import io.lettuce.core.resource.ClientResources;
+import io.lettuce.core.resource.DefaultClientResources;
+import io.lettuce.core.resource.DnsResolvers;
+import io.lettuce.core.resource.MappingSocketAddressResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.cache.RedisCacheConfiguration;
-import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisSentinelConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-
-import java.time.Duration;
-import java.util.Map;
 
 @Configuration
 public class RedisConfig {
+
+
+    // Lettuce를 위한 '번역기' 생성 (Redisson의 NatMapper와 동일한 역할)
+    @Bean(destroyMethod = "shutdown")
+    public ClientResources clientResources() {
+        MappingSocketAddressResolver resolver = MappingSocketAddressResolver.create(
+                DnsResolvers.JVM_DEFAULT,
+                hostAndPort -> {
+                    // 도커 내부 IP(172.x.x.x)를 무시하고 무조건 localhost로 포워딩!
+                    return HostAndPort.of("127.0.0.1", hostAndPort.getPort());
+                }
+        );
+
+        return DefaultClientResources.builder()
+                .socketAddressResolver(resolver)
+                .build();
+    }
+
+    /** Redis 다운 시 마스터-슬레이브 및 센티넬 발동
+     * 읽기는 슬레이브에서 -> 마스터 부하 분산
+     * 슬레이브 장애 시엔 마스터에서 읽음 -> 자동 fallback
+     * Failover 새 마스터 선출 시 센티넬이 알려준 새 마스터로 자동 재연결
+     * ClientResources clientResources 삭제하기
+     **/
+    @Bean
+    public RedisConnectionFactory redisConnectionFactory(ClientResources clientResources) {
+        RedisSentinelConfiguration sentinelConfig = new RedisSentinelConfiguration()
+                .master("mymaster")
+                .sentinel("127.0.0.1", 26379)
+                .sentinel("127.0.0.1", 26380)
+                .sentinel("127.0.0.1", 26381);
+
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+                .clientResources(clientResources) // Lettuce 설정에 번역기 장착!
+                .readFrom(ReadFrom.REPLICA_PREFERRED)
+                .build();
+
+        // 팩토리 생성 후 초기화 (안전성 위해 추가)
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(sentinelConfig, clientConfig);
+        factory.afterPropertiesSet();
+        return factory;
+    }
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
@@ -40,7 +84,6 @@ public class RedisConfig {
         template.setHashKeySerializer(new StringRedisSerializer());
         //template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
         template.setHashValueSerializer(serializer);
-
 
         template.afterPropertiesSet();
         return template;

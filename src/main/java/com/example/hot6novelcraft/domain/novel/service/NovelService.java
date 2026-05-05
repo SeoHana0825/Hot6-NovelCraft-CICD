@@ -13,6 +13,7 @@ import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -38,6 +39,7 @@ public class NovelService {
     private final NovelRepository novelRepository;
     private final UserRepository userRepository;
     private final EpisodeCacheService episodeCacheService;
+    private final ObjectMapper objectMapper;
 
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -174,7 +176,11 @@ public class NovelService {
 
         if (cached != null) {
             log.debug("===== [캐시 HIT] key={} =====", cacheKey);
-            return (PageResponse<NovelListResponse>) cached;
+            return objectMapper.convertValue(
+                    cached,
+                    new com.fasterxml.jackson.core.type.TypeReference<PageResponse<NovelListResponse>>() {}
+            );
+//            return (PageResponse<NovelListResponse>) cached;
         }
 
         log.debug("===== [캐시 MISS] key={} DB 조회 =====", cacheKey);

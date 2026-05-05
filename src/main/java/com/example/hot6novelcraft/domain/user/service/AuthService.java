@@ -19,6 +19,7 @@ import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.repository.AuthorProfileRepository;
 import com.example.hot6novelcraft.domain.user.repository.ReaderProfileRepository;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
+import io.jsonwebtoken.ExpiredJwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -235,8 +236,8 @@ public class AuthService {
                 redisUtil.setBlackList(token, "Logout", Duration.ofMillis(expiration));
                 log.info("===== [블랙리스트 등록] 사용자가 로그아웃하였습니다. 남은 시간: {}ms =====", expiration);
             }
-        } catch(Exception e) {
-            log.warn("이미 만료된 토큰입니다.");
+        } catch(ExpiredJwtException e) {
+            log.warn("이미 만료된 토큰입니다. reason: {}", e.getMessage());
         }
     }
 

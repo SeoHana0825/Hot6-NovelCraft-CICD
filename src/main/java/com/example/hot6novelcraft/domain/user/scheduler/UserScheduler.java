@@ -1,6 +1,7 @@
 package com.example.hot6novelcraft.domain.user.scheduler;
 
 import com.example.hot6novelcraft.domain.user.entity.User;
+import com.example.hot6novelcraft.domain.user.repository.BlacklistTokenRepository;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,15 @@ public class UserScheduler {
 
     private final UserRepository userRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final BlacklistTokenRepository blacklistTokenRepository;
+
+    // 매일 01시에 만료된 DB 블랙리스트 토큰 정리 : Redis가 복구되면 DB fallback 데이터도 같이 관리
+    @Scheduled(cron = "0 0 1 * * *")
+    @Transactional
+    public void cleanupExpiredBlacklistTokens() {
+        blacklistTokenRepository.deleteAllExpiredBefore(LocalDateTime.now());
+        log.info("[Blacklist 정리] 만료된 DB 블랙리스트 토큰 삭제 완료");
+    }
 
     // 매일 00시에 탈퇴 회원 정리 실행
     @Scheduled(cron = "0 0 0 * * *")
@@ -45,7 +55,7 @@ public class UserScheduler {
         }
     }
 
-    // 매일 새벽 3시에 Redis 좀비 찌꺼기 키 청소
+    // 매일 03시에 Redis 좀비 찌꺼기 키 청소
     @Scheduled(cron = "0 0 3 * * *")
     public void cleanupZombieRedisKeys() {
         log.info("[Redis 좀비 청소] 스케쥴러 실행");
