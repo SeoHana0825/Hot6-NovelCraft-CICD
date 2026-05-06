@@ -9,6 +9,9 @@ import io.lettuce.core.resource.ClientResources;
 import io.lettuce.core.resource.DefaultClientResources;
 import io.lettuce.core.resource.DnsResolvers;
 import io.lettuce.core.resource.MappingSocketAddressResolver;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -19,17 +22,36 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+import java.util.List;
+import java.util.Set;
+
 @Configuration
 public class RedisConfig {
 
+    @Value("${spring.data.redis.sentinel.master}")
+    private String masterName;
+
+    @Value("${spring.data.redis.sentinel.nodes}")
+    private Set<String> sentinelNodes;
+
+    // 값 없으면 빈 문자열 주입
+    @Value("${app.redis.nat-mapping-ip:}")
+    private String natMappingIp;
 
     // Lettuce를 위한 '번역기' 생성 (Redisson의 NatMapper와 동일한 역할)
     @Bean(destroyMethod = "shutdown")
     public ClientResources clientResources() {
+
+        // natMappingIp가 비어있으면 기본 설정 사용 (배포 환경)
+        if(natMappingIp == null && natMappingIp.isBlank()) {
+            return DefaultClientResources.create();
+        }
+
+        // 로컬 환경 - natMappingId (127.0.0.1)로 포워딩
         MappingSocketAddressResolver resolver = MappingSocketAddressResolver.create(
                 DnsResolvers.JVM_DEFAULT,
                 hostAndPort -> {
-                    // 도커 내부 IP(172.x.x.x)를 무시하고 무조건 localhost로 포워딩!
+                    // 도커 내부 IP(172.x.x.x)를 무시하고 무조건 localhost로 포워딩
                     return HostAndPort.of("127.0.0.1", hostAndPort.getPort());
                 }
         );
@@ -94,5 +116,10 @@ public class RedisConfig {
         objectMapper.registerModule(new JavaTimeModule());
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return objectMapper;
+    }
+
+    // 공통 sentinel configuration 생성 메서드
+    private RedisSentinelConfiguration getSentinelConfig() {
+        return new RedisSentinelConfiguration(masterName, sentinelNodes);
     }
 }

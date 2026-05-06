@@ -23,7 +23,7 @@ public class BlacklistToken extends BaseEntity {
     private Long id;
 
     // JWT access token
-    @Column(nullable = false, length = 512)
+    @Column(nullable = false)
     private String token;
 
     @Column(nullable = false)

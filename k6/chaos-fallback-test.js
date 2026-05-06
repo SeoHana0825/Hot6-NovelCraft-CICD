@@ -16,7 +16,7 @@ export const options = {
 };
 
     // 유효한 Access Token 입력 (DB에 있는 유저의 토큰)
-    const ACCESS_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0MjJAdGVzdC5jb20iLCJyb2xlIjoiQVVUSE9SIiwidHlwZSI6IkFDQ0VTUyIsImlzQWR1bHQiOmZhbHNlLCJpYXQiOjE3Nzc5OTMxOTcsImV4cCI6MTc3ODAxNDc5N30.kvYndmMFMXnTX_KVFPZwHVjKkQqIDmLlKOX6fdAeWos';
+    const ACCESS_TOKEN = 'ACCESS_TOKEN_HERE';
 
 export default function () {
     // JWT 블랙리스트 검증(Redis 의존성)이 포함된 마이페이지 API 타겟
@@ -33,8 +33,8 @@ export default function () {
 
     // 검증 : Redis가 죽어도 DB 폴백으로 무조건 200이 떨어져야하고 500은 0이어야 함
     check(res, {
-        'is status 200 (정상 응답 / DB Fallback 성공)': (r) => r.status === 200,
-        'is status 500 (서버 터짐 - 0% 여야 함)': (r) => r.status === 500,
+        'DB Fallback 성공 (200)': (r) => r.status === 200,
+        '서버 터짐 (500 - 0% 여야 함)': (r) => r.status === 500,
     });
 
     // 1초에 1번씩 요청

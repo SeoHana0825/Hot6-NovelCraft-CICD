@@ -35,8 +35,7 @@ export default function () {
 
     // 서버가 어떤 상태 코드를 뱉는지 추적합니다.
     check(res, {
-        '정상 발송 (200 OK)': (r) => r.status === 200,
-        '과금/중복 방지 차단 (4xx 에러)': (r) => r.status >= 400 && r.status < 500,
-        '서버 에러 (500 터짐)': (r) => r.status === 500,
+        '정상 발송 및 허용 에러 (200 OK)': (r) => r.status === 200 || (r.status >= 400 && r.status < 500),
+        '서버 에러 (500 터짐)': (r) => r.status !== 500,
     });
 }

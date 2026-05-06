@@ -35,12 +35,16 @@ public class RedisUtil {
         } catch (RedisConnectionFailureException | QueryTimeoutException e) {
             log.error("[Redis Blacklist] 등록 실패, accessToken: {}, reason: {}", accessToken, e.getMessage(), e);
 
-            // DB fallback : Redis 장애 중에도 로그아웃 토큰 차단 유지
-            LocalDateTime expirationTime = LocalDateTime.now().plus(duration);
-            BlacklistToken dbBlacklist = BlacklistToken.of(accessToken, object.toString(), expirationTime);
-            blacklistTokenRepository.save(dbBlacklist);
-
-            log.warn("[Redis Blacklist] DB에 블랙리스트 저장 완료, expiredAt: {}, reason: {}", accessToken, e.getMessage());
+            try {    // DB fallback : Redis 장애 중에도 로그아웃 토큰 차단 유지
+                if(!blacklistTokenRepository.existsByToken(accessToken)) {
+                    LocalDateTime expirationTime = LocalDateTime.now().plus(duration);
+                    String reason = (object != null) ? object.toString() : "Unknown";
+                    blacklistTokenRepository.save(BlacklistToken.of(accessToken, reason, expirationTime));
+                    log.warn("[Redis Blacklist] DB에 블랙리스트 저장 완료, expiredAt: {}", expirationTime);
+                }
+            } catch (Exception dbEx) {
+                log.error("[Redis Blacklist] DB fallback 저장 실패, reason: {}", dbEx.getMessage(), dbEx);
+            }
         }
     }
 

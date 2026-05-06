@@ -55,7 +55,6 @@ export default function () {
     }), {
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${tempToken}`
         },
     });
 
@@ -67,8 +66,8 @@ export default function () {
     }
 
 
-    let responseBody = res.json();
-    let tempToken = responseBody.data ? responseBody.data.tempToken : responseBody.tempToken;
+    const responseBody = res.json();
+    const tempToken = (responseBody && responseBody.data) || null;
 
     // 디버깅용: 토큰이 제대로 뽑혔는지 터미널에 출력해보기
     console.log(`추출된 토큰: ${tempToken}`);
