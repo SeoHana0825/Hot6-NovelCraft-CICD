@@ -94,7 +94,7 @@ export default function () {
     }
 
     // 백엔드 응답에 맞게 사용
-    let signupToken = res.json().signupToken || res.json().accessToken;
+    let signupToken = res.json().data.tempToken;
 
     // =========================================================
     // 독자(Reader) 부가 정보 입력 및 최종 권한 등록

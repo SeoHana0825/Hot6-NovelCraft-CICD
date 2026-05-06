@@ -43,7 +43,7 @@ public class RedisConfig {
     public ClientResources clientResources() {
 
         // natMappingIp가 비어있으면 기본 설정 사용 (배포 환경)
-        if(natMappingIp == null && natMappingIp.isBlank()) {
+        if(natMappingIp == null || natMappingIp.isBlank()) {
             return DefaultClientResources.create();
         }
 

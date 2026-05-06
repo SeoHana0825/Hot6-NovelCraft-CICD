@@ -48,8 +48,7 @@ public class RedissonConfig {
                 .map(node -> "redis://" + node)
                 .toArray(String[]::new);
 
-        config.useSentinelServers()
-                .setMasterName(masterName)
+        org.redisson.config.SentinelServersConfig sentinelConfig = config.useSentinelServers()                .setMasterName(masterName)
                 .addSentinelAddress(nodesArray)
                 .setCheckSentinelsList(false)  // sentinel 인식 확인
                 .setReadMode(org.redisson.config.ReadMode.SLAVE)
@@ -59,8 +58,7 @@ public class RedissonConfig {
 
         // 배포 시 같은 네트워크 써서 번역기가 필요 없다면 작동하지 않음
         if(natMappingIp != null && !natMappingIp.isBlank()) {
-            config.useSentinelServers()
-                .setNatMapper(uri -> new org.redisson.misc.RedisURI(
+            sentinelConfig.setNatMapper(uri -> new org.redisson.misc.RedisURI(
                     uri.getScheme() + "://" + natMappingIp + ":" + uri.getPort()
             ));
         }
