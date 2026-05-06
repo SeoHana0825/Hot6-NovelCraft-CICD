@@ -46,7 +46,7 @@ public class NovelRankingService {
 
         try {
             // 정상 : Redis에서 조회 시도
-            return buildRankingFromRedis(type, 5);
+            return buildRankingFromRedis(redisKey, 5);
 
         } catch (Exception e) {
             // 장애 : Redis 연결 실패 시 DB 쿼리로 우회

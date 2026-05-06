@@ -13,6 +13,8 @@ import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -38,6 +40,7 @@ public class NovelService {
     private final NovelRepository novelRepository;
     private final UserRepository userRepository;
     private final EpisodeCacheService episodeCacheService;
+    private final ObjectMapper objectMapper;
 
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -174,8 +177,26 @@ public class NovelService {
 
         if (cached != null) {
             log.debug("===== [캐시 HIT] key={} =====", cacheKey);
-            return (PageResponse<NovelListResponse>) cached;
-        }
+
+            // 타입을 명시적으로 조립
+            try {
+                JavaType targetType = objectMapper.getTypeFactory()
+                        .constructParametricType(PageResponse.class, NovelListResponse.class);
+
+                // 조립된 타입으로 변환
+                return objectMapper.convertValue(cached, targetType);
+
+            } catch (IllegalArgumentException e) {
+                log.warn("소설 목록 조회 캐시 역직렬화 실패, key={}", cacheKey, e);
+
+                // 실패 시 캐시 무효화 후 DB 경로로 폴백
+                try {
+                    redisTemplate.delete(cacheKey);
+                } catch (RuntimeException ignored) {}
+                }
+            }
+//            return (PageResponse<NovelListResponse>) cached;
+//        }
 
         log.debug("===== [캐시 MISS] key={} DB 조회 =====", cacheKey);
 

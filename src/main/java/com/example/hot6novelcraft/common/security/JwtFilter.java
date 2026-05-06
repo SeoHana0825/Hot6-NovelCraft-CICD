@@ -66,7 +66,8 @@ public class JwtFilter extends OncePerRequestFilter {
                     , "/api/novels/ranking"
                     , "/api/search/v2/novels"
                     , "/api/search/v2/tags"
-                    , "/api/search/v2/authors");
+                    , "/api/search/v2/authors"
+                    , "/actuator/prometheus");
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {

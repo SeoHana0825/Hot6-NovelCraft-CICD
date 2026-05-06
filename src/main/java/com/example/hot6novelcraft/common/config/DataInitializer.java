@@ -16,6 +16,7 @@ import com.example.hot6novelcraft.domain.user.repository.AuthorProfileRepository
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
@@ -28,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@Profile({"local", "dev", "test"})
+// @Profile({"local", "dev", "test"})
 public class DataInitializer implements ApplicationRunner {
 
     private final UserRepository userRepository;
@@ -44,6 +45,9 @@ public class DataInitializer implements ApplicationRunner {
     private static final String REALTIME_RANKING_KEY = "ranking:novel:realtime";
     private static final String WEEKLY_RANKING_KEY = "ranking:novel:weekly";
 
+    @Value("${app.init.bulk-data:false}")
+    private boolean enableBulkInsert;
+
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
@@ -53,14 +57,15 @@ public class DataInitializer implements ApplicationRunner {
 
         // 기존 데이터가 있으면 스킵
         // bulkInsertData() 사용 시, 3 -> 1000 으로 변경
-        if (userRepository.count() > 3) {
-            log.info("[DataInitializer] 기존 데이터 존재 → 더미데이터 삽입 스킵");
-            return;
+        if (enableBulkInsert) {
+            if (userRepository.count() < 100000) { // 대략적인 카운트로 방어 로직
+                log.info("[DataInitializer] 성능 테스트용 대용량 더미데이터(10만) 삽입을 시작합니다.");
+                bulkInsertData();
+            } else {
+                log.info("[DataInitializer] 대용량 데이터가 이미 존재하여 스킵합니다.");
+            }
+            return; // 대용량 데이터를 넣었으면 아래 소량 데이터 로직은 스킵
         }
-
-        // 성능 테스트 (유저 10만, 소설 5만) 진행 시 private bulkInsertData 주석 풀고
-        // 슈퍼 어드민을 제외한 기존 임시 데이터들은 주석
-//        bulkInsertData();
 
         log.info("[DataInitializer] 더미데이터 및 Redis 랭킹 세팅 시작");
 
@@ -229,76 +234,76 @@ public class DataInitializer implements ApplicationRunner {
         return saved.getId();
     }
 
-//        private void bulkInsertData () {
-//            log.info("[DataInitializer] 벌크 데이터 삽입 시작 (10만 건)");
-//
-//            // 1. 공통 비밀번호 (한 번만 인코딩해서 재사용)
-//            String encodedPassword = passwordEncoder.encode("test1234!");
-//
-//            // 2. 유저 10만 명 삽입
-//            String userSql = "INSERT INTO users (email, password, nickname, phone_no, role, is_deleted, created_at, is_adult_verified, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-//            int totalUsers = 100000;
-//            int batchSize = 1000; // 1,000건씩 묶어서 처리
-//
-//            for (int i = 0; i < totalUsers; i += batchSize) {
-//                int currentBatchSize = Math.min(batchSize, totalUsers - i);
-//                final int startIdx = i;
-//
-//                jdbcTemplate.batchUpdate(userSql, new org.springframework.jdbc.core.BatchPreparedStatementSetter() {
-//                    @Override
-//                    public void setValues(java.sql.PreparedStatement ps, int j) throws java.sql.SQLException {
-//                        int idx = startIdx + j;
-//                        ps.setString(1, "bulk_user" + idx + "@test.com");
-//                        ps.setString(2, encodedPassword);
-//                        ps.setString(3, "더미유저" + idx);
-//                        ps.setString(4, "010-0000-" + String.format("%04d", idx % 10000));
-//                        ps.setString(5, (idx % 10 == 0) ? "AUTHOR" : "READER"); // 10%는 작가로 설정
-//                        ps.setBoolean(6, false);
-//                        // 통계 테스트를 위해 생성 날짜를 최근 30일로 분산
-//                        ps.setTimestamp(7, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 30)));
-//                        ps.setBoolean(8, false);
-//                        ps.setTimestamp(9, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 30)));
-//                    }
-//
-//                    @Override
-//                    public int getBatchSize() {
-//                        return currentBatchSize;
-//                    }
-//                });
-//            }
-//            log.info("[DataInitializer] 유저 10만 건 삽입 완료");
-//
-//            // 3. 소설 5만 건 삽입 (작가가 작성한 것으로 가정)
-//            String novelSql = "INSERT INTO novels (author_id, title, description, genre, tags, status, is_deleted, created_at, bookmark_count, updated_at, view_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-//            int totalNovels = 50000;
-//
-//            for (int i = 0; i < totalNovels; i += batchSize) {
-//                int currentBatchSize = Math.min(batchSize, totalNovels - i);
-//                final int startIdx = i;
-//
-//                jdbcTemplate.batchUpdate(novelSql, new org.springframework.jdbc.core.BatchPreparedStatementSetter() {
-//                    @Override
-//                    public void setValues(java.sql.PreparedStatement ps, int j) throws java.sql.SQLException {
-//                        int idx = startIdx + j;
-//                        ps.setLong(1, (long) (1 + (idx % 100))); // 앞부분에 생성된 유저 ID와 연결
-//                        ps.setString(2, "대용량 소설 테스트 " + idx);
-//                        ps.setString(3, "설명입니다 " + idx);
-//                        ps.setString(4, (idx % 2 == 0) ? "FANTASY" : "ROMANCE");
-//                        ps.setString(5, "TAG1,TAG2");
-//                        ps.setString(6, "ONGOING");
-//                        ps.setBoolean(7, false);
-//                        ps.setTimestamp(8, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 60)));
-//                        ps.setInt(9, 0);
-//                        ps.setTimestamp(10, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 60)));
-//                        ps.setLong(11, 0L);
-//                    }
-//
-//                    @Override
-//                    public int getBatchSize() {
-//                        return currentBatchSize;
-//                    }
-//                });
-//            }
-//            log.info("[DataInitializer] 소설 5만 건 삽입 완료");
-//        }
+        private void bulkInsertData () {
+            log.info("[DataInitializer] 벌크 데이터 삽입 시작 (10만 건)");
+
+            // 1. 공통 비밀번호 (한 번만 인코딩해서 재사용)
+            String encodedPassword = passwordEncoder.encode("test1234!");
+
+            // 2. 유저 10만 명 삽입
+            String userSql = "INSERT INTO users (email, password, nickname, phone_no, role, is_deleted, created_at, is_adult_verified, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            int totalUsers = 100000;
+            int batchSize = 1000; // 1,000건씩 묶어서 처리
+
+            for (int i = 0; i < totalUsers; i += batchSize) {
+                int currentBatchSize = Math.min(batchSize, totalUsers - i);
+                final int startIdx = i;
+
+                jdbcTemplate.batchUpdate(userSql, new org.springframework.jdbc.core.BatchPreparedStatementSetter() {
+                    @Override
+                    public void setValues(java.sql.PreparedStatement ps, int j) throws java.sql.SQLException {
+                        int idx = startIdx + j;
+                        ps.setString(1, "bulk_user" + idx + "@test.com");
+                        ps.setString(2, encodedPassword);
+                        ps.setString(3, "더미유저" + idx);
+                        ps.setString(4, "010-0000-" + String.format("%04d", idx % 10000));
+                        ps.setString(5, (idx % 10 == 0) ? "AUTHOR" : "READER"); // 10%는 작가로 설정
+                        ps.setBoolean(6, false);
+                        // 통계 테스트를 위해 생성 날짜를 최근 30일로 분산
+                        ps.setTimestamp(7, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 30)));
+                        ps.setBoolean(8, false);
+                        ps.setTimestamp(9, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 30)));
+                    }
+
+                    @Override
+                    public int getBatchSize() {
+                        return currentBatchSize;
+                    }
+                });
+            }
+            log.info("[DataInitializer] 유저 10만 건 삽입 완료");
+
+            // 3. 소설 5만 건 삽입 (작가가 작성한 것으로 가정)
+            String novelSql = "INSERT INTO novels (author_id, title, description, genre, tags, status, is_deleted, created_at, bookmark_count, updated_at, view_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            int totalNovels = 50000;
+
+            for (int i = 0; i < totalNovels; i += batchSize) {
+                int currentBatchSize = Math.min(batchSize, totalNovels - i);
+                final int startIdx = i;
+
+                jdbcTemplate.batchUpdate(novelSql, new org.springframework.jdbc.core.BatchPreparedStatementSetter() {
+                    @Override
+                    public void setValues(java.sql.PreparedStatement ps, int j) throws java.sql.SQLException {
+                        int idx = startIdx + j;
+                        ps.setLong(1, (long) (1 + (idx % 100))); // 앞부분에 생성된 유저 ID와 연결
+                        ps.setString(2, "대용량 소설 테스트 " + idx);
+                        ps.setString(3, "설명입니다 " + idx);
+                        ps.setString(4, (idx % 2 == 0) ? "FANTASY" : "ROMANCE");
+                        ps.setString(5, "TAG1,TAG2");
+                        ps.setString(6, "ONGOING");
+                        ps.setBoolean(7, false);
+                        ps.setTimestamp(8, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 60)));
+                        ps.setInt(9, 0);
+                        ps.setTimestamp(10, java.sql.Timestamp.valueOf(java.time.LocalDateTime.now().minusDays(idx % 60)));
+                        ps.setLong(11, 0L);
+                    }
+
+                    @Override
+                    public int getBatchSize() {
+                        return currentBatchSize;
+                    }
+                });
+            }
+            log.info("[DataInitializer] 소설 5만 건 삽입 완료");
+        }
     }
