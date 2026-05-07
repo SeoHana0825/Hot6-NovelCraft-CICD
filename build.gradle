@@ -28,6 +28,10 @@ dependencies {
     implementation platform('org.springframework.ai:spring-ai-bom:1.0.0')
     // Spring AI - OpenAI (ChatClient + Embedding)
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    // Spring AI - VectorStore (SimpleVectorStore 포함)
+    implementation 'org.springframework.ai:spring-ai-vector-store'
+    // Spring AI - QuestionAnswerAdvisor (RAG)
+    implementation 'org.springframework.ai:spring-ai-advisors-vector-store'
 
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'

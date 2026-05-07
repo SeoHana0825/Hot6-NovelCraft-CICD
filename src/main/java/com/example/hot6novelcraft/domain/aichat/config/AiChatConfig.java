@@ -1,12 +1,15 @@
 package com.example.hot6novelcraft.domain.aichat.config;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
+import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.vectorstore.SimpleVectorStore;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -27,14 +30,26 @@ public class AiChatConfig {
                 .build();
     }
 
+    /**
+     * 인메모리 벡터 스토어 빈
+     * - EmbeddingModel: spring-ai-starter-model-openai가 자동 구성하는 OpenAI text-embedding 모델
+     * - 개발: SimpleVectorStore (인메모리, 재시작 시 초기화 → KnowledgeBaseLoader가 재적재)
+     * - 운영: 4단계에서 PGVector 등 영속 스토어로 교체 예정
+     */
     @Bean
-    public ChatClient customerServiceChatClient(ChatModel chatModel, ChatMemory chatMemory) {
+    public VectorStore vectorStore(EmbeddingModel embeddingModel) {
+        return SimpleVectorStore.builder(embeddingModel).build();
+    }
+
+    @Bean
+    public ChatClient customerServiceChatClient(ChatModel chatModel, ChatMemory chatMemory, VectorStore vectorStore) {
         return ChatClient.builder(chatModel)
                 .defaultOptions(OpenAiChatOptions.builder()
                         .model("gpt-4.1-nano")
                         .build())
                 .defaultAdvisors(
-                        new SimpleLoggerAdvisor() // 디버깅용 로그
+                        new QuestionAnswerAdvisor(vectorStore), // RAG: 질문과 유사한 FAQ 문서 검색 후 컨텍스트 주입
+                        new SimpleLoggerAdvisor()               // 디버깅용 로그
                         // MessageChatMemoryAdvisor는 conversationId가 요청마다 다르므로 서비스에서 요청별 생성
                 )
                 .defaultSystem("""
