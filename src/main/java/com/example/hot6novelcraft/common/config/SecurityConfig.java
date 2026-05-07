@@ -107,6 +107,7 @@ public class SecurityConfig {
                         ).permitAll()
                                 .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
                                 .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")
+                                .requestMatchers("/api/ai-support/**").authenticated()
                 .anyRequest().authenticated()
                 )
                 .build();

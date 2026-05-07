@@ -24,6 +24,11 @@ dependencies {
     // Google Gemini SDK
     implementation 'com.google.genai:google-genai:1.0.0'
 
+    // Spring AI BOM
+    implementation platform('org.springframework.ai:spring-ai-bom:1.0.0')
+    // Spring AI - OpenAI (ChatClient + Embedding)
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
