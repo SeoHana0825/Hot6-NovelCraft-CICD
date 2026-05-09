@@ -94,4 +94,31 @@ public class PointService {
                         "이벤트 참여 보상 지급 (eventId: " + eventId + ")")
         );
     }
+
+    /**
+     * AI 리뷰 사용 포인트 차감
+     * - AI 리뷰 호출 성공 후 호출
+     */
+    @Transactional
+    public void deductForAi(Long userId, Long amount, Long episodeId) {
+        Point point = pointRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceErrorException(PaymentExceptionEnum.ERR_POINT_NOT_FOUND));
+
+        if (point.getBalance() < amount) {
+            throw new ServiceErrorException(PaymentExceptionEnum.ERR_INSUFFICIENT_POINT);
+        }
+
+        point.deduct(amount);
+
+        pointHistoryRepository.save(
+                PointHistory.create(
+                        userId,
+                        null,
+                        episodeId,
+                        amount,
+                        PointHistoryType.AI,
+                        "AI 리뷰 사용 (episodeId: " + episodeId + ")"
+                )
+        );
+    }
 }
