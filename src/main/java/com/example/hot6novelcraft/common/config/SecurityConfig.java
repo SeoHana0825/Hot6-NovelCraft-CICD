@@ -106,6 +106,7 @@ public class SecurityConfig {
                                 , "/ws-chat/**"
                                 , "/ws-chat/**"
                                 , "/actuator/**"
+                                , "/api/ai/recommendation"
                         ).permitAll()
                                 .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
                                 .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")

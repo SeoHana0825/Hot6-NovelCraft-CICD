@@ -1,14 +1,15 @@
 package com.example.hot6novelcraft.domain.coverai.service;
 
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
-import com.example.hot6novelcraft.domain.coverai.client.GeminiClient;
-import com.example.hot6novelcraft.domain.coverai.dto.response.CoverCreateResponse;
+import com.example.hot6novelcraft.domain.coverai.dto.event.CoverGenerationEvent;
+import com.example.hot6novelcraft.domain.coverai.dto.event.CoverJobCreatedEvent;
+import com.example.hot6novelcraft.domain.coverai.dto.response.CoverJobResponse;
+import com.example.hot6novelcraft.domain.coverai.entity.CoverJob;
+import com.example.hot6novelcraft.domain.coverai.entity.enums.CoverJobStatus;
+import com.example.hot6novelcraft.domain.coverai.repository.CoverJobRepository;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
-import com.example.hot6novelcraft.domain.point.entity.PointHistory;
-import com.example.hot6novelcraft.domain.point.repository.PointHistoryRepository;
-import com.example.hot6novelcraft.domain.point.service.PointService;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
@@ -20,11 +21,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
 import java.util.Optional;
 
@@ -32,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class CoverServiceTest {
@@ -40,12 +38,10 @@ class CoverServiceTest {
     @InjectMocks
     private CoverService coverService;
 
-    @Mock private GeminiClient geminiClient;
-    @Mock private NovelRepository novelRepository;
-    @Mock private S3Client s3Client;
     @Mock private UserRepository userRepository;
-    @Mock private PointHistoryRepository pointHistoryRepository;
-    @Mock private PointService pointService;
+    @Mock private NovelRepository novelRepository;
+    @Mock private CoverJobRepository coverJobRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     private User author;
     private User reader;
@@ -53,9 +49,6 @@ class CoverServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(coverService, "bucketName", "test-bucket");
-        ReflectionTestUtils.setField(coverService, "region", "ap-northeast-2");
-
         author = User.register("author@test.com", "password", "테스트작가", "01012345678", null, UserRole.AUTHOR);
         ReflectionTestUtils.setField(author, "id", 1L);
 
@@ -77,29 +70,45 @@ class CoverServiceTest {
     }
 
     @Test
-    @DisplayName("소설 표지 생성 성공")
+    @DisplayName("표지 생성 요청 성공 - jobId 즉시 반환")
     void generateCover_success() {
         // given
         given(userRepository.findById(1L)).willReturn(Optional.of(author));
         given(novelRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(novel));
-        given(geminiClient.generateImage(any())).willReturn(new byte[]{1, 2, 3});
-        given(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
-                .willReturn(PutObjectResponse.builder().build());
-        given(pointHistoryRepository.save(any(PointHistory.class))).willReturn(null);
+        given(coverJobRepository.save(any(CoverJob.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // when
-        CoverCreateResponse response = coverService.generateCover(1L, 1L);
+        CoverJobResponse response = coverService.generateCover(1L, 1L);
 
         // then
+        assertThat(response.jobId()).isNotNull();
         assertThat(response.novelId()).isEqualTo(1L);
-        assertThat(response.coverImageUrl()).contains("test-bucket");
-        assertThat(response.coverImageUrl()).contains("ap-northeast-2");
-        assertThat(response.coverImageUrl()).contains("covers/1/");
+        assertThat(response.status()).isEqualTo(CoverJobStatus.PENDING);
+        assertThat(response.coverImageUrl()).isNull();
 
-        verify(pointService).deduct(1L, 300L);
-        verify(pointHistoryRepository).save(any(PointHistory.class));
-        verify(geminiClient).generateImage(any());
-        verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+        verify(coverJobRepository).save(any(CoverJob.class));
+        verify(eventPublisher).publishEvent(any(CoverJobCreatedEvent.class));
+    }
+
+    @Test
+    @DisplayName("Kafka 발행 시 jobId와 novelId가 올바르게 전달되는지 확인")
+    void generateCover_kafkaPublishWithCorrectEvent() {
+        // given
+        given(userRepository.findById(1L)).willReturn(Optional.of(author));
+        given(novelRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(novel));
+        given(coverJobRepository.save(any(CoverJob.class))).willAnswer(invocation -> invocation.getArgument(0));
+
+        ArgumentCaptor<CoverJobCreatedEvent> eventCaptor = ArgumentCaptor.forClass(CoverJobCreatedEvent.class);
+
+        // when
+        CoverJobResponse response = coverService.generateCover(1L, 1L);
+
+        // then
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        CoverJobCreatedEvent event = eventCaptor.getValue();
+        assertThat(event.jobId()).isEqualTo(response.jobId());
+        assertThat(event.novelId()).isEqualTo(1L);
+        assertThat(event.userId()).isEqualTo(1L);
     }
 
     @Test
@@ -156,46 +165,45 @@ class CoverServiceTest {
     }
 
     @Test
-    @DisplayName("S3 업로드 실패 - IMAGE_UPLOAD_FAILED 예외")
-    void generateCover_s3UploadFailed() {
+    @DisplayName("상태 조회 성공")
+    void getJobStatus_success() {
         // given
-        given(userRepository.findById(1L)).willReturn(Optional.of(author));
-        given(novelRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(novel));
-        given(geminiClient.generateImage(any())).willReturn(new byte[]{1, 2, 3});
-        given(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
-                .willThrow(new RuntimeException("S3 연결 실패"));
+        CoverJob job = CoverJob.create("test-job-id", 1L, 1L);
+        ReflectionTestUtils.setField(job, "status", CoverJobStatus.COMPLETED);
+        ReflectionTestUtils.setField(job, "coverImageUrl", "https://s3.amazonaws.com/test.png");
 
-        // when & then
-        assertThatThrownBy(() -> coverService.generateCover(1L, 1L))
-                .isInstanceOf(ServiceErrorException.class)
-                .hasMessageContaining("이미지 업로드에 실패했습니다");
+        given(coverJobRepository.findByJobId("test-job-id")).willReturn(Optional.of(job));
 
-        // S3 실패 시 포인트 차감이 일어나지 않아야 함
-        verify(pointService, never()).deduct(any(), any());
-        verify(pointHistoryRepository, never()).save(any());
+        // when
+        CoverJobResponse response = coverService.getJobStatus("test-job-id", 1L);
+
+        // then
+        assertThat(response.status()).isEqualTo(CoverJobStatus.COMPLETED);
+        assertThat(response.coverImageUrl()).isEqualTo("https://s3.amazonaws.com/test.png");
     }
 
     @Test
-    @DisplayName("프롬프트에 소설 제목과 작가명이 포함되는지 확인")
-    void generateCover_promptContainsTitleAndAuthor() {
+    @DisplayName("존재하지 않는 jobId - JOB_NOT_FOUND 예외")
+    void getJobStatus_jobNotFound() {
         // given
-        given(userRepository.findById(1L)).willReturn(Optional.of(author));
-        given(novelRepository.findByIdAndIsDeletedFalse(1L)).willReturn(Optional.of(novel));
-        given(geminiClient.generateImage(any())).willReturn(new byte[]{1, 2, 3});
-        given(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
-                .willReturn(PutObjectResponse.builder().build());
-        given(pointHistoryRepository.save(any())).willReturn(null);
+        given(coverJobRepository.findByJobId("invalid-job-id")).willReturn(Optional.empty());
 
-        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        // when & then
+        assertThatThrownBy(() -> coverService.getJobStatus("invalid-job-id", 1L))
+                .isInstanceOf(ServiceErrorException.class)
+                .hasMessageContaining("표지 생성 작업을 찾을 수 없습니다");
+    }
 
-        // when
-        coverService.generateCover(1L, 1L);
+    @Test
+    @DisplayName("본인 작업이 아닌 경우 - NOT_NOVEL_OWNER 예외")
+    void getJobStatus_notOwner() {
+        // given
+        CoverJob job = CoverJob.create("test-job-id", 1L, 1L);
+        given(coverJobRepository.findByJobId("test-job-id")).willReturn(Optional.of(job));
 
-        // then
-        verify(geminiClient).generateImage(promptCaptor.capture());
-        String prompt = promptCaptor.getValue();
-        assertThat(prompt).contains("달빛 아래 검은 장미");
-        assertThat(prompt).contains("테스트작가 지음");
-        assertThat(prompt).contains("판타지");
+        // when & then
+        assertThatThrownBy(() -> coverService.getJobStatus("test-job-id", 99L))
+                .isInstanceOf(ServiceErrorException.class)
+                .hasMessageContaining("본인의 소설만 표지를 생성할 수 있습니다");
     }
 }

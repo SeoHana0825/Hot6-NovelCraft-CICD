@@ -1,25 +1,20 @@
 package com.example.hot6novelcraft.domain.coverai.service;
 
-import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.CoverExceptionEnum;
-import com.example.hot6novelcraft.domain.coverai.client.GeminiClient;
-import com.example.hot6novelcraft.domain.coverai.dto.response.CoverCreateResponse;
+import com.example.hot6novelcraft.domain.coverai.dto.event.CoverJobCreatedEvent;
+import com.example.hot6novelcraft.domain.coverai.dto.response.CoverJobResponse;
+import com.example.hot6novelcraft.domain.coverai.entity.CoverJob;
+import com.example.hot6novelcraft.domain.coverai.repository.CoverJobRepository;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
-import com.example.hot6novelcraft.domain.point.entity.PointHistory;
-import com.example.hot6novelcraft.domain.point.entity.enums.PointHistoryType;
-import com.example.hot6novelcraft.domain.point.repository.PointHistoryRepository;
-import com.example.hot6novelcraft.domain.point.service.PointService;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -28,22 +23,13 @@ import java.util.UUID;
 @Slf4j
 public class CoverService {
 
-    private final GeminiClient geminiClient;
-    private final NovelRepository novelRepository;
-    private final S3Client s3Client;
     private final UserRepository userRepository;
-    private final PointHistoryRepository pointHistoryRepository;
-    private final PointService pointService;
+    private final NovelRepository novelRepository;
+    private final CoverJobRepository coverJobRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    private static final Long COVER_COST = 300L;
-
-    @Value("${spring.cloud.aws.s3.bucket}")
-    private String bucketName;
-
-    @Value("${spring.cloud.aws.region.static}")
-    private String region;
-
-    public CoverCreateResponse generateCover(Long novelId, Long userId) {
+    @Transactional
+    public CoverJobResponse generateCover(Long novelId, Long userId) {
 
         // 1. 작가 권한 확인
         User user = userRepository.findById(userId)
@@ -61,56 +47,27 @@ public class CoverService {
             throw CoverExceptionEnum.NOT_NOVEL_OWNER.toException();
         }
 
-        // 3. 외부 API 먼저 호출 (실패 시 포인트 소실 방지)
-        String prompt = buildPrompt(novel, user.getNickname());
-        byte[] imageBytes = geminiClient.generateImage(prompt);
-        String s3Url = uploadToS3(imageBytes, novelId);
+        // 3. Job 생성
+        String jobId = UUID.randomUUID().toString();
+        CoverJob job = CoverJob.create(jobId, novelId, userId);
+        coverJobRepository.save(job);
 
-        // 4. 성공 후 포인트 차감 및 이력 저장
-        pointService.deduct(userId, COVER_COST);
-        pointHistoryRepository.save(
-                PointHistory.create(userId, novelId, null, COVER_COST, PointHistoryType.AI_COVER, "AI 소설 표지 생성")
-        );
+        // 4. 트랜잭션 커밋 후 Kafka 발행 (5번 반영)
+        eventPublisher.publishEvent(new CoverJobCreatedEvent(jobId, novelId, userId));
 
-        return CoverCreateResponse.of(novelId, s3Url);
+        log.info("[Cover] 표지 생성 요청 완료 jobId={} novelId={}", jobId, novelId);
+        return CoverJobResponse.from(job);
     }
 
-    private String uploadToS3(byte[] imageBytes, Long novelId) {
-        try {
-            String s3Key = "covers/" + novelId + "/" + UUID.randomUUID() + ".png";
+    @Transactional(readOnly = true)
+    public CoverJobResponse getJobStatus(String jobId, Long userId) {
+        CoverJob job = coverJobRepository.findByJobId(jobId)
+                .orElseThrow(() -> CoverExceptionEnum.JOB_NOT_FOUND.toException());
 
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(s3Key)
-                    .contentType("image/png")
-                    .contentLength((long) imageBytes.length)
-                    .build();
-
-            s3Client.putObject(putObjectRequest, RequestBody.fromBytes(imageBytes));
-
-            String s3Url = String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, s3Key);
-            log.info("[Cover] S3 업로드 성공: {}", s3Url);
-            return s3Url;
-
-        } catch (ServiceErrorException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("[Cover] S3 업로드 실패", e);
-            throw CoverExceptionEnum.IMAGE_UPLOAD_FAILED.toException();
+        if (!job.getUserId().equals(userId)) {
+            throw CoverExceptionEnum.NOT_NOVEL_OWNER.toException();
         }
-    }
 
-    private String buildPrompt(Novel novel, String authorName) {
-        return String.format(
-                "Create a professional Korean novel cover image. " +
-                        "The title '%s' must be written clearly and legibly at the top in large, stylish Korean typography. " +
-                        "Below the title, write the author name '%s 지음' in smaller Korean text. " +
-                        "Genre: %s. Story summary: %s. " +
-                        "Style: cinematic, high quality book cover art.",
-                novel.getTitle(),
-                authorName,
-                novel.getGenre(),
-                novel.getDescription()
-        );
+        return CoverJobResponse.from(job);
     }
 }
