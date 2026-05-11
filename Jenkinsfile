@@ -2,10 +2,10 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'minwoo/novelcraft'
+        DOCKER_IMAGE = 'hana/novelcraft'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        APP_EC2_IP = '43.200.129.27'
-        FRONTEND_URL = 'https://43.200.129.27:8080'
+        APP_EC2_IP = '43.203.216.98'
+        FRONTEND_URL = 'https://43.203.216.98:8080'
     }
 
     stages {
