@@ -3,17 +3,17 @@ ssl: false
 lowercaseOutputName: true
 lowercaseOutputLabelNames: true
 rules:
-   # 브로커 기본 메트릭
-    - pattern: "kafka.server<type=(.+), name=(.+)><>Value"
-      name: kafka_server_$1_$2
-      type: GAUGE
+  # 브로커 기본 메트릭
+  - pattern: "kafka.server<type=(.+), name=(.+)><>Value"
+    name: kafka_server_$1_$2
+    type: GAUGE
 
-    # 브로커 확장 메트릭 (topic/partition 등 추가 key property)
-    - pattern: "kafka.server<type=(.+), name=(.+), (.+)=(.+)><>Value"
-      name: kafka_server_$1_$2
-      labels:
-        "$3": "$4"
-      type: GAUGE
+  # 브로커 확장 메트릭 (topic/partition 등 추가 key property)
+  - pattern: "kafka.server<type=(.+), name=(.+), (.+)=(.+)><>Value"
+    name: kafka_server_$1_$2
+    labels:
+      "$3": "$4"
+    type: GAUGE
 
   # 네트워크 메트릭
   - pattern: "kafka.network<type=(.+), name=(.+)><>Value"
