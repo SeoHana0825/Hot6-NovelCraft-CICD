@@ -3,6 +3,7 @@ package com.example.hot6novelcraft.domain.novel.repository;
 import com.example.hot6novelcraft.domain.novel.dto.response.AuthorNovelListResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelDetailResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelListResponse;
+import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,5 +23,11 @@ public interface CustomNovelRepository {
 
     // 작가용 소설 목록 조회(본인소설, 모든상태 포함!)
     Page<AuthorNovelListResponse> findAuthorNovelList(Long authorId, Pageable pageable);
+
+    // 최근 1시간 실시간 인기 TOP 소설 목록 조회 - 서하나
+    List<Novel> findHourlyTopNovels(int limit);
+
+    // 최근 일주일 주간 인기 TOP 소설 목록 조회 - 서하나
+    List<Novel> findWeeklyTopNovels(int limit);
 
 }

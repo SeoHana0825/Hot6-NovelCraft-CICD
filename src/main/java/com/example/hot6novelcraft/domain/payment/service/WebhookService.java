@@ -105,65 +105,58 @@ public class WebhookService {
             return;
         }
 
-        if (isTerminalStatus(payment.getStatus())) {
-            // 이미 최종 상태 — /confirm 또는 이전 웹훅이 처리 완료
-            log.info("웹훅 보정 불필요 - 이미 최종 상태 paymentId={} status={}", paymentId, payment.getStatus());
-            webhookTransactionService.markEventComplete(webhookEvent.getId());
-            return;
-        }
-
-        // 4. Payment가 PENDING 상태 — /confirm 누락 보정
+        // 4. 포트원 상태 기준으로 분기 처리
         if (portOnePayment instanceof PaidPayment paidPayment) {
-            PaymentMethod resolvedMethod = PaymentMethod.from(paidPayment.getMethod());
-
-            // 구독 결제인지 확인 (paymentKey가 "subscription-"으로 시작)
-            boolean isSubscriptionPayment = isSubscriptionPayment(paymentId);
-
-            // /confirm과 동일한 Lock 키로 상호 배제 — 하나만 포인트 충전 수행
-            // ⚠️ 구독 결제는 subscriptionId 기반 Lock (SubscriptionService와 동일한 키 패턴)
-            String lockKey;
-            Long subscriptionId = null;
-
-            if (isSubscriptionPayment) {
-                subscriptionId = extractSubscriptionId(paymentId);
-                if (subscriptionId == null) {
-                    log.error("웹훅 구독 결제 처리 실패: subscriptionId 추출 불가 paymentId={}", paymentId);
-                    webhookTransactionService.markEventFailed(webhookEvent.getId(),
-                            "paymentKey 형식 오류로 subscriptionId 추출 실패");
-                    return;
-                }
-                lockKey = "subscription:complete:lock:" + subscriptionId;
-            } else {
-                lockKey = "payment:confirm:lock:" + paymentId;
-            }
-
-            if (!redisUtil.acquireLock(lockKey)) {
-                // /confirm이 처리 중 — WebhookEvent를 PENDING으로 두어 포트원 재시도 시 재처리
-                log.warn("웹훅: Lock 획득 실패 (처리 중) paymentId={} → 포트원이 재시도 예정", paymentId);
+            // COMPLETED 또는 REFUNDED → 이미 처리됨
+            if (payment.getStatus() == PaymentStatus.COMPLETED || payment.getStatus() == PaymentStatus.REFUNDED) {
+                log.info("웹훅 보정 불필요 - 이미 최종 상태 paymentId={} status={}", paymentId, payment.getStatus());
+                webhookTransactionService.markEventComplete(webhookEvent.getId());
                 return;
             }
-            try {
-                if (isSubscriptionPayment) {
-                    // 구독 결제 처리
-                    webhookTransactionService.completePendingSubscriptionPayment(
-                            webhookEvent.getId(), payment.getId(), resolvedMethod, subscriptionId);
-                    log.info("웹훅 구독 결제 보정 완료 paymentId={} subscriptionId={}", paymentId, subscriptionId);
-                } else {
-                    // 일반 결제 처리
-                    webhookTransactionService.completePendingPayment(webhookEvent.getId(), payment.getId(), resolvedMethod);
-                    log.info("웹훅 보정 처리 완료 (/confirm 누락) paymentId={}", paymentId);
-                }
-            } finally {
-                redisUtil.releaseLock(lockKey);
-            }
+            // PENDING 또는 FAILED(confirm 타임아웃으로 잘못 처리된 케이스) → 결제 완료 보정
+            completePaymentFromWebhook(webhookEvent, payment, paidPayment, paymentId);
+
         } else if (portOnePayment instanceof FailedPayment) {
-            // PortOne에서 결제 실패로 확인 → PENDING이면 FAILED로 전환 (포인트 변동 없음)
+            // PENDING만 FAILED로 전환, 그 외 이미 최종 상태
+            if (payment.getStatus() != PaymentStatus.PENDING) {
+                log.info("웹훅 보정 불필요 - FAILED 처리 불가 상태 paymentId={} status={}", paymentId, payment.getStatus());
+                webhookTransactionService.markEventComplete(webhookEvent.getId());
+                return;
+            }
             webhookTransactionService.failPendingPayment(webhookEvent.getId(), payment.getId());
             log.info("웹훅 결제 실패 처리 완료 paymentId={}", paymentId);
-        } else if (portOnePayment instanceof CancelledPayment || portOnePayment instanceof PartialCancelledPayment) {
-            // 결제창 열림 후 완료 전 취소된 케이스 (PortOne 타임아웃 등) → PENDING이면 FAILED로 전환
+
+        } else if (portOnePayment instanceof CancelledPayment) {
+            // REFUNDED / FAILED → 이미 최종 상태
+            if (payment.getStatus() == PaymentStatus.REFUNDED || payment.getStatus() == PaymentStatus.FAILED) {
+                log.info("웹훅 보정 불필요 - 이미 최종 상태 paymentId={} status={}", paymentId, payment.getStatus());
+                webhookTransactionService.markEventComplete(webhookEvent.getId());
+                return;
+            }
+            // COMPLETED → 환불 타임아웃 케이스: compensateDeduct 이후 포트원은 취소됐으나 DB가 COMPLETED로 남은 경우
+            if (payment.getStatus() == PaymentStatus.COMPLETED) {
+                log.info("웹훅 환불 보정 시작 (COMPLETED→REFUNDED) paymentId={}", paymentId);
+                String cancelLockKey = "payment:cancel:lock:" + paymentId;
+                if (!redisUtil.acquireLock(cancelLockKey)) {
+                    log.warn("웹훅 환불 보정: Lock 획득 실패 (처리 중) paymentId={} → 포트원이 재시도 예정", paymentId);
+                    return;
+                }
+                try {
+                    webhookTransactionService.finalizeRefundFromWebhook(webhookEvent.getId(), payment.getId());
+                } finally {
+                    redisUtil.releaseLock(cancelLockKey);
+                }
+                return;
+            }
+            // PENDING → 결제창 열린 후 완료 전 취소된 케이스
             webhookTransactionService.failPendingPayment(webhookEvent.getId(), payment.getId());
-            log.info("웹훅 결제 취소 처리 완료 (PENDING 상태) paymentId={}", paymentId);
+            log.info("웹훅 결제 취소 처리 완료 (PENDING→FAILED) paymentId={}", paymentId);
+
+        } else if (portOnePayment instanceof PartialCancelledPayment) {
+            // 부분 취소는 서비스 정책상 미지원 — 결제 상태 변경 없이 이벤트만 완료 처리
+            log.warn("웹훅 부분 취소 수신 (미지원) paymentId={} status={}", paymentId, payment.getStatus());
+            webhookTransactionService.markEventComplete(webhookEvent.getId());
+
         } else {
             log.warn("웹훅 알 수 없는 상태 paymentId={} portOneType={}", paymentId, portOnePayment.getClass().getSimpleName());
             webhookTransactionService.markEventFailed(webhookEvent.getId(),
@@ -171,16 +164,50 @@ public class WebhookService {
         }
     }
 
+    private void completePaymentFromWebhook(WebhookEvent webhookEvent, Payment payment,
+                                            PaidPayment paidPayment, String paymentId) {
+        PaymentMethod resolvedMethod = PaymentMethod.from(paidPayment.getMethod());
+        boolean isSubscriptionPayment = isSubscriptionPayment(paymentId);
+
+        String lockKey;
+        Long subscriptionId = null;
+
+        if (isSubscriptionPayment) {
+            subscriptionId = extractSubscriptionId(paymentId);
+            if (subscriptionId == null) {
+                log.error("웹훅 구독 결제 처리 실패: subscriptionId 추출 불가 paymentId={}", paymentId);
+                webhookTransactionService.markEventFailed(webhookEvent.getId(),
+                        "paymentKey 형식 오류로 subscriptionId 추출 실패");
+                return;
+            }
+            lockKey = "subscription:complete:lock:" + subscriptionId;
+        } else {
+            lockKey = "payment:confirm:lock:" + paymentId;
+        }
+
+        if (!redisUtil.acquireLock(lockKey)) {
+            // /confirm이 처리 중 — WebhookEvent를 PENDING으로 두어 포트원 재시도 시 재처리
+            log.warn("웹훅: Lock 획득 실패 (처리 중) paymentId={} → 포트원이 재시도 예정", paymentId);
+            return;
+        }
+        try {
+            if (isSubscriptionPayment) {
+                webhookTransactionService.completePendingSubscriptionPayment(
+                        webhookEvent.getId(), payment.getId(), resolvedMethod, subscriptionId);
+                log.info("웹훅 구독 결제 보정 완료 paymentId={} subscriptionId={}", paymentId, subscriptionId);
+            } else {
+                webhookTransactionService.completePendingPayment(webhookEvent.getId(), payment.getId(), resolvedMethod);
+                log.info("웹훅 보정 처리 완료 paymentId={} status={}", paymentId, payment.getStatus());
+            }
+        } finally {
+            redisUtil.releaseLock(lockKey);
+        }
+    }
+
     private boolean isProcessableType(String type) {
         return "Transaction.Paid".equals(type)
                 || "Transaction.Failed".equals(type)
                 || "Transaction.Cancelled".equals(type);
-    }
-
-    private boolean isTerminalStatus(PaymentStatus status) {
-        return status == PaymentStatus.COMPLETED
-                || status == PaymentStatus.REFUNDED
-                || status == PaymentStatus.FAILED;
     }
 
     private WebhookEventType parseEventType(String type) {

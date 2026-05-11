@@ -26,7 +26,10 @@ public record CommonSignupRequest(
 
     @NotBlank(message = "휴대폰번호 입력은 필수입니다.")
     @Pattern(regexp = "^010\\d{7,8}$", message = "유효하지 않은 휴대폰 번호 형식입니다.")
-    String phoneNo
+    String phoneNo,
+
+    @NotBlank
+    String tempToken
 
 ) {
     public CommonSignupRequest {

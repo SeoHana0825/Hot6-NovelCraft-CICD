@@ -3,6 +3,8 @@ package com.example.hot6novelcraft.domain.subscription.service;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.SubscriptionExceptionEnum;
 import com.example.hot6novelcraft.common.security.RedisUtil;
+import com.example.hot6novelcraft.domain.notification.dto.event.NotificationEvent;
+import com.example.hot6novelcraft.domain.notification.producer.NotificationProducer;
 import com.example.hot6novelcraft.domain.subscription.dto.request.SubscriptionCancelRequest;
 import com.example.hot6novelcraft.domain.subscription.dto.request.SubscriptionCompleteRequest;
 import com.example.hot6novelcraft.domain.subscription.dto.request.SubscriptionPrepareRequest;
@@ -34,6 +36,7 @@ public class SubscriptionService {
     private final RedisUtil redisUtil;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final NotificationProducer notificationProducer;
 
     @Value("${portone.api-secret}")
     private String portoneApiSecret;
@@ -49,7 +52,7 @@ public class SubscriptionService {
         request.planType().validateAmount(request.amount());
         log.info("[구독 준비] 금액 검증 통과 planType={} amount={}", request.planType(), request.amount());
 
-        // 3. subscriptionKey 생성 (이니시스 V2 issueId 40자 제한 고려 → UUID만 사용, 36자)
+        // 3. subscriptionKey 생성 (UUID 기반, 36자)
         String subscriptionKey = UUID.randomUUID().toString();
 
         // 4. PENDING Subscription 생성
@@ -113,6 +116,10 @@ public class SubscriptionService {
             log.info("[구독 완료] userId={}, subscriptionId={}, billingKey={}",
                     userId, completedSubscription.getId(), request.billingKey());
 
+            notificationProducer.publish(
+                    NotificationEvent.subscriptionActivated(userId, completedSubscription.getId())
+            );
+
             return SubscriptionResponse.from(completedSubscription);
 
         } catch (ServiceErrorException e) {
@@ -166,15 +173,22 @@ public class SubscriptionService {
             );
 
             if (response.getStatusCode() == HttpStatus.OK) {
-                // 🔍 응답 바디 파싱 및 PortOne 상태 코드 검증
-                String responseBody = response.getBody();
-                JsonNode jsonResponse = objectMapper.readTree(responseBody);
-                String paymentStatus = jsonResponse.path("status").asText();
+                log.debug("[빌링키 결제] PortOne 응답 바디: {}", response.getBody());
 
-                // PortOne Payment 상태 검증 (PAID만 성공으로 처리)
+                // TossPayments는 빌링키 결제 초기 응답에 status 없이 pgTxId/paidAt만 반환하므로
+                // GET /payments/{paymentId} 로 최종 상태를 별도 조회
+                String getUrl = "https://api.portone.io/payments/" + paymentKey;
+                ResponseEntity<String> getResponse = restTemplate.exchange(
+                        getUrl, HttpMethod.GET, new HttpEntity<>(headers), String.class
+                );
+                log.debug("[빌링키 결제] 결제 조회 응답: {}", getResponse.getBody());
+
+                JsonNode fetchedPayment = objectMapper.readTree(getResponse.getBody());
+                String paymentStatus = fetchedPayment.path("status").asText();
+
                 if (!"PAID".equals(paymentStatus)) {
-                    String failureReason = jsonResponse.path("failure").path("reason").asText("알 수 없음");
-                    String pgMessage = jsonResponse.path("failure").path("pgMessage").asText("");
+                    String failureReason = fetchedPayment.path("failure").path("reason").asText("알 수 없음");
+                    String pgMessage = fetchedPayment.path("failure").path("pgMessage").asText("");
                     log.error("[빌링키 결제 실패] PortOne 상태={}, 사유={}, PG메시지={}, paymentKey={}",
                             paymentStatus, failureReason, pgMessage, paymentKey);
                     throw new ServiceErrorException(SubscriptionExceptionEnum.ERR_PORTONE_API_ERROR);
@@ -265,6 +279,10 @@ public class SubscriptionService {
             subscriptionTransactionService.cancelSubscription(subscriptionId);
 
             log.info("[구독 취소] userId={}, subscriptionId={}", userId, subscriptionId);
+
+            notificationProducer.publish(
+                    NotificationEvent.subscriptionCancelled(userId, subscriptionId)
+            );
 
         } finally {
             redisUtil.releaseLock(lockKey);

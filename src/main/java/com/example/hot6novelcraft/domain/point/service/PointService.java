@@ -77,4 +77,48 @@ public class PointService {
                 .map(Point::getBalance)
                 .orElse(0L);
     }
+
+    /**
+     * 이벤트 보상 포인트 지급
+     * - 선착순 참여 성공 시 즉시 호출
+     */
+    @Transactional
+    public void chargeEventReward(Long userId, Long amount, Long eventId) {
+        Point point = pointRepository.findByUserId(userId)
+                .orElseGet(() -> pointRepository.save(Point.create(userId)));
+
+        point.charge(amount);
+
+        pointHistoryRepository.save(
+                PointHistory.create(userId, null, null, amount, PointHistoryType.EVENT,
+                        "이벤트 참여 보상 지급 (eventId: " + eventId + ")")
+        );
+    }
+
+    /**
+     * AI 리뷰 사용 포인트 차감
+     * - AI 리뷰 호출 성공 후 호출
+     */
+    @Transactional
+    public void deductForAi(Long userId, Long amount, Long episodeId) {
+        Point point = pointRepository.findByUserId(userId)
+                .orElseThrow(() -> new ServiceErrorException(PaymentExceptionEnum.ERR_POINT_NOT_FOUND));
+
+        if (point.getBalance() < amount) {
+            throw new ServiceErrorException(PaymentExceptionEnum.ERR_INSUFFICIENT_POINT);
+        }
+
+        point.deduct(amount);
+
+        pointHistoryRepository.save(
+                PointHistory.create(
+                        userId,
+                        null,
+                        episodeId,
+                        amount,
+                        PointHistoryType.AI,
+                        "AI 리뷰 사용 (episodeId: " + episodeId + ")"
+                )
+        );
+    }
 }

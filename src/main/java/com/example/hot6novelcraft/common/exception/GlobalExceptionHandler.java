@@ -7,6 +7,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -62,17 +64,29 @@ public class GlobalExceptionHandler {
                 .body(BaseResponse.fail(HttpStatus.METHOD_NOT_ALLOWED.name(),"지원하지 않는 HTTP 메서드입니다."));
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<BaseResponse<Void>> handleCriticalErrorException(Exception e) {
-        log.error("서버 에러 발생", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(BaseResponse.fail(HttpStatus.INTERNAL_SERVER_ERROR.name(), "서버 오류로 인해 잠시 후 다시 시도하시기 바랍니다"));
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ResponseEntity<?> handleAuthenticationCredentialsNotFoundException(AuthenticationCredentialsNotFoundException e) {
+        log.error("인증 정보 없음: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN) // 403
+                .body(BaseResponse.fail("403", "접근 권한이 없습니다"));
     }
+
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<BaseResponse<Void>> handleAuthorizationDeniedException(
+            AuthorizationDeniedException e) {
+        log.error("권한 없음: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(BaseResponse.fail(HttpStatus.FORBIDDEN.name(), "접근 권한이 없습니다"));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<BaseResponse<Void>> handleAccessDeniedException(AccessDeniedException e) {
         log.error("AccessDeniedException 발생: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
-                .body(BaseResponse.fail(HttpStatus.FORBIDDEN.name(), "권한이 없습니다."));
+                .body(BaseResponse.fail(HttpStatus.FORBIDDEN.name(), "접근 권한이 없습니다."));
     }
     @ExceptionHandler(jakarta.persistence.EntityNotFoundException.class)
     public ResponseEntity<BaseResponse<Void>> handleEntityNotFoundException(jakarta.persistence.EntityNotFoundException e) {
@@ -101,5 +115,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(BaseResponse.fail(HttpStatus.CONFLICT.name(), "탈퇴 유예 유저가 로그인을 시도했습니다", e.getRecoveryToken()
                 ));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<BaseResponse<Void>> handleCriticalErrorException(Exception e) {
+        log.error("서버 에러 발생", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(BaseResponse.fail(HttpStatus.INTERNAL_SERVER_ERROR.name(), "서버 오류로 인해 잠시 후 다시 시도하시기 바랍니다"));
     }
 }

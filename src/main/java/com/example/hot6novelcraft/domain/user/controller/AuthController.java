@@ -8,6 +8,7 @@ import com.example.hot6novelcraft.domain.user.dto.request.*;
 import com.example.hot6novelcraft.domain.user.dto.response.*;
 import com.example.hot6novelcraft.domain.user.entity.UserDetailsImpl;
 import com.example.hot6novelcraft.domain.user.service.AuthService;
+import com.example.hot6novelcraft.domain.user.service.SmsService;
 import io.jsonwebtoken.JwtException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtUtil jwtUtil;
+    private final SmsService smsService;
 
     @PostMapping("/login")
     public ResponseEntity<BaseResponse<LoginUserResponse>> login(
@@ -46,6 +48,7 @@ public class AuthController {
      * 2. 작가 프로필 - 장르, 소개글 등
      * 3. 독자 프로필 - 전호 장르, 독서 목표
      * 4. 비번 변경
+     * 5. 1년 후 성인 인증 갱신
      * =============================
      */
 
@@ -83,6 +86,23 @@ public class AuthController {
     ) {
         authService.updatePassword(request.oldPassword(), request.newPassword(), userDetails);
         return ResponseEntity.ok(BaseResponse.success("200", "비밀번호가 변경되었습니다", null));
+    }
+
+    @PostMapping("/users/me/verify-adult")
+    public ResponseEntity<BaseResponse<Void>> reVerifyAdult(
+            @RequestBody PhoneVerifyRequest request,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        String registeredPhone = userDetails.getUser().getPhoneNo();
+        if (!registeredPhone.equals(request.phoneNo())) {
+            throw new ServiceErrorException(UserExceptionEnum.ERR_PHONE_NOT_VERIFIED);
+        }
+        // 프론트에서 받아온 인증번호로 SMS 인증 통과 여부 검증
+        smsService.verifyAuthCode(registeredPhone, request.verificationCode());
+
+        // 토큰 갱신 필요 시 새 액세스 토큰 발급 및 응답에 포함
+        smsService.completeAdultVerification(userDetails.getUser().getId());
+        return ResponseEntity.ok(BaseResponse.success("200", "성인 인증이 갱신되었습니다", null));
     }
 
     /**

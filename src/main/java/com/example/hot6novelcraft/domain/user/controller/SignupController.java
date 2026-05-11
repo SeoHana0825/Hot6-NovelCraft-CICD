@@ -57,19 +57,17 @@ public class SignupController {
     }
 
     @PostMapping("/phone/verify")
-    public ResponseEntity<BaseResponse<Void>> phoneVerifyRequest(
+    public ResponseEntity<BaseResponse<String>> phoneVerifyRequest(
             @Valid @RequestBody PhoneVerifyRequest request
     ) {
-        smsService.verifyAuthCode(request.phoneNo(), request.verificationCode());
-        return ResponseEntity.ok(BaseResponse.success("200","인증번호가 성공적으로 확인되었습니다", null));
+        String tempToken = smsService.verifyAuthCode(request.phoneNo(), request.verificationCode());
+        return ResponseEntity.ok(BaseResponse.success("200","인증번호가 성공적으로 확인되었습니다", tempToken));
     }
 
      /** ======== 회원 가입 ========
      1. 공통 회원가입 - 일반 이메일 가입
      2. 독자 회원가입 - 독자 추가 정보 기입
      3. 작가 회원가입 - 작가 추가 정보 기입
-     4. 소셜 회원가입
-     5. 관리자 회원가입 - 이메일, 비밀번호, 핸드폰 인증만 진행
      ============================= */
     @PostMapping("/signup")
     public ResponseEntity<BaseResponse<CommonSignupResponse>> signup(
@@ -115,10 +113,9 @@ public class SignupController {
     // ======== 관리자 로그인 ========
     @PostMapping("/signup/admin")
     public ResponseEntity<BaseResponse<AdminSignupResponse>> adminSignup(
-            @Valid @RequestBody AdminSignupRequest request,
-            @AuthenticationPrincipal UserDetailsImpl userDetails
+            @Valid @RequestBody AdminSignupRequest request
     ){
-        AdminSignupResponse response = signupService.adminSignup(request, userDetails.getUsername());
+        AdminSignupResponse response = signupService.adminSignup(request, request.email());
         return ResponseEntity.status(HttpStatus.CREATED).body(BaseResponse.success("201", "관리자 권한으로 회원가입이 완료되었습니다.", response));
     }
 }

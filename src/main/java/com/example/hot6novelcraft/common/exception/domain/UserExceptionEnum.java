@@ -10,6 +10,10 @@ public enum UserExceptionEnum implements ErrorCode {
     , ERR_INVALID_ROLE(HttpStatus.BAD_REQUEST, "역할을 찾을 수 없습니다")
     , ERR_NOT_FOUND_EMAIL(HttpStatus.NOT_FOUND, "이메일을 찾을 수 없습니다")
 
+    // 관리자
+    , ERR_NOT_PENDING_ADMIN(HttpStatus.BAD_REQUEST, "승인 대기 중인 관리자 계정이 아닙니다")
+    , ERR_NOT_POSSIBLE_TO_REFUSE(HttpStatus.BAD_REQUEST, "승인 거절 가능한 상태가 아닙니다")
+
     // 회원가입
     , ERR_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다")
     , ERR_INVALID_EMAIL(HttpStatus.BAD_REQUEST, "이메일 형식이 올바르지 않습니다")
@@ -42,6 +46,7 @@ public enum UserExceptionEnum implements ErrorCode {
     , ERR_SOCIAL_USER_CANNOT_CHANGE_PASSWORD(HttpStatus.BAD_REQUEST, "소셜 로그인 유저는 비밀번호를 변경할 수 없습니다")
     , ERR_PASSWORD_NOT_MATCH(HttpStatus.UNAUTHORIZED, "현재 비밀번호가 일치 하지 않습니다")
     , ERR_SAME_AS_OLD_PASSWORD(HttpStatus.CONFLICT, "현재 비밀번호와 동일합니다. 다시 입력해주세요")
+    , ERR_ADULT_VERIFICATION_REQUIRED(HttpStatus.BAD_REQUEST, "성인 인증이 필요한 컨텐츠입니다")
 
     // 작가 팔로우
     , ERR_SELF_FOLLOW_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "본인을 팔로우할 수 없습니다")

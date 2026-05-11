@@ -2,6 +2,7 @@ package com.example.hot6novelcraft.domain.novel.service;
 
 import com.example.hot6novelcraft.common.dto.PageResponse;
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
+import com.example.hot6novelcraft.domain.episode.service.EpisodeCacheService;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelCreateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.request.NovelUpdateRequest;
 import com.example.hot6novelcraft.domain.novel.dto.response.*;
@@ -26,14 +27,17 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 @MockitoSettings(strictness = Strictness.LENIENT)
 @ExtendWith(MockitoExtension.class)
@@ -47,6 +51,9 @@ class NovelServiceTest {
 
     @Mock
     UserRepository userRepository;
+
+    @Mock
+    private EpisodeCacheService episodeCacheService;
 
     @Mock
     RedisTemplate<String, Object> redisTemplate;
@@ -288,9 +295,13 @@ class NovelServiceTest {
 
     @Test
     void 소설상세조회_성공() {
-        NovelDetailResponse detailResponse = mock(NovelDetailResponse.class);
+        NovelDetailResponse detailResponse = new NovelDetailResponse(
+                1L, "제목", "설명", "FANTASY", "태그",
+                NovelStatus.ONGOING, null, 100L, 0, "작가닉네임", LocalDateTime.now()
+        );
 
         given(novelRepository.findNovelDetailByNovelId(1L)).willReturn(detailResponse);
+        given(episodeCacheService.getViewCount(1L)).willReturn(0L);
 
         NovelDetailResponse response = novelService.getNovelDetail(1L);
 
@@ -338,5 +349,104 @@ class NovelServiceTest {
 
         assertThrows(ServiceErrorException.class,
                 () -> novelService.getAuthorNovelList(userDetails, Pageable.ofSize(20)));
+    }
+
+    // ==================== 신작 소설 조회 ====================
+
+    @Test
+    void 신작소설조회_캐시없으면_DB조회후_캐싱_성공() {
+        // given
+        // 1. 파라미터가 null, null, 50일 때 예상되는 정확한 캐시 키와 TTL 세팅
+        String expectedKey = "novel_list::type:new::genre:null::status:null::limit:50";
+        Duration expectedTtl = Duration.ofMinutes(30);
+
+        ValueOperations<String, Object> valueOps = mock(ValueOperations.class);
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+
+        // any() 대신 명시적인 키로 캐시 MISS 상황 Mocking
+        given(valueOps.get(eq(expectedKey))).willReturn(null);
+
+        List<NovelListResponse> mockNovelList = List.of(
+                NovelListResponse.of(1L, "신작 소설", "FANTASY", "NEW", NovelStatus.ONGOING,
+                        null, 0L, 0, "테스트작가")
+        );
+
+        given(novelRepository.findNewNovelList(any(), any(), eq(50))).willReturn(mockNovelList);
+
+        // when
+        List<NovelListResponse> response = novelService.getNewNovelList(null, null, 50);
+
+        // then
+        assertNotNull(response);
+        assertEquals(1, response.size());
+
+        verify(novelRepository).findNewNovelList(any(), any(), eq(50));
+
+        // 💡 [핵심] 정확한 캐시 키, 저장할 데이터, 정확한 만료시간(30분)으로 set이 호출되었는지 검증
+        verify(valueOps).set(eq(expectedKey), eq(mockNovelList), eq(expectedTtl));
+    }
+
+    @Test
+    void 신작소설조회_캐시있으면_캐시반환_성공() {
+        // given
+        String expectedKey = "novel_list::type:new::genre:null::status:null::limit:50";
+
+        ValueOperations<String, Object> valueOps = mock(ValueOperations.class);
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+
+        List<NovelListResponse> cachedNovelList = List.of(
+                NovelListResponse.of(1L, "캐싱된 신작 소설", "FANTASY", "NEW", NovelStatus.ONGOING,
+                        null, 0L, 0, "테스트작가")
+        );
+
+        // 정확한 키로 조회했을 때만 캐시된 리스트를 반환하도록 세팅
+        given(valueOps.get(eq(expectedKey))).willReturn(cachedNovelList);
+
+        // when
+        List<NovelListResponse> response = novelService.getNewNovelList(null, null, 50);
+
+        // then
+        assertNotNull(response);
+        assertEquals(1, response.size());
+        assertEquals("캐싱된 신작 소설", response.get(0).title());
+
+        // 캐시를 사용했으므로 DB 조회는 호출되지 않아야 함
+        verify(novelRepository, never()).findNewNovelList(any(), any(), anyInt());
+
+        // 💡 캐시가 있었으므로, Redis에 다시 set하는 로직도 아예 호출되지 않았는지 깐깐하게 검증
+        verify(valueOps, never()).set(any(), any(), any());
+    }
+
+    @Test
+    void 신작소설조회_레디스읽기에러시_DB조회_성공() {
+        // given
+        String expectedKey = "novel_list::type:new::genre:null::status:null::limit:50";
+        Duration expectedTtl = Duration.ofMinutes(30);
+
+        ValueOperations<String, Object> valueOps = mock(ValueOperations.class);
+        given(redisTemplate.opsForValue()).willReturn(valueOps);
+
+        // Redis 장애 발생 (정확한 키 조회 시 에러 발생)
+        given(valueOps.get(eq(expectedKey))).willThrow(new RuntimeException("Redis Connection Error"));
+
+        List<NovelListResponse> mockNovelList = List.of(
+                NovelListResponse.of(1L, "DB 폴백 신작 소설", "FANTASY", "NEW", NovelStatus.ONGOING,
+                        null, 0L, 0, "테스트작가")
+        );
+
+        given(novelRepository.findNewNovelList(any(), any(), eq(50))).willReturn(mockNovelList);
+
+        // when
+        List<NovelListResponse> response = novelService.getNewNovelList(null, null, 50);
+
+        // then
+        assertNotNull(response);
+        assertEquals(1, response.size());
+
+        // 에러가 나도 서비스 로직에서 catch 처리 후 DB를 정상적으로 조회해야 함
+        verify(novelRepository).findNewNovelList(any(), any(), eq(50));
+
+        // 💡 서비스 로직을 보면 DB 조회 후 다시 Redis 저장을 시도하므로, 이 동작의 키/데이터/TTL 검증
+        verify(valueOps).set(eq(expectedKey), eq(mockNovelList), eq(expectedTtl));
     }
 }

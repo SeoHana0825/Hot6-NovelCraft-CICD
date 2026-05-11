@@ -8,6 +8,7 @@ import com.example.hot6novelcraft.domain.payment.entity.Payment;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentMethod;
 import com.example.hot6novelcraft.domain.payment.entity.enums.PaymentStatus;
 import com.example.hot6novelcraft.domain.payment.repository.PaymentRepository;
+import com.example.hot6novelcraft.domain.notification.producer.NotificationProducer;
 import com.example.hot6novelcraft.domain.point.service.PointService;
 import io.portone.sdk.server.payment.PaidPayment;
 import io.portone.sdk.server.payment.PaymentAmount;
@@ -28,6 +29,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -61,6 +63,8 @@ class PaymentConcurrencyTest {
     private PointService pointService;
     @Mock
     private RedisUtil redisUtil;
+    @Mock
+    private NotificationProducer notificationProducer;
 
     private static final Long USER_ID = 1L;
     private static final Long PAYMENT_ID = 10L;
@@ -217,6 +221,29 @@ class PaymentConcurrencyTest {
             verify(pointService, times(1)).compensateDeduct(USER_ID, AMOUNT);
             verify(redisUtil, times(1)).releaseLock(eq("payment:cancel:lock:" + PAYMENT_ID));
         }
+
+        @Test
+        @DisplayName("PG사 환불 API 20초 타임아웃 시 포인트 복구 후 락 해제")
+        void cancelPayment_whenPortOneTimesOut_compensatesAndReleasesLock() {
+            // given
+            given(redisUtil.acquireLock(anyString())).willReturn(true);
+
+            Payment completedPayment = completedPaymentMock();
+            given(paymentTransactionService.getPaymentForCancel(USER_ID, PAYMENT_ID))
+                    .willReturn(completedPayment);
+            given(paymentClient.cancelPayment(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                    .willReturn(java.util.concurrent.CompletableFuture
+                            .failedFuture(new TimeoutException("PG API 20초 타임아웃")));
+
+            // when & then
+            assertThatThrownBy(() -> paymentService.cancelPayment(USER_ID, PAYMENT_ID, CANCEL_REASON))
+                    .isInstanceOf(ServiceErrorException.class)
+                    .hasMessage(PaymentExceptionEnum.ERR_PORTONE_API_ERROR.getMessage());
+
+            verify(pointService, times(1)).deduct(USER_ID, AMOUNT);
+            verify(pointService, times(1)).compensateDeduct(USER_ID, AMOUNT);
+            verify(redisUtil, times(1)).releaseLock(eq("payment:cancel:lock:" + PAYMENT_ID));
+        }
     }
 
     // =========================================================
@@ -333,6 +360,29 @@ class PaymentConcurrencyTest {
                     .isInstanceOf(ServiceErrorException.class)
                     .hasMessage(PaymentExceptionEnum.ERR_PORTONE_API_ERROR.getMessage());
 
+            verify(redisUtil, times(1)).releaseLock(eq("payment:confirm:lock:" + PAYMENT_KEY));
+        }
+
+        @Test
+        @DisplayName("PG사 조회 API 10초 타임아웃 시 결제 실패 처리 후 락 해제")
+        void confirmPayment_whenPortOneTimesOut_failsPaymentAndReleasesLock() {
+            // given
+            given(redisUtil.acquireLock(anyString())).willReturn(true);
+
+            Payment pendingPayment = mock(Payment.class);
+            given(pendingPayment.getId()).willReturn(PAYMENT_ID);
+            given(paymentTransactionService.savePendingPayment(anyLong(), any()))
+                    .willReturn(pendingPayment);
+            given(paymentClient.getPayment(anyString()))
+                    .willReturn(java.util.concurrent.CompletableFuture
+                            .failedFuture(new TimeoutException("PG API 10초 타임아웃")));
+
+            // when & then
+            assertThatThrownBy(() -> paymentService.confirmPayment(USER_ID, confirmRequest()))
+                    .isInstanceOf(ServiceErrorException.class)
+                    .hasMessage(PaymentExceptionEnum.ERR_PORTONE_API_ERROR.getMessage());
+
+            verify(paymentTransactionService, times(1)).failPayment(PAYMENT_ID);
             verify(redisUtil, times(1)).releaseLock(eq("payment:confirm:lock:" + PAYMENT_KEY));
         }
     }

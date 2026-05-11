@@ -35,4 +35,13 @@ public record NovelDetailResponse(
                 novel.getCreatedAt()
         );
     }
+
+    // Redis 조회수 합산용
+    public NovelDetailResponse withViewCount(Long newViewCount) {
+        return new NovelDetailResponse(
+                novelId, title, description, genre, tags,
+                status, coverImageUrl, newViewCount,
+                bookmarkCount, authorNickname, createdAt
+        );
+    }
 }

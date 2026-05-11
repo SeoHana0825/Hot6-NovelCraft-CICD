@@ -2,10 +2,26 @@ package com.example.hot6novelcraft.domain.notification.entity.enums;
 
 public enum NotificationType {
 
+    // 기존
     PAYMENT,
     NEW_EPISODE,
     LIKE,
     FOLLOW,
     MENTORSHIP,
-    SYSTEM
+    SYSTEM,
+
+    // 신규
+    EPISODE_PURCHASE,
+    NOVEL_BULK_PURCHASE,
+    POINT_CHARGE,
+    PAYMENT_SUCCESS,
+    PAYMENT_FAILED,
+    AUTHOR_REVENUE,
+    MENTORSHIP_REQUEST,
+    MENTORSHIP_ACCEPTED,
+    EPISODE_PUBLISHED,
+    SUBSCRIPTION_ACTIVATED,
+    SUBSCRIPTION_CANCELLED,
+    PAYMENT_REFUNDED,
+    EVENT_CREATED
 }

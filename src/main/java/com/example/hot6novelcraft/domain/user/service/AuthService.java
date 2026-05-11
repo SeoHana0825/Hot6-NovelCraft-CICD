@@ -19,6 +19,7 @@ import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import com.example.hot6novelcraft.domain.user.repository.AuthorProfileRepository;
 import com.example.hot6novelcraft.domain.user.repository.ReaderProfileRepository;
 import com.example.hot6novelcraft.domain.user.repository.UserRepository;
+import io.jsonwebtoken.ExpiredJwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -47,7 +48,7 @@ public class AuthService {
     private final ReaderProfileRepository readerProfileRepository;
 
     /** ======== 로그인 및 로그아웃 ========
-    1. 로그인
+    1. 로그인 - 일반, 소셜, 관리자 공통
     2. 내 정보 조회
     3. 회원정보 수정 - 공통, 작가, 독자별
     4. 비밀번호 변경
@@ -77,7 +78,7 @@ public class AuthService {
         }
 
         // 정상 일반 유저 토큰 발급
-        String accessToken = jwtUtil.createAccessToken(user.getEmail(), user.getRole());
+        String accessToken = jwtUtil.createAccessToken(user);
         String refreshToken = jwtUtil.createRefreshToken(user.getEmail());
 
         long refreshExpiration = jwtUtil.getRefreshExpiration();
@@ -235,8 +236,8 @@ public class AuthService {
                 redisUtil.setBlackList(token, "Logout", Duration.ofMillis(expiration));
                 log.info("===== [블랙리스트 등록] 사용자가 로그아웃하였습니다. 남은 시간: {}ms =====", expiration);
             }
-        } catch(Exception e) {
-            log.warn("이미 만료된 토큰입니다.");
+        } catch(ExpiredJwtException e) {
+            log.warn("이미 만료된 토큰입니다. reason: {}", e.getMessage());
         }
     }
 

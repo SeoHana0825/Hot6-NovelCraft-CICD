@@ -387,7 +387,7 @@
     <script>
         const API_BASE_URL = 'http://localhost:8080';
         const STORE_ID = 'store-6dd586c4-bbae-4fc5-a1b1-920f1850b300';
-        const CHANNEL_KEY = 'channel-key-f389627d-ef3d-4662-af17-f39a4c9d98c7';  // ⭐ 빌링키 테스트 채널 (INIBillTst)
+        const CHANNEL_KEY = 'channel-key-c03d6f4b-9ca1-4554-944b-60f0b81848ea';  // 토스페이먼츠 정기결제 채널
 
         let token = null;
         let userNickname = null;
@@ -518,16 +518,13 @@
                     channelKey: CHANNEL_KEY,
                     isTestChannel: true,  // ⭐ 테스트 채널 명시
                     billingKeyMethod: 'CARD',
-                    issueId: subscriptionKey,  // ⭐ 이니시스 V2 필수 (고유 발급 ID, 최대 40자)
-                    issueName: 'NovelCraft 정기 구독',  // ⭐ 이니시스 V2 필수
+                    issueId: subscriptionKey,
+                    issueName: 'NovelCraft 정기 구독',
                     customer: {
                         customerId: subscriptionKey,
                         fullName: userNickname,
                         email: userEmail,
-                        phoneNumber: userPhone  // ⭐ 휴대폰 번호 필수 (이니시스 V2)
-                    },
-                    windowType: {
-                        pc: 'IFRAME'  // ⭐ IFRAME 방식으로 변경 (또는 'REDIRECTION')
+                        phoneNumber: userPhone
                     }
                 });
 

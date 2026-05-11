@@ -2,6 +2,7 @@ package com.example.hot6novelcraft.domain.mentor.service;
 
 import com.example.hot6novelcraft.common.exception.ServiceErrorException;
 import com.example.hot6novelcraft.common.exception.domain.MentorExceptionEnum;
+import com.example.hot6novelcraft.domain.admin.service.AdminCacheService;
 import com.example.hot6novelcraft.domain.episode.entity.enums.EpisodeStatus;
 import com.example.hot6novelcraft.domain.episode.repository.EpisodeRepository;
 import com.example.hot6novelcraft.domain.mentor.dto.request.MentorRegisterRequest;
@@ -48,6 +49,7 @@ public class MentorService {
     private final EpisodeRepository episodeRepository;
     private final ObjectMapper objectMapper;
     private final MentorshipReviewRepository mentorshipReviewRepository;
+    private final AdminCacheService adminCacheService;
 
     /**
      * 멘토 등록 신청
@@ -79,6 +81,7 @@ public class MentorService {
 
         try {
             Mentor saved = mentorRepository.save(mentor);
+            adminCacheService.incrementNewMentorsToday();
             return MentorRegisterResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
             throw new ServiceErrorException(MentorExceptionEnum.MENTOR_ALREADY_APPROVED);

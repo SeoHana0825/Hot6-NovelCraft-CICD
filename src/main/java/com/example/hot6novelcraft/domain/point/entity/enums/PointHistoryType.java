@@ -6,5 +6,6 @@ public enum PointHistoryType {
     REFUND,
     EVENT,
     AI,
-    NOVEL
+    NOVEL,
+    AI_COVER
 }

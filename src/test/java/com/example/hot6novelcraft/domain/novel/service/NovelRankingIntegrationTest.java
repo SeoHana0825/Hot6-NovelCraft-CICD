@@ -4,6 +4,7 @@ import com.example.hot6novelcraft.domain.episode.service.EpisodeCacheService;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelRankingResponse;
 import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.entity.enums.MainGenre;
+import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.novel.repository.NovelRepository;
 import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -63,6 +65,14 @@ public class NovelRankingIntegrationTest {
         novelA = novelRepository.save(createDummyNovel("테스트 소설 A", dummyAuthor, MainGenre.FANTASY));
         novelB = novelRepository.save(createDummyNovel("테스트 소설 B", dummyAuthor, MainGenre.HORROR));
         novelC = novelRepository.save(createDummyNovel("테스트 소설 C", dummyAuthor, MainGenre.CLASSIC));
+
+        // 엔티티에 있는 changeStatus()를 사용해 상태를 강제로 PUBLISHED(연재중)로 변경 (UPDATE)
+        novelA.changeStatus(NovelStatus.PUBLISHED);
+        novelB.changeStatus(NovelStatus.PUBLISHED);
+        novelC.changeStatus(NovelStatus.PUBLISHED);
+
+        // 변경된 상태(PUBLISHED)를 DB에 즉시 반영 (QueryDSL 조회를 위해 필수)
+        novelRepository.flush();
     }
 
     @AfterEach
@@ -74,6 +84,8 @@ public class NovelRankingIntegrationTest {
     private void clearRedis() {
         redisTemplate.delete("ranking:novel:realtime");
         redisTemplate.delete("ranking:novel:weekly");
+        redisTemplate.delete("ranking:novel:realtime:temp");
+        redisTemplate.delete("ranking:novel:weekly:temp");
     }
 
     @Test
@@ -97,7 +109,7 @@ public class NovelRankingIntegrationTest {
         List<NovelRankingResponse> realtimeRanking = novelRankingService.getNovelRanking("realtime");
         List<NovelRankingResponse> weeklyRanking = novelRankingService.getNovelRanking("weekly");
 
-        // then: 랭킹은 점수가 높은 B -> C -> A 순서여야 한다! (총 3개)
+        // then: 랭킹은 점수가 높은 B -> C -> A 순서여야 한다 (총 3개)
 
         // 1. 실시간 랭킹 검증
         assertThat(realtimeRanking).hasSize(3);
@@ -112,16 +124,73 @@ public class NovelRankingIntegrationTest {
         assertThat(weeklyRanking.get(2).novelId()).isEqualTo(novelA.getId());
     }
 
-    /**
-     * 테스트용 가짜 소설을 생성하는 헬퍼 메서드
-     * (프로젝트의 Novel 엔티티 필수값 조건에 맞게 적절히 채워주세요!)
-     */
+    @Test
+    @DisplayName("랭킹 필터링 테스트: 성인물(19금)이나 보류(PENDING) 상태인 소설은 조회수가 높아도 랭킹에서 제외된다.")
+    void novelRanking_FilteringTest() {
+        // given: 특수 조건의 소설 2개 추가 생성
+        Novel adultNovel = novelRepository.save(Novel.builder()
+                .title("19금 테스트 소설")
+                .description("19금 소설 소개글")
+                .authorId(dummyAuthor.getId())
+                .genre(MainGenre.ROMANCE_FANTASY.name())
+                .status(NovelStatus.PUBLISHED)
+                .tags("로맨스,19금,고수위") // 성인 태그 포함
+                .build());
+
+        Novel pendingNovel = novelRepository.save(Novel.builder()
+                .title("보류중인 소설")
+                .description("보류 소설 소개글")
+                .authorId(dummyAuthor.getId())
+                .genre(MainGenre.FANTASY.name())
+                .status(NovelStatus.PENDING) // 상태가 PENDING
+                .tags("판타지,테스트")
+                .build());
+
+        // adultNovel과 pendingNovel이 압도적으로 조회수가 높다고 가정 (각 10번, 20번 읽힘)
+        for(int i=0; i<10; i++) episodeCacheService.increaseRankingScore(adultNovel.getId());
+        for(int i=0; i<20; i++) episodeCacheService.increaseRankingScore(pendingNovel.getId());
+
+        // 정상 소설A도 1번 읽힘
+        episodeCacheService.increaseRankingScore(novelA.getId());
+
+        // when
+        List<NovelRankingResponse> realtimeRanking = novelRankingService.getNovelRanking("realtime");
+
+        // then: 압도적 1, 2등이어야 할 두 소설은 필터링되어 사라지고, 1번 읽힌 novelA만 1등으로 나와야 한다.
+        assertThat(realtimeRanking).hasSize(1);
+        assertThat(realtimeRanking.get(0).novelId()).isEqualTo(novelA.getId());
+    }
+
+    @Test
+    @DisplayName("DB Fallback 테스트: Redis 장애 시 우회할 DB 쿼리(QueryDSL)가 최근 1시간 조회수 기준으로 Top 소설을 정확히 가져온다.")
+    void dbFallbackQuery_IntegrationTest() {
+        // given: DB 엔티티 자체의 viewCount를 강제로 세팅 (Fallback은 DB의 viewCount를 직접 보므로)
+        ReflectionTestUtils.setField(novelA, "viewCount", 100L); // 1등
+        ReflectionTestUtils.setField(novelB, "viewCount", 50L);  // 2등
+        ReflectionTestUtils.setField(novelC, "viewCount", 10L);  // 3등
+
+        // updatedAt이 1시간 이내로 찍히도록 강제 업데이트 처리(JPA Auditing 활용)
+        novelRepository.saveAll(List.of(novelA, novelB, novelC));
+        novelRepository.flush(); // DB에 즉시 반영
+
+        // when: Service의 Fallback이 호출하는 Repository 쿼리 직접 실행 (5개 리미트)
+        List<Novel> fallbackTopNovels = novelRepository.findHourlyTopNovels(5);
+
+        // then: DB 쿼리만으로도 내림차순 정렬이 완벽하게 되어야 한다.
+        assertThat(fallbackTopNovels).hasSize(3);
+        assertThat(fallbackTopNovels.get(0).getId()).isEqualTo(novelA.getId());
+        assertThat(fallbackTopNovels.get(1).getId()).isEqualTo(novelB.getId());
+        assertThat(fallbackTopNovels.get(2).getId()).isEqualTo(novelC.getId());
+    }
+
+    // 테스트용 가짜 소설을 생성하는 헬퍼 메서드
     private Novel createDummyNovel(String title, User author, MainGenre genre) {
         return Novel.builder()
                 .title(title)
                 .description("테스트용 소설 소개글입니다.")
                 .authorId(author.getId())
                 .genre(genre.name())
+                .status(NovelStatus.PUBLISHED)
                 .tags("테스트,먼치킨,회귀")
                 .build();
     }

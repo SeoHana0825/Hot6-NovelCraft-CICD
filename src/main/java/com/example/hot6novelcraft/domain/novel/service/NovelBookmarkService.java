@@ -56,6 +56,7 @@ public class NovelBookmarkService {
         // 이미 찜 -> 취소
         if (existing.isPresent()) {
             novelBookmarkRepository.delete(existing.get());
+            novelRepository.decrementBookmarkCount(novelId);
             return NovelBookmarkResponse.of(false);
         }
 
@@ -66,6 +67,7 @@ public class NovelBookmarkService {
                     .novelId(novelId)
                     .build();
             novelBookmarkRepository.save(bookmark);
+            novelRepository.incrementBookmarkCount(novelId);
             return NovelBookmarkResponse.of(true);
         } catch (DataIntegrityViolationException e) {
             // 동시 요청으로 이미 찜 저장된 경우 -> 성공으로 처리

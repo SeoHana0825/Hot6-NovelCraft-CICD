@@ -4,7 +4,9 @@ import com.example.hot6novelcraft.domain.episode.entity.QEpisode;
 import com.example.hot6novelcraft.domain.novel.dto.response.AuthorNovelListResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelDetailResponse;
 import com.example.hot6novelcraft.domain.novel.dto.response.NovelListResponse;
+import com.example.hot6novelcraft.domain.novel.entity.Novel;
 import com.example.hot6novelcraft.domain.novel.entity.QNovel;
+import com.example.hot6novelcraft.domain.novel.entity.enums.MainTag;
 import com.example.hot6novelcraft.domain.novel.entity.enums.NovelStatus;
 import com.example.hot6novelcraft.domain.user.entity.QUser;
 import com.querydsl.core.types.Projections;
@@ -150,6 +152,48 @@ public class CustomNovelRepositoryImpl implements CustomNovelRepository {
                 .fetchOne();
 
         return new PageImpl<>(content, pageable, total != null ? total : 0);
+    }
+
+    // [실시간 랭킹용] 최근 1시간 인기 소설
+    @Override
+    public List<Novel> findHourlyTopNovels(int limit) {
+        QNovel novel = QNovel.novel;
+
+        // 1시간 전 시간 계산
+        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+
+        return queryFactory
+                .selectFrom(novel)
+                .where(
+                        novel.isDeleted.eq(false),
+                        novel.updatedAt.goe(oneHourAgo),
+                        novel.status.notIn(NovelStatus.PENDING, NovelStatus.HIATUS),
+                        novel.tags.contains(MainTag.ADULT.name()).not()
+                )
+                .orderBy(novel.viewCount.desc())
+                .limit(limit)
+                .fetch();
+    }
+
+    // [주간 랭킹용] 최근 1주일 인기 소설
+    @Override
+    public List<Novel> findWeeklyTopNovels(int limit) {
+        QNovel novel = QNovel.novel;
+
+        // 1주일 전 시간 계산
+        LocalDateTime oneWeekAgo = LocalDateTime.now().minusWeeks(1);
+
+        return queryFactory
+                .selectFrom(novel)
+                .where(
+                        novel.isDeleted.eq(false),
+                        novel.updatedAt.goe(oneWeekAgo),
+                        novel.status.notIn(NovelStatus.PENDING, NovelStatus.HIATUS),
+                        novel.tags.contains(MainTag.ADULT.name()).not()
+                )
+                .orderBy(novel.viewCount.desc())
+                .limit(limit)
+                .fetch();
     }
 
     /**

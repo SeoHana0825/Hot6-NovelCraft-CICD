@@ -60,8 +60,6 @@ class MentorshipServiceTest {
     private UserRepository userRepository;
     @Mock
     private FileUploadService fileUploadService;
-    @Mock
-    private ObjectMapper objectMapper;
 
     // 상수
     private static final Long MENTEE_ID = 1L;

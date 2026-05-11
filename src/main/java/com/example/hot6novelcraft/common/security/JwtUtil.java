@@ -1,5 +1,6 @@
 package com.example.hot6novelcraft.common.security;
 
+import com.example.hot6novelcraft.domain.user.entity.User;
 import com.example.hot6novelcraft.domain.user.entity.enums.UserRole;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
@@ -44,19 +45,20 @@ public class JwtUtil {
     /**
      * ======== 토큰 생성 ========
      * 1. AccessToken
-     * 2. RefreshToken
+     * 2. RefreshToken : silent RefreshToken 재발행
      * 3. TempToken : 공통 회원가입 -> 작가/독자 회원가입 임시 토큰
      * 4. SocialToken
      * 5. RecoveryToken : 탈퇴 후 계정 복구 및 즉시 파기(30일 이전) 임시 토큰
      * =============================
      */
-    public String createAccessToken(String email, UserRole role) {
+    public String createAccessToken(User user) {
         Date now = new Date();
 
         return BEARER_PREFIX + Jwts.builder()
-                .subject(email)
-                .claim("role", role.name())
+                .subject(user.getEmail())
+                .claim("role", user.getRole().name())
                 .claim("type", "ACCESS")
+                .claim("isAdult", user.isAdultVerificationValid())
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + ACCESS_TOKEN_TIME))
                 .signWith(secretKey, Jwts.SIG.HS256)

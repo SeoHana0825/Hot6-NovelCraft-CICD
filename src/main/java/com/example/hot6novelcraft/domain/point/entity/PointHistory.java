@@ -27,7 +27,7 @@ public class PointHistory extends BaseEntity {
     @Column(nullable = false)
     private Long amount;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     @Enumerated(value = EnumType.STRING)
     private PointHistoryType type;
 

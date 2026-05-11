@@ -3,6 +3,7 @@ package com.example.hot6novelcraft.common.config;
 import com.example.hot6novelcraft.common.exception.OAuth2SuccessHandler;
 import com.example.hot6novelcraft.common.security.JwtFilter;
 import com.example.hot6novelcraft.domain.user.service.CustomOAuth2UserService;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -74,9 +75,11 @@ public class SecurityConfig {
 
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(
                         "/api/auth/login"
                                 , "/api/auth/signup"
+                                , "/api/auth/signup/admin"
                                 , "/api/auth/signup/reader"
                                 , "/api/auth/signup/author"
                                 ,"/api/auth/social/signup/**"
@@ -98,10 +101,16 @@ public class SecurityConfig {
                                 , "/css/**"
                                 , "/js/**"
                                 , "/images/**"
+                                , "/api/dummy/**"  // 에피소드 더미용
                                 // WebSocket (STOMP + SockJS)
                                 , "/ws-chat/**"
+                                , "/ws-chat/**"
+                                , "/actuator/**"
+                                , "/api/ai/recommendation"
                         ).permitAll()
-                        .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")
+                                .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
+                                .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")
+                                .requestMatchers("/api/ai-support/**").authenticated()
                 .anyRequest().authenticated()
                 )
                 .build();
