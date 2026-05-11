@@ -1,0 +1,165 @@
+server:
+  port: 8080
+
+encryption:
+  aes:
+    secret-key: ${AES_SECRET_KEY}   # 반드시 16자리
+    iv: ${AES_IV}                   # 반드시 16자리
+
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+
+  data:
+    redis:
+      sentinel:
+        master: ${REDIS_SENTINEL_MASTER:mymaster}
+        nodes: ${REDIS_SENTINEL_NODES}
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 2
+          max-wait: 2000ms
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  cloud:
+    aws:
+      credentials:
+        access-key: ${AWS_ACCESS_KEY}
+        secret-key: ${AWS_SECRET_KEY}
+      region:
+        static: ap-northeast-2
+      s3:
+        bucket: ${S3_BUCKET_NAME}
+      stack:
+        auto: false
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: notification-service
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            redirect-uri: "${FRONTEND_URL}/api/auth/login/oauth2/google"
+            scope:
+              - email
+              - profile
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            redirect-uri: "${FRONTEND_URL}/api/auth/login/oauth2/kakao"
+            scope:
+              - profile_nickname
+              - account_email
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
+app:
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:8080}
+  redis:
+    nat-mapping-ip: ${REDIS_NAT_MAPPING_IP:127.0.0.1}
+
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY}
+
+nationallibrary:
+  api:
+    key: ${LIBRARY_API_KEY}
+    url: https://www.nl.go.kr/NL/search/openApi/search.do
+
+coolsms:
+  api-key: ${COOLSMS_API_KEY}
+  secret-key: ${COOLSMS_SECRET_KEY}
+  send-number: ${COOLSMS_SEND_NUMBER:01012345678}
+  test-mode: ${COOLSMS_TEST_MODE:false}
+
+portone:
+  channel-key: ${PORTONE_CHANNEL_KEY}
+  api-secret: ${PORTONE_API_SECRET}
+  webhook-secret: ${PORTONE_WEBHOOK_SECRET}
+
+logging:
+  level:
+    com.example.hot6novelcraft: ${LOG_LEVEL:INFO}
+
+notification:
+  kafka:
+    topic: ${KAFKA_NOTIFICATION_TOPIC:novel-notification-events}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, metrics, info
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: novelcraft
+
+gemini:
+  api-key: ${GEMINI_API_KEY}
+
+cover:
+  kafka:
+    topic: ${KAFKA_COVER_TOPIC:cover-generation-events}
+
+pgvector:
+  datasource:
+    url: ${PGVECTOR_URL}
+    username: ${PGVECTOR_USERNAME}
+    password: ${PGVECTOR_PASSWORD}
+
+ai:
+  chat:
+    memory:
+      redis:
+        key-prefix: "ai:chat:memory:"
+        ttl-days: ${AI_CHAT_MEMORY_TTL_DAYS:7}
+
+ai-review:
+  kafka:
+    topic: ${KAFKA_AI_REVIEW_TOPIC:ai-review-kafka-topic}

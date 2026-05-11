@@ -10,7 +10,7 @@ spring:
       region:
         static: ap-northeast-2
       s3:
-        bucket: hot6-novelcraft-eunsik
+        bucket: hot6-novelcraft-hana
       stack:
         auto: false
 
@@ -94,7 +94,7 @@ portone:
 coolsms:
   api-key: ${COOLSMS_API_KEY}
   secret-key: ${COOLSMS_SECRET_KEY}
-  send-number: "01058368210"
+  send-number: 01012345678
   test-mode: false
 
 logging:
