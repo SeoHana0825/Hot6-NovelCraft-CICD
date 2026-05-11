@@ -7,8 +7,11 @@ encryption:
     iv: ${AES_IV}                   # 반드시 16자리
 
 spring:
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+  config:
+    activate:
+      on-profile: prod
+  redis:
+    nat-mapping-ip:
 
   ai:
     openai:
@@ -18,7 +21,7 @@ spring:
     redis:
       sentinel:
         master: ${REDIS_SENTINEL_MASTER:mymaster}
-        nodes: ${REDIS_SENTINEL_NODES}
+        nodes: ${REDIS_SENTINEL_NODES:redis-sentinel-1:26379, redis-sentinel-2:26380, redis-sentinel-3:26381}
       lettuce:
         pool:
           max-active: 10
