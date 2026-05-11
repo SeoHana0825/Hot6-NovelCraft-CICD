@@ -28,6 +28,12 @@ dependencies {
     implementation platform('org.springframework.ai:spring-ai-bom:1.0.0')
     // Spring AI - OpenAI (ChatClient + Embedding)
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    // Spring AI - QuestionAnswerAdvisor (RAG), spring-ai-vector-store 전이 포함
+    implementation 'org.springframework.ai:spring-ai-advisors-vector-store'
+    // Spring AI - PgVectorStore (운영용 영속 벡터 스토어)
+    implementation 'org.springframework.ai:spring-ai-pgvector-store'
+    // PostgreSQL JDBC 드라이버 (PGVector 전용, MySQL과 별도 운영)
+    runtimeOnly 'org.postgresql:postgresql'
 
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
