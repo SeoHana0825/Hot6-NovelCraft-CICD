@@ -74,7 +74,7 @@ pipeline {
                             scp -o StrictHostKeyChecking=no -r monitoring ec2-user@${APP_EC2_IP}:~/
                             scp -o StrictHostKeyChecking=no -r init ec2-user@${APP_EC2_IP}:~/
 
-                            ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} << 'ENDSSH'
+                            ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} << ENDSSH
 
                                 # 인프라 실행
                                 docker-compose up -d
