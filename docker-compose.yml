@@ -242,7 +242,7 @@ services:
       - "3000:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:
@@ -250,15 +250,41 @@ services:
     networks:
       - kafka-net
 
+  # --------------------------
+  # PostgreSQL + pgvector (AI 벡터 스토어용)
+  # --------------------------
+  postgres-vector:
+    image: pgvector/pgvector:pg16   # pgvector 익스텐션이 내장된 공식 이미지
+    container_name: postgres-vector
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: novelcraft_vectors   # DB 자동 생성
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data                              # 벡터 데이터 영속
+      - ./init/pgvector-init.sh:/docker-entrypoint-initdb.d/pgvector-init.sh  # 최초 기동 시 자동 실행
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d novelcraft_vectors" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - pgvector-net
+
 volumes:
   kafka1_data:
   kafka2_data:
   kafka3_data:
   prometheus_data:
   grafana_data:
+  pgvector_data:    # PGVector 데이터 영속 볼륨
 
 networks:
   kafka-net:
     driver: bridge
   redis-net:
+    driver: bridge
+  pgvector-net:
     driver: bridge

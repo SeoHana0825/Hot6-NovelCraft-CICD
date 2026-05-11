@@ -3,6 +3,7 @@ package com.example.hot6novelcraft.common.config;
 import com.example.hot6novelcraft.common.exception.OAuth2SuccessHandler;
 import com.example.hot6novelcraft.common.security.JwtFilter;
 import com.example.hot6novelcraft.domain.user.service.CustomOAuth2UserService;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -74,6 +75,7 @@ public class SecurityConfig {
 
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(
                         "/api/auth/login"
                                 , "/api/auth/signup"
@@ -108,6 +110,7 @@ public class SecurityConfig {
                         ).permitAll()
                                 .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN", "SUPER_ADMIN")
                                 .requestMatchers("/api/calendars/**").hasAnyAuthority("READER", "AUTHOR")
+                                .requestMatchers("/api/ai-support/**").authenticated()
                 .anyRequest().authenticated()
                 )
                 .build();

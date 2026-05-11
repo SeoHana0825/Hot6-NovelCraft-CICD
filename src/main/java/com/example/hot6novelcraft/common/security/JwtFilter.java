@@ -57,6 +57,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     , "/payment-test.html"
                     , "/social-login-test.html"
                     , "/chat-test.html"
+                    , "/ai-chat.html"
                     , "/subscription-test.html"
                     , "/notification-test.html"
                     , "/api/webhooks/portone"
@@ -80,6 +81,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 || path.equals("/favicon.ico")
                 || path.equals("/social-login-test.html")
                 || path.equals("/chat-test.html")
+                || path.equals("/ai-chat.html")
                 || path.equals("/subscription-test.html")
                 || path.equals("/notification-test.html")
                 || path.equals("/error")
