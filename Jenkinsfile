@@ -2,10 +2,10 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'hana/novelcraft'
+        DOCKER_IMAGE = 'seohana/novelcraft'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        APP_EC2_IP = '43.203.216.98'
-        FRONTEND_URL = 'https://43.203.216.98:8080'
+        APP_EC2_IP = '15.165.232.231'
+        FRONTEND_URL = 'https://43.200.129.27:8080'
     }
 
     stages {
@@ -38,50 +38,46 @@ pipeline {
         stage('Deploy to EC2') {
             steps {
                 withCredentials([
-                    // ===== DB =====
                     string(credentialsId: 'db-url',              variable: 'DB_URL'),
                     string(credentialsId: 'db-username',         variable: 'DB_USERNAME'),
                     string(credentialsId: 'db-password',         variable: 'DB_PASSWORD'),
-                    // ===== AES 암호화 =====
                     string(credentialsId: 'aes-secret-key',      variable: 'AES_SECRET_KEY'),
                     string(credentialsId: 'aes-iv',              variable: 'AES_IV'),
-                    // ===== AWS S3 =====
                     string(credentialsId: 'aws-access-key',      variable: 'AWS_ACCESS_KEY'),
                     string(credentialsId: 'aws-secret-key',      variable: 'AWS_SECRET_KEY'),
                     string(credentialsId: 's3-bucket-name',      variable: 'S3_BUCKET_NAME'),
-                    // ===== OAuth2 =====
                     string(credentialsId: 'google-client-id',    variable: 'GOOGLE_CLIENT_ID'),
                     string(credentialsId: 'google-client-secret', variable: 'GOOGLE_CLIENT_SECRET'),
                     string(credentialsId: 'kakao-client-id',     variable: 'KAKAO_CLIENT_ID'),
                     string(credentialsId: 'kakao-client-secret', variable: 'KAKAO_CLIENT_SECRET'),
                     string(credentialsId: 'naver-client-id',     variable: 'NAVER_CLIENT_ID'),
                     string(credentialsId: 'naver-client-secret', variable: 'NAVER_CLIENT_SECRET'),
-                    // ===== JWT =====
                     string(credentialsId: 'jwt-secret-key',      variable: 'JWT_SECRET_KEY'),
-                    // ===== PortOne =====
                     string(credentialsId: 'portone-channel-key',     variable: 'PORTONE_CHANNEL_KEY'),
                     string(credentialsId: 'portone-api-secret',      variable: 'PORTONE_API_SECRET'),
                     string(credentialsId: 'portone-webhook-secret',  variable: 'PORTONE_WEBHOOK_SECRET'),
-                    // ===== CoolSMS =====
                     string(credentialsId: 'coolsms-api-key',     variable: 'COOLSMS_API_KEY'),
                     string(credentialsId: 'coolsms-secret-key',  variable: 'COOLSMS_SECRET_KEY'),
-                    // ===== 국립도서관 =====
                     string(credentialsId: 'library-api-key',     variable: 'LIBRARY_API_KEY'),
-                    // ===== AI =====
                     string(credentialsId: 'openai-api-key',      variable: 'OPENAI_API_KEY'),
                     string(credentialsId: 'gemini-api-key',      variable: 'GEMINI_API_KEY'),
-                    // ===== PGVector =====
                     string(credentialsId: 'pgvector-url',        variable: 'PGVECTOR_URL'),
                     string(credentialsId: 'pgvector-username',   variable: 'PGVECTOR_USERNAME'),
                     string(credentialsId: 'pgvector-password',   variable: 'PGVECTOR_PASSWORD'),
-                    // ===== Kafka =====
                     string(credentialsId: 'kafka-bootstrap-servers', variable: 'KAFKA_BOOTSTRAP_SERVERS'),
-                    // ===== Redis Sentinel =====
                     string(credentialsId: 'redis-sentinel-nodes',  variable: 'REDIS_SENTINEL_NODES'),
                 ]) {
                     sshagent(['app-ec2-ssh-key']) {
                         sh """
+                            # 파일 전송
+                            scp -o StrictHostKeyChecking=no docker-compose.yml ec2-user@${APP_EC2_IP}:~/
+                            scp -o StrictHostKeyChecking=no -r monitoring ec2-user@${APP_EC2_IP}:~/
+                            scp -o StrictHostKeyChecking=no -r init ec2-user@${APP_EC2_IP}:~/
+
                             ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} << 'ENDSSH'
+
+                                # 인프라 실행
+                                docker-compose up -d
 
                                 docker stop novelcraft || true
                                 docker rm novelcraft || true
@@ -142,4 +138,3 @@ ENDSSH
             echo '❌ 배포 실패! 로그를 확인하세요.'
         }
     }
-}

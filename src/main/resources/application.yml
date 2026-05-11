@@ -10,9 +10,6 @@ spring:
   config:
     activate:
       on-profile: prod
-  redis:
-    nat-mapping-ip:
-
   ai:
     openai:
       api-key: ${OPENAI_API_KEY}
@@ -66,7 +63,7 @@ spring:
       write-dates-as-timestamps: false
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     consumer:
       group-id: notification-service
 
@@ -101,7 +98,7 @@ app:
   frontend:
     url: ${FRONTEND_URL:http://localhost:8080}
   redis:
-    nat-mapping-ip: ${REDIS_NAT_MAPPING_IP:127.0.0.1}
+    nat-mapping-ip:
 
 jwt:
   secret:
