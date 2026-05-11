@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'seohana/novelcraft'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        APP_EC2_IP = '15.165.232.231'
+        APP_EC2_IP = '43.203.216.98'
         FRONTEND_URL = 'https://43.200.129.27:8080'
     }
 
