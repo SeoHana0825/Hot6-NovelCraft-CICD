@@ -79,7 +79,7 @@ pipeline {
                             ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} << 'ENDSSH'
 
                                 # 인프라 실행 (모니터링 제외)
-                                docker-compose up -d redis-master redis-sentinel-1 redis-sentinel-2 redis-sentinel-3 kafka-1 postgres-vector
+                                docker-compose up -d redis-master redis-slave-1 redis-sentinel-1 redis-slave-2 redis-sentinel-2 redis-sentinel-3 kafka-1 kafka-2 kafka-3 postgres-vector
 
                                 docker stop novelcraft || true
                                 docker rm novelcraft || true
