@@ -53,9 +53,9 @@ pipeline {
                     string(credentialsId: 'naver-client-id',     variable: 'NAVER_CLIENT_ID'),
                     string(credentialsId: 'naver-client-secret', variable: 'NAVER_CLIENT_SECRET'),
                     string(credentialsId: 'jwt-secret-key',      variable: 'JWT_SECRET_KEY'),
-                    string(credentialsId: 'portone-channel-key',     variable: 'PORTONE_CHANNEL_KEY'),
-                    string(credentialsId: 'portone-api-secret',      variable: 'PORTONE_API_SECRET'),
-                    string(credentialsId: 'portone-webhook-secret',  variable: 'PORTONE_WEBHOOK_SECRET'),
+                    string(credentialsId: 'portone-channel-key', variable: 'PORTONE_CHANNEL_KEY'),
+                    string(credentialsId: 'portone-api-secret',  variable: 'PORTONE_API_SECRET'),
+                    string(credentialsId: 'portone-webhook-secret', variable: 'PORTONE_WEBHOOK_SECRET'),
                     string(credentialsId: 'coolsms-api-key',     variable: 'COOLSMS_API_KEY'),
                     string(credentialsId: 'coolsms-secret-key',  variable: 'COOLSMS_SECRET_KEY'),
                     string(credentialsId: 'library-api-key',     variable: 'LIBRARY_API_KEY'),
@@ -65,63 +65,82 @@ pipeline {
                     string(credentialsId: 'pgvector-username',   variable: 'PGVECTOR_USERNAME'),
                     string(credentialsId: 'pgvector-password',   variable: 'PGVECTOR_PASSWORD'),
                     string(credentialsId: 'kafka-bootstrap-servers', variable: 'KAFKA_BOOTSTRAP_SERVERS'),
-                    string(credentialsId: 'redis-sentinel-nodes',  variable: 'REDIS_SENTINEL_NODES'),
+                    string(credentialsId: 'redis-sentinel-nodes', variable: 'REDIS_SENTINEL_NODES'),
                 ]) {
                     sshagent(['app-ec2-ssh-key']) {
-                        sh "ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} 'mkdir -p ~/monitoring ~/init'"
 
+                        // 1. 젠킨스 워크스페이스에 .env 파일 안전하게 생성
                         sh """
-                            # 파일 전송
+                            cat <<EOF > .env
+SPRING_PROFILES_ACTIVE=prod
+FRONTEND_URL=${FRONTEND_URL}
+AES_SECRET_KEY=${AES_SECRET_KEY}
+AES_IV=${AES_IV}
+DB_URL=${DB_URL}
+DB_USERNAME=${DB_USERNAME}
+DB_PASSWORD=${DB_PASSWORD}
+AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+AWS_SECRET_KEY=${AWS_SECRET_KEY}
+S3_BUCKET_NAME=${S3_BUCKET_NAME}
+GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
+KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}
+NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
+NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
+JWT_SECRET_KEY=${JWT_SECRET_KEY}
+PORTONE_CHANNEL_KEY=${PORTONE_CHANNEL_KEY}
+PORTONE_API_SECRET=${PORTONE_API_SECRET}
+PORTONE_WEBHOOK_SECRET=${PORTONE_WEBHOOK_SECRET}
+COOLSMS_API_KEY=${COOLSMS_API_KEY}
+COOLSMS_SECRET_KEY=${COOLSMS_SECRET_KEY}
+LIBRARY_API_KEY=${LIBRARY_API_KEY}
+OPENAI_API_KEY=${OPENAI_API_KEY}
+GEMINI_API_KEY=${GEMINI_API_KEY}
+PGVECTOR_URL=${PGVECTOR_URL}
+PGVECTOR_USERNAME=${PGVECTOR_USERNAME}
+PGVECTOR_PASSWORD=${PGVECTOR_PASSWORD}
+KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+REDIS_SENTINEL_MASTER=mymaster
+REDIS_SENTINEL_NODES=${REDIS_SENTINEL_NODES}
+EOF
+                        """
+
+                        // 2. 생성된 .env 파일을 포함하여 EC2로 전송
+                        sh "ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} 'mkdir -p ~/monitoring ~/init'"
+                        sh """
                             scp -o StrictHostKeyChecking=no docker-compose.yml ec2-user@${APP_EC2_IP}:~/
                             scp -o StrictHostKeyChecking=no -r monitoring ec2-user@${APP_EC2_IP}:~/
                             scp -o StrictHostKeyChecking=no -r init ec2-user@${APP_EC2_IP}:~/
+                            scp -o StrictHostKeyChecking=no .env ec2-user@${APP_EC2_IP}:~/.env
+                        """
 
+                        // 3. EC2 내부에서 도커 실행
+                        sh """
                             ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} << 'ENDSSH'
+                                # 에러 발생 시 스크립트 즉시 중단 (매우 중요!)
+                                set -e
 
                                 # 인프라 실행 (모니터링 제외)
                                 docker-compose up -d redis-master redis-slave-1 redis-sentinel-1 redis-slave-2 redis-sentinel-2 redis-sentinel-3 kafka-1 kafka-2 kafka-3 postgres-vector
 
+                                # 기존 컨테이너 정리
                                 docker stop novelcraft || true
                                 docker rm novelcraft || true
 
+                                # 최신 이미지 풀
                                 docker pull ${DOCKER_IMAGE}:latest
 
+                                # --env-file 옵션을 사용하여 .env 파일의 모든 환경변수를 한 번에 주입!
                                 docker run -d \\
                                     --name novelcraft \\
                                     --network host \\
-                                    -e SPRING_PROFILES_ACTIVE=prod \\
-                                    -e FRONTEND_URL=${FRONTEND_URL} \\
-                                    -e AES_SECRET_KEY=${AES_SECRET_KEY} \\
-                                    -e AES_IV=${AES_IV} \\
-                                    -e DB_URL=${DB_URL} \\
-                                    -e DB_USERNAME=${DB_USERNAME} \\
-                                    -e DB_PASSWORD=${DB_PASSWORD} \\
-                                    -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \\
-                                    -e AWS_SECRET_KEY=${AWS_SECRET_KEY} \\
-                                    -e S3_BUCKET_NAME=${S3_BUCKET_NAME} \\
-                                    -e GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID} \\
-                                    -e GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET} \\
-                                    -e KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID} \\
-                                    -e KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET} \\
-                                    -e NAVER_CLIENT_ID=${NAVER_CLIENT_ID} \\
-                                    -e NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET} \\
-                                    -e JWT_SECRET_KEY=${JWT_SECRET_KEY} \\
-                                    -e PORTONE_CHANNEL_KEY=${PORTONE_CHANNEL_KEY} \\
-                                    -e PORTONE_API_SECRET=${PORTONE_API_SECRET} \\
-                                    -e PORTONE_WEBHOOK_SECRET=${PORTONE_WEBHOOK_SECRET} \\
-                                    -e COOLSMS_API_KEY=${COOLSMS_API_KEY} \\
-                                    -e COOLSMS_SECRET_KEY=${COOLSMS_SECRET_KEY} \\
-                                    -e LIBRARY_API_KEY=${LIBRARY_API_KEY} \\
-                                    -e OPENAI_API_KEY=${OPENAI_API_KEY} \\
-                                    -e GEMINI_API_KEY=${GEMINI_API_KEY} \\
-                                    -e PGVECTOR_URL=${PGVECTOR_URL} \\
-                                    -e PGVECTOR_USERNAME=${PGVECTOR_USERNAME} \\
-                                    -e PGVECTOR_PASSWORD=${PGVECTOR_PASSWORD} \\
-                                    -e KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS} \\
-                                    -e REDIS_SENTINEL_MASTER=mymaster \\
-                                    -e REDIS_SENTINEL_NODES=${REDIS_SENTINEL_NODES} \\
+                                    --env-file ~/.env \\
                                     --restart always \\
                                     ${DOCKER_IMAGE}:latest
+
+                                # 보안을 위해 사용이 끝난 .env 파일 삭제
+                                rm ~/.env
 
                                 docker image prune -f
 ENDSSH
