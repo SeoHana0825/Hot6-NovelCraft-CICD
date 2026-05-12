@@ -60,7 +60,7 @@ services:
       sh -c "echo 'port 26379' > /tmp/sentinel.conf &&
       echo 'protected-mode no' >> /tmp/sentinel.conf &&
       echo 'sentinel announce-ip 127.0.0.1' >> /tmp/sentinel.conf &&
-      echo 'sentinel monitor mymaster 172.20.0.10 6379 2' >> /tmp/sentinel.conf &&
+      echo 'sentinel monitor mymaster 172.18.0.2 6379 2' >> /tmp/sentinel.conf &&
       redis-sentinel /tmp/sentinel.conf"
     depends_on:
       - redis-master
@@ -79,7 +79,7 @@ services:
       sh -c "echo 'port 26380' > /tmp/sentinel.conf &&
       echo 'protected-mode no' >> /tmp/sentinel.conf &&
       echo 'sentinel announce-ip 127.0.0.1' >> /tmp/sentinel.conf &&
-      echo 'sentinel monitor mymaster 172.20.0.10 6379 2' >> /tmp/sentinel.conf &&
+      echo 'sentinel monitor mymaster 172.18.0.2 6379 2' >> /tmp/sentinel.conf &&
       redis-sentinel /tmp/sentinel.conf"
     depends_on:
       - redis-master
@@ -98,7 +98,7 @@ services:
       sh -c "echo 'port 26381' > /tmp/sentinel.conf &&
       echo 'protected-mode no' >> /tmp/sentinel.conf &&
       echo 'sentinel announce-ip 127.0.0.1' >> /tmp/sentinel.conf &&
-      echo 'sentinel monitor mymaster 172.20.0.10 6379 2' >> /tmp/sentinel.conf &&
+      echo 'sentinel monitor mymaster 172.18.0.2 6379 2' >> /tmp/sentinel.conf &&
       redis-sentinel /tmp/sentinel.conf"
     depends_on:
       - redis-master
@@ -117,24 +117,17 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
-
-      # listeners
       KAFKA_LISTENERS: CONTROLLER://:9093,INTERNAL://:29092,EXTERNAL://:9092
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-1:29092,EXTERNAL://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-
-      # replication configs
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-
-      # [추가] JMX - Kafka 메트릭 수집용
       KAFKA_JMX_PORT: 9999
       KAFKA_JMX_HOSTNAME: kafka-1
-
       KAFKA_LOG_DIRS: /var/lib/kafka/data
     volumes:
       - kafka1_data:/var/lib/kafka/data
@@ -153,23 +146,16 @@ services:
       KAFKA_NODE_ID: 2
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
-
-      # listeners
       KAFKA_LISTENERS: CONTROLLER://:9093,INTERNAL://:29092,EXTERNAL://:9092
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-2:29092,EXTERNAL://localhost:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-
-      # replication configs
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
-
-      # [추가] JMX - Kafka 메트릭 수집용
       KAFKA_JMX_PORT: 9999
       KAFKA_JMX_HOSTNAME: kafka-2
-
       KAFKA_LOG_DIRS: /var/lib/kafka/data
     volumes:
       - kafka2_data:/var/lib/kafka/data
@@ -188,23 +174,16 @@ services:
       KAFKA_NODE_ID: 3
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
-
-      # listeners
       KAFKA_LISTENERS: CONTROLLER://:9093,INTERNAL://:29092,EXTERNAL://:9092
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-3:29092,EXTERNAL://localhost:9094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-
-      # replication configs
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
-
-      # [추가] JMX - Kafka 메트릭 수집용
       KAFKA_JMX_PORT: 9999
       KAFKA_JMX_HOSTNAME: kafka-3
-
       KAFKA_LOG_DIRS: /var/lib/kafka/data
     volumes:
       - kafka3_data:/var/lib/kafka/data
@@ -232,7 +211,7 @@ services:
       - kafka-net
 
   # --------------------------
-  # [추가] Kafka JMX Exporter - kafka-1 (Port: 5556)
+  # Kafka JMX Exporter - kafka-1 (Port: 5556)
   # --------------------------
   kafka-1-jmx-exporter:
     image: bitnami/jmx-exporter:latest
@@ -251,7 +230,7 @@ services:
       - kafka-net
 
   # --------------------------
-  # [추가] Kafka JMX Exporter - kafka-2 (Port: 5557)
+  # Kafka JMX Exporter - kafka-2 (Port: 5557)
   # --------------------------
   kafka-2-jmx-exporter:
     image: bitnami/jmx-exporter:latest
@@ -270,7 +249,7 @@ services:
       - kafka-net
 
   # --------------------------
-  # [추가] Kafka JMX Exporter - kafka-3 (Port: 5558)
+  # Kafka JMX Exporter - kafka-3 (Port: 5558)
   # --------------------------
   kafka-3-jmx-exporter:
     image: bitnami/jmx-exporter:latest
@@ -289,7 +268,7 @@ services:
       - kafka-net
 
   # --------------------------
-  # Prometheus (메트릭 수집)
+  # Prometheus
   # --------------------------
   prometheus:
     image: prom/prometheus:latest
@@ -309,7 +288,7 @@ services:
       - kafka-net
 
   # --------------------------
-  # Grafana (시각화 대시보드)
+  # Grafana
   # --------------------------
   grafana:
     image: grafana/grafana:latest
@@ -327,20 +306,20 @@ services:
       - kafka-net
 
   # --------------------------
-  # PostgreSQL + pgvector (AI 벡터 스토어용)
+  # PostgreSQL + pgvector
   # --------------------------
   postgres-vector:
-    image: pgvector/pgvector:pg16   # pgvector 익스텐션이 내장된 공식 이미지
+    image: pgvector/pgvector:pg16
     container_name: postgres-vector
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: novelcraft_vectors   # DB 자동 생성
+      POSTGRES_DB: novelcraft_vectors
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - pgvector_data:/var/lib/postgresql/data                              # 벡터 데이터 영속
-      - ./init/pgvector-init.sh:/docker-entrypoint-initdb.d/pgvector-init.sh  # 최초 기동 시 자동 실행
+      - pgvector_data:/var/lib/postgresql/data
+      - ./init/pgvector-init.sh:/docker-entrypoint-initdb.d/pgvector-init.sh
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres -d novelcraft_vectors" ]
       interval: 5s
@@ -355,7 +334,7 @@ volumes:
   kafka3_data:
   prometheus_data:
   grafana_data:
-  pgvector_data:    # PGVector 데이터 영속 볼륨
+  pgvector_data:
 
 networks:
   kafka-net:

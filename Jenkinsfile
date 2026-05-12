@@ -4,8 +4,8 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'seohana/novelcraft'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        APP_EC2_IP = '43.203.216.98'
-        FRONTEND_URL = 'https://43.203.216.98:8080'
+        APP_EC2_IP = '43.200.129.3'
+        FRONTEND_URL = 'https://43.200.129.3:8080'
     }
 
     stages {
@@ -77,8 +77,7 @@ pipeline {
                             ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} << 'ENDSSH'
 
                                 # 인프라 실행 (모니터링 제외)
-                                docker-compose up -d redis-master redis-slave-1 redis-slave-2 redis-sentinel-1 redis-sentinel-2 redis-sentinel-3 kafka-1 kafka-2 kafka-3 kafka-ui postgres-vector
-
+                                docker-compose up -d redis-master redis-sentinel-1 redis-sentinel-2 redis-sentinel-3 kafka-1 postgres-vector
                                 docker stop novelcraft || true
                                 docker rm novelcraft || true
 

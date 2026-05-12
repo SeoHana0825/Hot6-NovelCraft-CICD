@@ -2,7 +2,8 @@
 FROM gradle:8.5-jdk17 AS build
 WORKDIR /app
 COPY . .
-RUN gradle clean build -x test --no-daemon
+RUN chmod -R 777 /home/gradle/.gradle && \
+    gradle clean build -x test
 
 # 2단계: 실행
 FROM eclipse-temurin:17-jdk-jammy
