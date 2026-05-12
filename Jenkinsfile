@@ -68,16 +68,19 @@ pipeline {
                     string(credentialsId: 'redis-sentinel-nodes',  variable: 'REDIS_SENTINEL_NODES'),
                 ]) {
                     sshagent(['app-ec2-ssh-key']) {
+                        sh "ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} 'mkdir -p ~/monitoring ~/init'"
+
                         sh """
                             # 파일 전송
                             scp -o StrictHostKeyChecking=no docker-compose.yml ec2-user@${APP_EC2_IP}:~/
                             scp -o StrictHostKeyChecking=no -r monitoring ec2-user@${APP_EC2_IP}:~/
                             scp -o StrictHostKeyChecking=no -r init ec2-user@${APP_EC2_IP}:~/
 
-                            ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} << ENDSSH
+                            ssh -o StrictHostKeyChecking=no ec2-user@${APP_EC2_IP} << 'ENDSSH'
 
                                 # 인프라 실행 (모니터링 제외)
                                 docker-compose up -d redis-master redis-sentinel-1 redis-sentinel-2 redis-sentinel-3 kafka-1 postgres-vector
+
                                 docker stop novelcraft || true
                                 docker rm novelcraft || true
 
