@@ -11,7 +11,7 @@ services:
       - "6379:6379"
     command: redis-server --appendonly yes --protected-mode no
     networks:
-      - redis-net
+      redis-net:
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 3s
@@ -341,5 +341,8 @@ networks:
     driver: bridge
   redis-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/1
   pgvector-net:
     driver: bridge
