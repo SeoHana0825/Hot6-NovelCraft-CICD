@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Component
-@Profile({"dev", "local", "test"})
+@Profile({"dev", "local", "test", "prod"})
 public class LocalBankVerificationClient implements BankVerificationClient {
 
     private static final Random RANDOM = new Random();
