@@ -4,8 +4,8 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'seohana/novelcraft'
         DOCKER_TAG = "${BUILD_NUMBER}"
-        APP_EC2_IP = '43.200.129.39'
-        FRONTEND_URL = 'https://43.200.129.39:8080'
+        APP_EC2_IP = '43.203.216.98'
+        FRONTEND_URL = 'https://43.203.216.98:8080'
     }
 
     stages {
