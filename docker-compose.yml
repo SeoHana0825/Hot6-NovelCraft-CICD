@@ -12,7 +12,7 @@ services:
     command: redis-server --appendonly yes --protected-mode no
     networks:
       redis-net:
-        ipv4_address: 172.18.0.2
+
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 3s
@@ -60,8 +60,8 @@ services:
     command: >
       sh -c "echo 'port 26379' > /tmp/sentinel.conf &&
       echo 'protected-mode no' >> /tmp/sentinel.conf &&
-      echo 'sentinel announce-ip 127.0.0.1' >> /tmp/sentinel.conf &&
-      echo 'sentinel monitor mymaster 172.18.0.2 6379 2' >> /tmp/sentinel.conf &&
+      echo 'sentinel resolve-hostnames yes' >> /tmp/sentinel.conf &&
+      echo 'sentinel monitor mymaster redis-master 6379 2' >> /tmp/sentinel.conf &&
       redis-sentinel /tmp/sentinel.conf"
     depends_on:
       - redis-master
@@ -77,10 +77,10 @@ services:
     ports:
       - "26380:26380"
     command: >
-      sh -c "echo 'port 26380' > /tmp/sentinel.conf &&
+      sh -c "echo 'port 26379' > /tmp/sentinel.conf &&
       echo 'protected-mode no' >> /tmp/sentinel.conf &&
-      echo 'sentinel announce-ip 127.0.0.1' >> /tmp/sentinel.conf &&
-      echo 'sentinel monitor mymaster 172.18.0.2 6379 2' >> /tmp/sentinel.conf &&
+      echo 'sentinel resolve-hostnames yes' >> /tmp/sentinel.conf &&
+      echo 'sentinel monitor mymaster redis-master 6379 2' >> /tmp/sentinel.conf &&
       redis-sentinel /tmp/sentinel.conf"
     depends_on:
       - redis-master
@@ -96,10 +96,10 @@ services:
     ports:
       - "26381:26381"
     command: >
-      sh -c "echo 'port 26381' > /tmp/sentinel.conf &&
+      sh -c "echo 'port 26379' > /tmp/sentinel.conf &&
       echo 'protected-mode no' >> /tmp/sentinel.conf &&
-      echo 'sentinel announce-ip 127.0.0.1' >> /tmp/sentinel.conf &&
-      echo 'sentinel monitor mymaster 172.18.0.2 6379 2' >> /tmp/sentinel.conf &&
+      echo 'sentinel resolve-hostnames yes' >> /tmp/sentinel.conf &&
+      echo 'sentinel monitor mymaster redis-master 6379 2' >> /tmp/sentinel.conf &&
       redis-sentinel /tmp/sentinel.conf"
     depends_on:
       - redis-master
